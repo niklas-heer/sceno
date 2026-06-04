@@ -69,9 +69,10 @@ type Node struct {
 	Rect     Rect
 }
 
-// Edge connects two nodes with optional anchor sides.
+// Edge connects two nodes with optional anchor sides and label.
 type Edge struct {
 	From, To       string
+	Label          string
 	FromSide, ToSide Side
 	Dashed         bool
 	Color          string
@@ -155,6 +156,7 @@ type NodeSpec struct {
 type EdgeSpec struct {
 	From     string `yaml:"from" json:"from"`
 	To       string `yaml:"to" json:"to"`
+	Label    string `yaml:"label" json:"label"`
 	FromSide Side   `yaml:"fromSide" json:"fromSide"`
 	ToSide   Side   `yaml:"toSide" json:"toSide"`
 	Dashed   bool   `yaml:"dashed" json:"dashed"`

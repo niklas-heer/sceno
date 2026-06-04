@@ -47,6 +47,7 @@ func DrawPolishedGG(dc *gg.Context, d model.Diagram, ox, oy, scale float64, vp V
 	}
 	for _, re := range d.Routed {
 		drawPolishedEdgeGG(dc, re.Points, re.Edge, vp, ox, oy, scale)
+		drawEdgeLabelGG(dc, re.Points, re.Edge, vp, ox, oy, scale)
 	}
 	for _, n := range d.Nodes {
 		if n.Kind != model.ShapeLane {
@@ -80,6 +81,7 @@ func DrawPolishedPDF(pdf *gofpdf.Fpdf, d model.Diagram, minX, minY float64) {
 	}
 	for _, re := range d.Routed {
 		drawPolishedEdgePDF(pdf, re.Points, re.Edge, minX, minY)
+		drawEdgeLabelPDF(pdf, re.Points, re.Edge, minX, minY)
 	}
 	for _, n := range d.Nodes {
 		if n.Kind != model.ShapeLane {
@@ -400,6 +402,49 @@ func drawPolishedEdgePDF(pdf *gofpdf.Fpdf, pts [][]float64, e model.Edge, minX, 
 				{X: x2 - math.Cos(angle+0.4)*sz, Y: y2 - math.Sin(angle+0.4)*sz},
 			}, "F")
 		}
+	}
+}
+
+func drawEdgeLabelGG(dc *gg.Context, pts [][]float64, e model.Edge, vp Viewport, ox, oy, scale float64) {
+	label := strings.TrimSpace(e.Label)
+	if label == "" || len(pts) < 2 {
+		return
+	}
+	gpts := geom.SimplifyPath(geom.SlicesToPath(pts))
+	x, y, horiz := geom.LabelPlacement(gpts)
+	if horiz {
+		y -= 10
+	} else {
+		x += 10
+	}
+	px, py := vp.PX(x, y, scale)
+	px += ox
+	py += oy
+	setGGFont(dc, fonts.WeightMedium, theme.SubSize*scale)
+	setGGColor(dc, paint.FgMuted)
+	for i, line := range strings.Split(label, "\n") {
+		lineW, _ := dc.MeasureString(line)
+		dc.DrawString(line, px-lineW/2, py+float64(i)*theme.SubSize*scale*1.2)
+	}
+}
+
+func drawEdgeLabelPDF(pdf *gofpdf.Fpdf, pts [][]float64, e model.Edge, minX, minY float64) {
+	label := strings.TrimSpace(e.Label)
+	if label == "" || len(pts) < 2 {
+		return
+	}
+	gpts := geom.SimplifyPath(geom.SlicesToPath(pts))
+	x, y, horiz := geom.LabelPlacement(gpts)
+	if horiz {
+		y -= 10
+	} else {
+		x += 10
+	}
+	setPDFFont(pdf, "M", theme.SubSize)
+	pdf.SetTextColor(113, 113, 122)
+	for i, line := range strings.Split(label, "\n") {
+		tw := pdf.GetStringWidth(line)
+		pdf.Text(x-minX-tw/2, y-minY+float64(i)*theme.SubSize*1.2, line)
 	}
 }
 

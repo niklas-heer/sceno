@@ -56,6 +56,7 @@ func HTML(d model.Diagram) string {
 	b.WriteString(`</defs>`)
 	for _, re := range d.Routed {
 		b.WriteString(polishedPath(re.Points, re.Edge))
+		b.WriteString(EdgeLabelSVG(re.Points, re.Edge))
 	}
 	b.WriteString(`</svg>`)
 	for _, n := range d.Nodes {

@@ -352,6 +352,10 @@ func parseKDLEdgeAt(toks []kdlTok, start int) (model.EdgeSpec, int, error) {
 		switch toks[i].typ {
 		case kdProp:
 			props[toks[i].key] = toks[i]
+		case kdString:
+			if es.Label == "" {
+				es.Label = unescapeLabel(toks[i].str)
+			}
 		case kdArrow:
 			// from -> to already captured
 			continue
@@ -372,6 +376,9 @@ done:
 	}
 	if v, ok := props["to"]; ok {
 		es.To = v.str
+	}
+	if v, ok := props["label"]; ok {
+		es.Label = unescapeLabel(v.str)
 	}
 	if v, ok := props["fromSide"]; ok {
 		es.FromSide = model.Side(v.str)

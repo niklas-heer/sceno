@@ -80,12 +80,14 @@ Labels support `\n` for line breaks inside quoted strings.
 
 ```kdl
 edge api -> queue
-edge policy -> runner fromSide=top toSide=bottom dashed=true color="#e11d48"
+edge api -> queue "async jobs"
+edge policy -> runner fromSide=top toSide=bottom dashed=true color="#e11d48" label="enforce"
 edge a -> b from=right to=left   // same as fromSide/toSide
 ```
 
 | Property | Values |
 |----------|--------|
+| `label` | Text on the arrow (quoted string after `->` or `label="..."`) |
 | `fromSide` / `toSide` | `top` `right` `bottom` `left` `auto` |
 | `dashed` | `true` |
 | `color` | `#hex` |

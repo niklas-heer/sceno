@@ -41,6 +41,25 @@ func TestKDLArrowEdge(t *testing.T) {
 	}
 }
 
+func TestKDLEdgeLabel(t *testing.T) {
+	data := `diagram {
+  shape box a "A" at=0,0
+  shape box b "B" at=1,0
+  edge a -> b "hello"
+  edge b -> a label="world"
+}`
+	s, err := LoadKDL([]byte(data))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(s.Edges) != 2 {
+		t.Fatalf("edges: %d", len(s.Edges))
+	}
+	if s.Edges[0].Label != "hello" || s.Edges[1].Label != "world" {
+		t.Fatalf("labels: %+v", s.Edges)
+	}
+}
+
 func TestNormalizeShapeAliases(t *testing.T) {
 	data := `diagram {
   shape actor dev "Dev" at=0,0

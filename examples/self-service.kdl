@@ -24,8 +24,8 @@ diagram title="Self-Service Infrastructure Platform" subtitle="Pulumi Components
 
   edge devs -> portal fromSide=right toSide=left
   edge platform -> vpc fromSide=bottom toSide=top dashed=true
-  edge portal -> api
-  edge api -> queue
+  edge portal -> api "submit"
+  edge api -> queue label="async"
   edge queue -> runner
   edge runner -> pulumi
   edge vpc -> eks

@@ -34,6 +34,7 @@ func SVG(d model.Diagram) string {
 	}
 	for _, re := range d.Routed {
 		b.WriteString(pathSketch(re.Points, re.Edge))
+		b.WriteString(EdgeLabelSketch(re.Points, re.Edge))
 	}
 	for _, n := range d.Nodes {
 		if n.Kind != model.ShapeLane {

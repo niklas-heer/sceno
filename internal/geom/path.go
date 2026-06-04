@@ -76,3 +76,24 @@ func SlicesToPath(path [][]float64) []Point {
 	}
 	return pts
 }
+
+// LabelPlacement picks the midpoint of the longest segment for edge labels.
+func LabelPlacement(pts []Point) (x, y float64, horizontal bool) {
+	if len(pts) < 2 {
+		return 0, 0, true
+	}
+	bestLen := -1.0
+	var mid Point
+	horiz := true
+	for i := 1; i < len(pts); i++ {
+		a, b := pts[i-1], pts[i]
+		dx, dy := b.X-a.X, b.Y-a.Y
+		l := math.Hypot(dx, dy)
+		if l > bestLen {
+			bestLen = l
+			mid = Point{X: (a.X + b.X) / 2, Y: (a.Y + b.Y) / 2}
+			horiz = math.Abs(dx) >= math.Abs(dy)
+		}
+	}
+	return mid.X, mid.Y, horiz
+}

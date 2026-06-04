@@ -71,6 +71,54 @@ func polishedPath(pts [][]float64, e model.Edge) string {
 		pathD, stroke, theme.EdgeWidth, paint.EdgeOpacity, dash, marker)
 }
 
+// EdgeLabelSVG renders a readable label on the longest edge segment.
+func EdgeLabelSVG(pts [][]float64, e model.Edge) string {
+	label := strings.TrimSpace(e.Label)
+	if label == "" || len(pts) < 2 {
+		return ""
+	}
+	gpts := geom.SimplifyPath(geom.SlicesToPath(pts))
+	if len(gpts) < 2 {
+		return ""
+	}
+	x, y, horiz := geom.LabelPlacement(gpts)
+	lines := strings.Split(label, "\n")
+	fontSize := float64(theme.SubSize)
+	lineH := fontSize * 1.35
+	maxW := 0.0
+	for _, line := range lines {
+		if w := float64(len(line)) * fontSize * 0.58; w > maxW {
+			maxW = w
+		}
+	}
+	if maxW < 24 {
+		maxW = 24
+	}
+	padX, padY := 6.0, 4.0
+	boxW := maxW + padX*2
+	boxH := float64(len(lines))*lineH + padY*2 - (lineH - fontSize)
+	rx, ry := x, y
+	if horiz {
+		ry -= boxH/2 + 6
+	} else {
+		rx += boxH/2 + 6
+	}
+	var b strings.Builder
+	b.WriteString(fmt.Sprintf(`<rect x="%.1f" y="%.1f" width="%.1f" height="%.1f" rx="4" fill="%s" stroke="%s" stroke-width="1"/>`,
+		rx-boxW/2, ry-boxH/2, boxW, boxH, paint.BgCard, paint.Border))
+	textY := ry - boxH/2 + padY + fontSize*0.85
+	for i, line := range lines {
+		lineW := float64(len(line)) * fontSize * 0.58
+		b.WriteString(textEl(line, rx-lineW/2, textY+float64(i)*lineH, fontSize, paint.FgMuted, "500"))
+	}
+	return b.String()
+}
+
+// EdgeLabelSketch renders a hand-drawn style edge label.
+func EdgeLabelSketch(pts [][]float64, e model.Edge) string {
+	return EdgeLabelSVG(pts, e)
+}
+
 func findEdge(d model.Diagram, key string) model.Edge {
 	for i, e := range d.Edges {
 		k := fmt.Sprintf("%s-%s-%d", e.From, e.To, i)

@@ -80,6 +80,7 @@ func BuildFromSpec(s model.Spec, opt Options) (model.Diagram, []model.Collision,
 		d.Edges = append(d.Edges, model.Edge{
 			From:     es.From,
 			To:       es.To,
+			Label:    es.Label,
 			FromSide: es.FromSide,
 			ToSide:   es.ToSide,
 			Dashed:   es.Dashed,
