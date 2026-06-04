@@ -33,7 +33,7 @@ func Run(path string, opt Options) (diag.Report, model.Diagram, error) {
   shape box a "A" at=0,0
 }`,
 		})
-		report.Enrich()
+		finishReport(&report)
 		return report, model.Diagram{}, err
 	}
 
@@ -43,7 +43,7 @@ func Run(path string, opt Options) (diag.Report, model.Diagram, error) {
 		report.Errors = append(report.Errors, iss)
 	}
 	if !report.OK {
-		report.Enrich()
+		finishReport(&report)
 		return report, model.Diagram{}, fmt.Errorf("spec invalid")
 	}
 
@@ -57,7 +57,7 @@ func Run(path string, opt Options) (diag.Report, model.Diagram, error) {
 			Message: err.Error(),
 			Fix:     "Use layout=auto with layer/row/at, or layout=free with x= and y= on every shape.",
 		})
-		report.Enrich()
+		finishReport(&report)
 		return report, model.Diagram{}, err
 	}
 	d := model.Diagram{}
@@ -130,7 +130,7 @@ func Run(path string, opt Options) (diag.Report, model.Diagram, error) {
 		}
 	}
 
-	report.Enrich()
+	finishReport(&report)
 	return report, d, nil
 }
 

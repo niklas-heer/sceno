@@ -2,13 +2,17 @@
 
 Declarative architecture diagrams in **[KDL](https://kdl.dev/)** — one readable spec, polished SVG/PNG/PDF/HTML/slide exports. Built for humans and **AI agents** that iterate until the spec validates.
 
+**Local-first.** No browser editor, no cloud lock-in, no export surprises — just great diagrams from a single `.kdl` file.
+
 ## For AI agents
 
 **Start every session with:**
 
 ```bash
-sceno guide --json
+sceno docs guide --json
 ```
+
+Browse all topics: `sceno docs --json` (guide, spec, goals, practices, errors, shapes, icons).
 
 **After every KDL edit:**
 
@@ -33,31 +37,43 @@ Run `sceno goals` for the full product goals and ecosystem best practices.
 
 ## Install
 
-### macOS (Apple Silicon or Intel)
+### One-line install (macOS & Linux)
 
-Download the latest release for your Mac from [GitHub Releases](https://github.com/niklas-heer/sceno/releases), or install with Go:
+Downloads the latest release binary, verifies SHA256, and installs to `/usr/local/bin` (override with `--dir`):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/niklas-heer/sceno/main/scripts/install.sh | bash
+```
+
+Install a specific version:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/niklas-heer/sceno/main/scripts/install.sh | bash -s -- --version v0.1.0
+```
+
+Or from a [GitHub Release](https://github.com/niklas-heer/sceno/releases) tarball (includes `install.sh`):
+
+```bash
+tar -xzf sceno_darwin_arm64.tar.gz
+./install.sh --dir ~/.local/bin
+```
+
+### Go install
 
 ```bash
 go install github.com/niklas-heer/sceno/cmd/sceno@latest
 ```
 
-Ensure `$(go env GOPATH)/bin` is on your `PATH`.
-
-### Linux
-
-```bash
-go install github.com/niklas-heer/sceno/cmd/sceno@latest
-```
-
-Or download `sceno_linux_arm64.tar.gz` / `sceno_linux_amd64.tar.gz` from [Releases](https://github.com/niklas-heer/sceno/releases).
+Ensure `$(go env GOPATH)/bin` is on your `PATH`. The embedded `VERSION` file is used when building without ldflags.
 
 ### Build from source
 
 ```bash
 git clone https://github.com/niklas-heer/sceno.git
 cd sceno
-make build    # produces ./sceno
-make install  # go install ./cmd/sceno
+make build    # produces ./sceno (version from VERSION file)
+make install  # go install with build metadata
+sceno version
 ```
 
 Requires **Go 1.23+**.
@@ -66,17 +82,19 @@ Requires **Go 1.23+**.
 
 | Command | Description |
 |---------|-------------|
-| `sceno guide [--json]` | **Agent handbook** — workflow, error codes, examples, shapes, icons |
+| `sceno docs [TOPIC] [--json]` | **Self-doc hub** for agents (guide, spec, practices, errors, …) |
+| `sceno guide [--json]` | Agent handbook (alias) |
 | `sceno init [-o sceno.kdl]` | Create a starter spec |
-| `sceno validate -i f --json` | Validate + actionable repair hints |
+| `sceno validate -i f --json` | Validate + repair hints + recommendations |
 | `sceno check -i f --json` | Alias for `validate` |
+| `sceno suggest -i f --json` | Prioritized layout recommendations |
 | `sceno render -i f -o out --all` | Export svg, png, pdf, html, slides.html |
 | `sceno render -format slides` | 16:9 HTML presentation |
 | `sceno describe -i f --json` | **Visual feedback without images** — narrative, ASCII map, positions, problems |
 | `sceno feedback` | Alias for `describe` |
-| `sceno suggest -i f [--json]` | Layout warnings (sparse columns, etc.) |
 | `sceno spec` | Full KDL specification |
 | `sceno goals` | Product goals and quality bar |
+| `sceno version [--json]` | Version, commit, build date |
 | `sceno shapes` / `sceno icons` | Quick lists |
 
 ## Quick start
@@ -216,9 +234,23 @@ sceno goals
 ## Development
 
 ```bash
-make test
+make test      # unit tests
+make verify    # build + validate + render smoke test
 make build
 ```
+
+## Releasing
+
+Version lives in [`internal/version/VERSION`](internal/version/VERSION). Releases are fully automated when you push a matching tag:
+
+```bash
+make bump-patch          # or bump-minor / bump-major
+git commit -am "chore: release v$(cat internal/version/VERSION)"
+make release-tag         # creates annotated tag vX.Y.Z
+git push origin main && git push origin v$(cat internal/version/VERSION)
+```
+
+CI on `main` runs tests, validates all examples, and smoke-renders exports. Pushing `v*.*.*` triggers [`.github/workflows/release.yml`](.github/workflows/release.yml): builds macOS/Linux binaries, publishes tarballs + `SHA256SUMS` + `install.sh` to GitHub Releases.
 
 ## License
 

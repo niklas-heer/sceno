@@ -67,6 +67,23 @@ func CompactSuggestion(d *model.Diagram) []diag.Issue {
 		})
 	}
 
+	// Dense edge crossings — suggest side anchors
+	crossings := 0
+	for _, ec := range FindEdgeCollisions(d) {
+		if ec.Kind == "edge_crossing" {
+			crossings++
+		}
+	}
+	if crossings >= 2 {
+		hints = append(hints, diag.Issue{
+			Code:    diag.CodeEdgeCollision,
+			Message: fmt.Sprintf("%d connector paths cross each other", crossings),
+			Fix:     "Set fromSide/toSide on busy edges, add edge labels for clarity, or reorder layer columns.",
+			Example: `edge api -> queue fromSide=right toSide=left label="async"
+edge queue -> runner fromSide=bottom toSide=top`,
+		})
+	}
+
 	return hints
 }
 

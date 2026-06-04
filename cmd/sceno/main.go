@@ -7,6 +7,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/niklas-heer/sceno/internal/diag"
+	"github.com/niklas-heer/sceno/internal/docs"
 	"github.com/niklas-heer/sceno/internal/export"
 	"github.com/niklas-heer/sceno/internal/guide"
 	"github.com/niklas-heer/sceno/internal/inspect"
@@ -14,10 +16,8 @@ import (
 	"github.com/niklas-heer/sceno/internal/pipeline"
 	"github.com/niklas-heer/sceno/internal/spec"
 	"github.com/niklas-heer/sceno/internal/validate"
+	"github.com/niklas-heer/sceno/internal/version"
 )
-
-// version is set at link time (Makefile, CI, release workflow).
-var version = "dev"
 
 func main() {
 	if len(os.Args) < 2 {
@@ -25,6 +25,9 @@ func main() {
 		os.Exit(2)
 	}
 	switch os.Args[1] {
+	case "-V", "--version", "version":
+		cmdVersion(os.Args[2:])
+		return
 	case "render":
 		cmdRender(os.Args[2:])
 	case "validate", "check":
@@ -33,6 +36,8 @@ func main() {
 		cmdSuggest(os.Args[2:])
 	case "guide", "agent":
 		cmdGuide(os.Args[2:])
+	case "docs":
+		cmdDocs(os.Args[2:])
 	case "describe", "feedback", "inspect":
 		cmdDescribe(os.Args[2:])
 	case "icons":
@@ -163,30 +168,41 @@ func cmdValidate(args []string) {
 func cmdSuggest(args []string) {
 	fs := flag.NewFlagSet("suggest", flag.ExitOnError)
 	in := fs.String("i", "", "input .kdl spec")
-	jsonOut := fs.Bool("json", false, "JSON output")
+	jsonOut := fs.Bool("json", false, "JSON output with recommendations")
 	_ = fs.Parse(args)
 	if *in == "" {
+		fmt.Fprintln(os.Stderr, "suggest: -i required (.kdl)")
 		os.Exit(2)
 	}
 	report, _, _ := validate.Run(*in, validate.Options{FixCollisions: true})
 	if *jsonOut {
 		out := struct {
-			OK       bool        `json:"ok"`
-			Warnings interface{} `json:"warnings"`
-		}{OK: report.OK, Warnings: report.Warnings}
+			OK              bool                  `json:"ok"`
+			Warnings        []diag.Issue          `json:"warnings"`
+			Recommendations []diag.Recommendation `json:"recommendations"`
+			Agent           diag.AgentMeta        `json:"agent"`
+		}{
+			OK:              report.OK,
+			Warnings:        report.Warnings,
+			Recommendations: report.Recommendations,
+			Agent:           report.Agent,
+		}
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
 		_ = enc.Encode(out)
 		return
 	}
-	if len(report.Warnings) == 0 {
-		fmt.Println("no suggestions")
+	if len(report.Recommendations) == 0 && len(report.Warnings) == 0 {
+		fmt.Println("no suggestions — layout looks good")
 		return
 	}
-	for _, w := range report.Warnings {
-		fmt.Println("suggest:", w.Message)
-		if w.Fix != "" {
-			fmt.Println("  fix:", w.Fix)
+	for _, rec := range report.Recommendations {
+		fmt.Printf("[%s] %s\n", rec.Category, rec.Message)
+		if rec.Fix != "" {
+			fmt.Println("  fix:", rec.Fix)
+		}
+		if rec.Example != "" {
+			fmt.Println("  example:", strings.ReplaceAll(rec.Example, "\n", " / "))
 		}
 	}
 }
@@ -232,6 +248,20 @@ func cmdGuide(args []string) {
 	}
 }
 
+func cmdDocs(args []string) {
+	fs := flag.NewFlagSet("docs", flag.ExitOnError)
+	jsonOut := fs.Bool("json", false, "JSON output (catalog when no topic given)")
+	_ = fs.Parse(args)
+	topic := ""
+	if fs.NArg() > 0 {
+		topic = fs.Arg(0)
+	}
+	if err := docs.Run(topic, *jsonOut, os.Stdout); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(2)
+	}
+}
+
 func cmdSpec(args []string) {
 	fs := flag.NewFlagSet("spec", flag.ExitOnError)
 	_ = fs.Parse(args)
@@ -240,6 +270,19 @@ func cmdSpec(args []string) {
 
 func cmdGoals() {
 	fmt.Print(spec.GoalsMarkdown)
+}
+
+func cmdVersion(args []string) {
+	fs := flag.NewFlagSet("version", flag.ExitOnError)
+	jsonOut := fs.Bool("json", false, "JSON output")
+	_ = fs.Parse(args)
+	if *jsonOut {
+		if err := version.WriteJSON(os.Stdout); err != nil {
+			os.Exit(2)
+		}
+		return
+	}
+	version.WriteHuman(os.Stdout)
 }
 
 func cmdShapes() {
@@ -262,7 +305,7 @@ diagram title="My Diagram" subtitle="Optional subtitle" layout=auto style=polish
   shape box start "Start" icon=server at=0,0
   shape box end "End" icon=server at=1,0
 
-  edge start -> end fromSide=right toSide=left
+  edge start -> end fromSide=right toSide=left label="flow"
 }
 `
 	if err := os.WriteFile(*out, []byte(tpl), 0o644); err != nil {
@@ -281,19 +324,21 @@ func cmdIcons() {
 }
 
 func usage() {
-	fmt.Fprintf(os.Stderr, "sceno %s — declarative diagrams in KDL (https://kdl.dev)\n\n", version)
-	fmt.Fprintf(os.Stderr, `For AI agents: start with  sceno guide --json
+	fmt.Fprintf(os.Stderr, "sceno %s — declarative diagrams in KDL (https://kdl.dev)\n\n", version.Version)
+	fmt.Fprintf(os.Stderr, `For AI agents: start with  sceno docs guide --json
 
-  sceno guide [--json]          self-doc: workflow, error codes, examples
+  sceno docs [TOPIC] [--json]   self-doc hub (guide, spec, goals, practices, errors, …)
+  sceno guide [--json]          agent handbook (alias: docs guide)
   sceno init [-o sceno.kdl]   starter spec
   sceno validate|check -i f --json   validate + repair hints (use every edit)
+  sceno suggest -i f --json     prioritized layout recommendations
   sceno render -i f -o out [--all]
   sceno render -i f -o deck.slides.html -format slides
   sceno describe|feedback -i f --json   how it looks (no image needed)
-  sceno suggest -i f [--json]   layout warnings only
-  sceno spec                    full KDL specification
-  sceno goals                   product goals
+  sceno spec                    KDL spec (alias: docs spec)
+  sceno goals                   product goals (alias: docs goals)
   sceno shapes | sceno icons
+  sceno version [--json]        version, commit, build date
 
 `)
 }

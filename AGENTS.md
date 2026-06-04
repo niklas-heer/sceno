@@ -5,13 +5,22 @@ Use this tool to produce architecture diagrams from a single **KDL** (`.kdl`) fi
 ## Start here
 
 ```bash
-sceno guide --json
+sceno docs guide --json
+```
+
+Or browse all documentation topics:
+
+```bash
+sceno docs --json
 ```
 
 Optional context:
 
 ```bash
-sceno goals   # product goals + quality bar (canonical)
+sceno docs goals        # product goals + quality bar
+sceno docs practices --json   # workflow + best practices
+sceno docs spec         # full KDL specification
+sceno docs errors --json      # error code repair catalog
 ```
 
 ## Edit loop (every change)
@@ -58,14 +67,18 @@ Use after validate passes to confirm the diagram reads well before shipping PNG/
 
 | Command | Purpose |
 |---------|---------|
-| `sceno guide --json` | Full agent context |
+| `sceno docs [TOPIC] [--json]` | **Self-doc hub** — guide, spec, goals, practices, errors, shapes, icons |
+| `sceno docs guide --json` | Full agent handbook (start here) |
+| `sceno guide [--json]` | Alias for `docs guide` |
 | `sceno init -o sceno.kdl` | Starter file |
-| `sceno validate -i f --json` | Validate + repair hints |
+| `sceno validate -i f --json` | Validate + repair hints + recommendations |
+| `sceno suggest -i f --json` | Prioritized layout recommendations |
 | `sceno render -i f -o out --all` | Export everything |
 | `sceno render -format slides` | HTML presentation |
 | `sceno describe -i f --json` | Layout without images |
-| `sceno spec` | KDL specification |
-| `sceno goals` | Product goals |
+| `sceno spec` | KDL spec (alias: `docs spec`) |
+| `sceno goals` | Product goals (alias: `docs goals`) |
+| `sceno version [--json]` | Tool version |
 
 ## Error codes
 

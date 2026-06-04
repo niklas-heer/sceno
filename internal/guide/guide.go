@@ -10,11 +10,13 @@ import (
 	"github.com/niklas-heer/sceno/internal/diag"
 	"github.com/niklas-heer/sceno/internal/icons"
 	"github.com/niklas-heer/sceno/internal/model"
+	"github.com/niklas-heer/sceno/internal/version"
 )
 
 // Document is the full machine-readable guide (sceno guide --json).
 type Document struct {
 	Tool           string                 `json:"tool"`
+	Version        string                 `json:"version"`
 	Description    string                 `json:"description"`
 	Workflow       []string               `json:"workflow"`
 	IterateLoop    []string               `json:"iterate_loop"`
@@ -103,6 +105,7 @@ func Build() Document {
 
 	return Document{
 		Tool:        "sceno",
+		Version:     version.Version,
 		Description: "Local-first declarative diagrams in KDL. One spec file → SVG, PNG, PDF, HTML, and slide decks. Optimized for AI edit/validate/render loops.",
 		Workflow: []string{
 			"sceno init -o sceno.kdl",
@@ -123,7 +126,11 @@ func Build() Document {
 			"Use sceno describe --json to see spatial layout without opening images",
 		},
 		Commands: map[string]string{
-			"sceno guide [--json]":     "This document — start here for AI context",
+			"sceno docs guide --json":    "Self-doc hub — start here for AI context",
+			"sceno docs spec":            "Full KDL specification",
+			"sceno docs practices --json":"Best practices + common mistakes",
+			"sceno docs errors --json":   "Error code repair catalog",
+			"sceno guide [--json]":       "Agent handbook (alias for docs guide)",
 			"sceno init [-o file.kdl]":  "Create a starter spec",
 			"sceno validate -i f --json": "Check spec + layout; returns ok, errors, next_steps",
 			"sceno describe -i f --json": "2D scene (layers, occlusion, edge visibility) + ascii_map + visual_problems",
@@ -133,6 +140,7 @@ func Build() Document {
 			"sceno shapes":             "List shape kinds",
 			"sceno icons":              "List icon names",
 			"sceno goals":              "Product goals",
+			"sceno version [--json]":   "Tool version and build metadata",
 		},
 		ErrorCodes:  codes,
 		Shapes:      append(shapeList, "code (lang=, source=) — syntax-highlighted block for slides"),
@@ -170,6 +178,7 @@ func Build() Document {
 			"source":   "Code body for shape code (use \\n)",
 		},
 		EdgeProps: map[string]string{
+			"label":             "Text on the connector (quoted string or label=\"...\")",
 			"fromSide / toSide": "top | right | bottom | left",
 			"dashed":            "true for dashed line",
 			"color":             "#hex stroke color",
@@ -180,8 +189,8 @@ func Build() Document {
   shape cylinder db "Database" icon=database layer=2
   shape actor ops "Operators" at=0,0
 
-  edge ops -> api fromSide=right toSide=left
-  edge api -> db
+  edge ops -> api fromSide=right toSide=left label="requests"
+  edge api -> db "SQL"
 }`,
 		SpecSlides: `diagram title="Talk" slide=16x9 layout=auto gap=36 {
 

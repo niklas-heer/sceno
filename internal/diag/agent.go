@@ -1,6 +1,10 @@
 package diag
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/niklas-heer/sceno/internal/version"
+)
 
 // AgentMeta is included in JSON validation output for repair loops.
 type AgentMeta struct {
@@ -96,6 +100,7 @@ shape box db "DB" icon=database at=1,1`,
 func (r *Report) Enrich() {
 	r.Agent = AgentMeta{
 		Tool:        "sceno",
+		Version:     version.Version,
 		RenderReady: r.OK,
 		Hint:        "Run `sceno guide --json` for full spec, shapes, icons, and workflow.",
 	}

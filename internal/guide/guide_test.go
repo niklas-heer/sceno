@@ -7,8 +7,8 @@ import (
 
 func TestGuideJSON(t *testing.T) {
 	d := Build()
-	if d.Tool != "sceno" || len(d.Workflow) < 3 {
-		t.Fatalf("workflow: %+v", d.Workflow)
+	if d.Tool != "sceno" || d.Version == "" || len(d.Workflow) < 3 {
+		t.Fatalf("workflow: %+v version=%q", d.Workflow, d.Version)
 	}
 	if len(d.Shapes) < 10 || len(d.Icons) < 5 {
 		t.Fatalf("catalog empty")

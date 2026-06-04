@@ -38,12 +38,13 @@ type Issue struct {
 
 // Report is the full validation result (stdout with --json).
 type Report struct {
-	OK       bool      `json:"ok"`
-	Input    string    `json:"input"`
-	Errors   []Issue   `json:"errors"`
-	Warnings []Issue   `json:"warnings"`
-	Stats    Stats     `json:"stats,omitempty"`
-	Agent    AgentMeta `json:"agent,omitempty"`
+	OK              bool             `json:"ok"`
+	Input           string           `json:"input"`
+	Errors          []Issue          `json:"errors"`
+	Warnings        []Issue          `json:"warnings"`
+	Recommendations []Recommendation `json:"recommendations,omitempty"`
+	Stats           Stats            `json:"stats,omitempty"`
+	Agent           AgentMeta        `json:"agent,omitempty"`
 }
 
 type Stats struct {
