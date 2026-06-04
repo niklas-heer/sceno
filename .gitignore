@@ -3,3 +3,7 @@ dist/
 output/
 node_modules/
 .DS_Store
+
+# Force-track (macOS global gitignore may match Icon? on paths containing "icons")
+!internal/icons/
+!internal/icons/**
