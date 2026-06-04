@@ -1,0 +1,23 @@
+diagram title="Shape Gallery" layout=auto gap=28 padding=24 {
+
+  shape box a "Box" at=0,0
+  shape card b "Card" at=0,1
+  shape actor c "Actor" at=0,2
+  shape decision d "Decision" at=1,0
+  shape hexagon e "Hexagon" at=1,1
+  shape octagon f "Octagon" at=1,2
+  shape cylinder g "Database" at=2,0
+  shape cloud h "Cloud" at=2,1
+  shape document i "Document" at=2,2
+  shape parallelogram j "I/O" at=3,0
+  shape triangle k "Merge" at=3,1
+  shape pill l "Start" at=3,2
+  shape note m "Note" at=4,0
+  shape callout n "Callout" subtitle="detail" at=4,1
+  shape container lane "Lane" at=5,0 w=180 h=120
+  shape frame group "Frame" at=5,1 w=160 h=100
+
+  edge a -> b
+  edge b -> c
+  edge d -> e
+}

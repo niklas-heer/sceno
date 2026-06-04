@@ -1,0 +1,37 @@
+// Self-service platform — KDL spec for diagram
+diagram title="Self-Service Infrastructure Platform" subtitle="Pulumi Components · Policy Pack · Dedicated Runner" layout=auto style=polished gap=32 padding=24 {
+
+  shape callout note "Golden paths" subtitle="Platform team maintains components" icon=info accent="#7c3aed" at=0,0 w=200 h=72
+
+  shape actor devs "Developers" icon=users fill="#f1f5f9" at=0,1
+  shape actor platform "Platform Team" icon=user fill="#f1f5f9" at=0,2
+
+  shape box portal "Self-Service\nPortal" icon=workflow fill="#dbeafe" layer=1
+  shape box api "API / Git\nTrigger" icon=api fill="#dbeafe" layer=2
+  shape box queue "Job\nQueue" icon=queue fill="#ffedd5" layer=3
+  shape box runner "Dedicated\nPulumi Runner" icon=server fill="#d1fae5" layer=4
+  shape cloud pulumi "pulumi\npreview · up" icon=cloud fill="#ffedd5" layer=5
+
+  shape box vpc "VpcComponent" icon=storage fill="#ede9fe" at=1,1
+  shape hexagon eks "EksCluster\nComponent" icon=k8s fill="#ede9fe" at=1,2
+  shape cylinder database "Database\nComponent" icon=database fill="#ede9fe" at=3,1
+  shape cylinder storage "Storage\nComponent" icon=storage fill="#ede9fe" at=4,1
+
+  shape callout policy "Policy Pack" subtitle="Policy as Code" icon=policy accent="#e11d48" fill="#fff1f2" at=5,1
+  shape box state "Pulumi Cloud\nState · Secrets" icon=lock fill="#ffedd5" at=2,2
+  shape note stacks "Stack\nReferences" fill="#fef3c7" at=3,2
+  shape box res-eks "EKS" icon=k8s fill="#d1fae5" at=5,2
+
+  edge devs -> portal fromSide=right toSide=left
+  edge platform -> vpc fromSide=bottom toSide=top dashed=true
+  edge portal -> api
+  edge api -> queue
+  edge queue -> runner
+  edge runner -> pulumi
+  edge vpc -> eks
+  edge eks -> database
+  edge database -> storage
+  edge pulumi -> res-eks fromSide=bottom toSide=top
+  edge policy -> runner fromSide=top toSide=bottom dashed=true color="#e11d48"
+  edge eks -> stacks dashed=true
+}

@@ -1,0 +1,14 @@
+// Dark slide deck with code block and transparent-friendly export
+diagram title="Dark deck" theme=dark slide=16x9 layout=auto style=polished gap=32 padding=24 {
+
+  slide "Trigger" {
+    shape box portal "Self-Service Portal" icon=workflow fill="#27272a" at=0,1
+    shape box api "API / Git Trigger" icon=api fill="#27272a" at=1,1
+    edge portal -> api
+  }
+
+  slide "Example code" {
+    code pulumi lang=go source="package main\n\nimport \"github.com/pulumi/pulumi/sdk/v3/go/pulumi\"\n\nfunc main() {\n\tpulumi.Run(func(ctx *pulumi.Context) error {\n\t\treturn nil\n\t})\n}" at=0,0 w=520 h=200
+    shape callout tip "Policy as Code" subtitle="Validated before apply" icon=policy accent="#a78bfa" at=1,1 w=240
+  }
+}
