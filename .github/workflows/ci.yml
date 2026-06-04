@@ -24,20 +24,48 @@ jobs:
       - name: Verify module
         run: go mod verify
 
+      - name: Read version
+        id: ver
+        run: echo "version=$(tr -d '[:space:]' < internal/version/VERSION)" >> "$GITHUB_OUTPUT"
+
       - name: Test
         run: go test -race -count=1 ./...
 
       - name: Build CLI
-        run: go build -ldflags="-s -w" -o sceno ./cmd/sceno
+        env:
+          VERSION: ${{ steps.ver.outputs.version }}
+          COMMIT: ${{ github.sha }}
+          DATE: ${{ github.event.head_commit.timestamp }}
+        run: |
+          go build -ldflags="-s -w \
+            -X github.com/niklas-heer/sceno/internal/version.Version=${VERSION} \
+            -X github.com/niklas-heer/sceno/internal/version.Commit=${COMMIT::7} \
+            -X github.com/niklas-heer/sceno/internal/version.Date=${DATE:-unknown}" \
+            -o sceno ./cmd/sceno
 
       - name: Smoke test CLI
         run: |
-          ./sceno --help || true
-          ./sceno guide --json | head -c 200
+          ./sceno version
+          ./sceno version --json | grep -q '"version"'
+          ./sceno docs --json | grep -q '"start_here"'
+          ./sceno docs guide --json | grep -q '"tool": "sceno"'
+          ./sceno docs errors --json | grep -q 'missing_node'
           ./sceno goals | head -n 5
+          for f in examples/*.kdl; do
+            ./sceno validate -i "$f" --json | grep -q '"ok": true' || (echo "validate failed: $f" && exit 1)
+          done
+          ./sceno render -i examples/self-service.kdl -o /tmp/sceno-smoke --all
+          test -s /tmp/sceno-smoke.svg
+          test -s /tmp/sceno-smoke.png
+          test -s /tmp/sceno-smoke.pdf
+          test -s /tmp/sceno-smoke.html
+          test -s /tmp/sceno-smoke.slides.html
+
+      - name: Lint install script
+        run: bash -n scripts/install.sh && bash -n scripts/bump-version.sh
 
   build:
-    name: Build (${{ matrix.goos }}/${{ matrix.goarch }})
+    name: Build (${{ matrix.name }})
     needs: test
     runs-on: ubuntu-latest
     strategy:
@@ -65,15 +93,24 @@ jobs:
           go-version: "1.23"
           cache: true
 
+      - name: Read version
+        id: ver
+        run: echo "version=$(tr -d '[:space:]' < internal/version/VERSION)" >> "$GITHUB_OUTPUT"
+
       - name: Build binary
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
           CGO_ENABLED: "0"
+          VERSION: ${{ steps.ver.outputs.version }}
+          COMMIT: ${{ github.sha }}
         run: |
-          VERSION="${GITHUB_SHA::7}"
-          go build -ldflags="-s -w -X main.version=${VERSION}" -o dist/sceno-${{ matrix.goos }}-${{ matrix.goarch }} ./cmd/sceno
+          go build -ldflags="-s -w \
+            -X github.com/niklas-heer/sceno/internal/version.Version=${VERSION} \
+            -X github.com/niklas-heer/sceno/internal/version.Commit=${COMMIT::7}" \
+            -o dist/sceno-${{ matrix.goos }}-${{ matrix.goarch }} ./cmd/sceno
           file dist/sceno-${{ matrix.goos }}-${{ matrix.goarch }}
+          dist/sceno-${{ matrix.goos }}-${{ matrix.goarch }} version
 
       - uses: actions/upload-artifact@v4
         with:
