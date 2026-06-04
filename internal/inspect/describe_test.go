@@ -17,6 +17,9 @@ func TestDescribeSelfService(t *testing.T) {
 	if len(r.Slides) != 1 {
 		t.Fatalf("slides: %d", len(r.Slides))
 	}
+	if r.Tool != "sceno" || r.Version == "" {
+		t.Fatalf("missing tool metadata: tool=%q version=%q", r.Tool, r.Version)
+	}
 	s := r.Slides[0]
 	if s.Narrative == "" || s.ASCIIMap == "" || len(s.Nodes) < 5 {
 		t.Fatalf("incomplete: narrative=%q nodes=%d", s.Narrative, len(s.Nodes))
@@ -27,6 +30,18 @@ func TestDescribeSelfService(t *testing.T) {
 	data, err := json.Marshal(r)
 	if err != nil || !json.Valid(data) {
 		t.Fatal("invalid json")
+	}
+}
+
+func TestDedupeVisualProblems(t *testing.T) {
+	in := []VisualProblem{
+		{Severity: "warning", Code: "misaligned", Message: "a"},
+		{Severity: "warning", Code: "misaligned", Message: "a"},
+		{Severity: "warning", Code: "edge_collision", Message: "b"},
+	}
+	out := dedupeVisualProblems(in)
+	if len(out) != 2 {
+		t.Fatalf("expected 2 unique problems, got %d", len(out))
 	}
 }
 

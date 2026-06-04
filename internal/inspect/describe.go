@@ -18,6 +18,7 @@ import (
 	"github.com/niklas-heer/sceno/internal/scene"
 	"github.com/niklas-heer/sceno/internal/spec"
 	"github.com/niklas-heer/sceno/internal/validate"
+	"github.com/niklas-heer/sceno/internal/version"
 )
 
 // Options for describe.
@@ -29,6 +30,8 @@ type Options struct {
 // Report is textual visual feedback (--json for agents).
 type Report struct {
 	Input        string       `json:"input"`
+	Tool         string       `json:"tool"`
+	Version      string       `json:"version"`
 	ValidationOK bool         `json:"validation_ok"`
 	RenderReady  bool         `json:"render_ready"`
 	Purpose      string       `json:"purpose"`
@@ -108,6 +111,7 @@ type RectView struct {
 type EdgeView struct {
 	From        string  `json:"from"`
 	To          string  `json:"to"`
+	Label       string  `json:"label,omitempty"`
 	Route       string  `json:"route"`
 	Attachment  string  `json:"attachment"`
 	Style       string  `json:"style,omitempty"`
@@ -146,6 +150,8 @@ func Run(path string, opt Options) (Report, error) {
 
 	report := Report{
 		Input:        path,
+		Tool:         "sceno",
+		Version:      version.Version,
 		ValidationOK: vreport.OK,
 		RenderReady:  vreport.OK,
 		Purpose:      "Textual description of how the diagram looks after layout — for agents that cannot view SVG/PNG.",
@@ -231,6 +237,7 @@ func describeSlide(d model.Diagram, index int, issues []diag.Issue, colls []mode
 	sv.Relationships = spatialRelationships(d.Nodes)
 	sv.VisualProblems = visualProblems(d, issues, colls, margin, edgeHitsNode, edgeHitsEdge)
 	sv.VisualProblems = append(sv.VisualProblems, sceneVisualProblems(sv.Scene, minX, minY, maxX, maxY)...)
+	sv.VisualProblems = dedupeVisualProblems(sv.VisualProblems)
 	sv.Stats.Overlaps = countSeverity(sv.VisualProblems, "collision")
 	sv.Stats.Columns = len(sv.Columns)
 	sv.ASCIIMap = asciiMap(d, minX, minY, maxX, maxY, asciiW)
@@ -291,6 +298,7 @@ func describeEdge(re model.RoutedEdge, idx int, crosses string, vis scene.EdgeVi
 	ev := EdgeView{
 		From:        e.From,
 		To:          e.To,
+		Label:       e.Label,
 		Route:       describeRoute(re.Points),
 		Attachment:  attach,
 		Style:       style,
@@ -520,6 +528,23 @@ func visualProblems(d model.Diagram, issues []diag.Issue, colls []model.Collisio
 		})
 	}
 
+	return out
+}
+
+func dedupeVisualProblems(problems []VisualProblem) []VisualProblem {
+	if len(problems) < 2 {
+		return problems
+	}
+	seen := make(map[string]struct{}, len(problems))
+	out := make([]VisualProblem, 0, len(problems))
+	for _, p := range problems {
+		key := p.Severity + "|" + p.Code + "|" + p.Message
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		out = append(out, p)
+	}
 	return out
 }
 

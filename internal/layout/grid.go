@@ -58,15 +58,17 @@ func Grid(d *model.Diagram, gap float64) {
 		}
 		colW := 0.0
 		for _, n := range ns {
+			if n.Rect.W > colW {
+				colW = n.Rect.W
+			}
+		}
+		for _, n := range ns {
 			y := gap + titleOffset(d)
 			for r := 0; r < n.Row; r++ {
 				y += rowH[r] + gap
 			}
-			n.Rect.X = x
+			n.Rect.X = x + (colW-n.Rect.W)/2
 			n.Rect.Y = y
-			if n.Rect.W > colW {
-				colW = n.Rect.W
-			}
 		}
 		x += colW + gap*2
 	}
