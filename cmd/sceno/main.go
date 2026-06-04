@@ -249,17 +249,27 @@ func cmdGuide(args []string) {
 }
 
 func cmdDocs(args []string) {
-	fs := flag.NewFlagSet("docs", flag.ExitOnError)
-	jsonOut := fs.Bool("json", false, "JSON output (catalog when no topic given)")
-	_ = fs.Parse(args)
+	jsonOut, rest := parseJSONFlag(args)
 	topic := ""
-	if fs.NArg() > 0 {
-		topic = fs.Arg(0)
+	if len(rest) > 0 {
+		topic = rest[0]
 	}
-	if err := docs.Run(topic, *jsonOut, os.Stdout); err != nil {
+	if err := docs.Run(topic, jsonOut, os.Stdout); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)
 	}
+}
+
+// parseJSONFlag extracts --json anywhere in args (Go flag stops at first positional).
+func parseJSONFlag(args []string) (jsonOut bool, rest []string) {
+	for _, a := range args {
+		if a == "--json" {
+			jsonOut = true
+			continue
+		}
+		rest = append(rest, a)
+	}
+	return jsonOut, rest
 }
 
 func cmdSpec(args []string) {
