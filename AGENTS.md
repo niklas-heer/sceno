@@ -100,7 +100,7 @@ Collision and routing checks project onto reduced planes. Full details: `sceno d
 
 ## Error codes
 
-Full fixes and examples: `sceno docs errors --json` or `sceno guide --json` → `error_codes`.
+Full fixes and examples: `sceno docs errors --json` or `sceno docs guide --json` → `error_codes`.
 
 ## Examples in repo
 

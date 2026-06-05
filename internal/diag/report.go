@@ -102,7 +102,7 @@ func (r Report) WriteHuman(w io.Writer) error {
 			_, _ = io.WriteString(w, "  • "+s+"\n")
 		}
 	}
-	_, _ = io.WriteString(w, "\nhint: sceno guide --json\n")
+	_, _ = io.WriteString(w, "\nhint: sceno docs guide --json\n")
 	return nil
 }
 

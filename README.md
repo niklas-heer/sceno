@@ -46,11 +46,11 @@ See [AGENTS.md](AGENTS.md) for the full agent playbook.
 - **Readable** — `edge api -> queue`, `shape actor devs "Developers"`, `at=1,2`
 - **Declarative** — like Mermaid/d2, but with PowerPoint-familiar shapes, icons, and slides
 - **Single format** — the CLI only accepts `.kdl` (no YAML/JSON drift)
-- **Self-documenting** — `sceno guide`, `sceno spec`, `sceno goals`, structured validation
+- **Self-documenting** — `sceno docs guide`, `sceno docs spec`, `sceno docs goals`, structured validation
 - **Agent-friendly** — `validate` + `describe` (2D scene, ASCII map) without viewing images
 - **Themed slides** — `theme=dark`, `background=transparent`, syntax-highlighted `code` blocks
 
-Run `sceno goals` for the full product goals and ecosystem best practices.
+Run `sceno docs goals` for the full product goals and ecosystem best practices.
 
 ## Install
 
@@ -230,7 +230,7 @@ Open `.slides.html` in a browser — **← / → / Space** to navigate. Use `--a
 
 ## Shapes & icons
 
-Run `sceno shapes` and `sceno icons`, or see `examples/shapes-demo.kdl`.
+Run `sceno docs shapes` and `sceno docs icons`, or see `examples/shapes-demo.kdl`.
 
 Highlights: `box`, `actor`, `cylinder`, `cloud`, `callout`, `lane`, `hexagon`, `note`, …
 
@@ -257,7 +257,7 @@ Highlights: `box`, `actor`, `cylinder`, `cloud`, `callout`, `lane`, `hexagon`, `
 ## Goals
 
 ```bash
-sceno goals
+sceno docs goals
 ```
 
 ## Development

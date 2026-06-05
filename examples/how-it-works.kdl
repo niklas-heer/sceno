@@ -1,5 +1,5 @@
 // How Sceno works — source for README diagram (render with sceno render)
-diagram title="How Sceno Works" subtitle="KDL → validate → advise → describe → render → export" layout=auto style=polished gap=36 padding=32 {
+diagram title="How Sceno Works" subtitle="KDL → validate → advise → describe → render → export" layout=auto style=polished gap=40 padding=36 {
 
   shape box author "You or\nAI Agent" icon=user iconPos=top-left fill="#f1f5f9" at=0,0
   shape document spec "KDL spec\n(.kdl file)" fill="#dbeafe" at=1,0

@@ -28,7 +28,7 @@ func Run(path string, opt Options) (diag.Report, model.Diagram, error) {
 		report.Errors = append(report.Errors, diag.Issue{
 			Code:    diag.CodeParse,
 			Message: err.Error(),
-			Fix:     "Fix KDL syntax: braces, quotes, shape/edge lines. Run `sceno guide --json` for examples.",
+			Fix:     "Fix KDL syntax: braces, quotes, shape/edge lines. Run `sceno docs guide --json` for examples.",
 			Example: `diagram title="Test" layout=auto gap=32 {
   shape box a "A" at=0,0
 }`,

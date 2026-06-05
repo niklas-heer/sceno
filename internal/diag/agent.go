@@ -66,7 +66,7 @@ edge api -> db`,
 	},
 	CodeUnknownIcon: {
 		Meaning: "icon= name is not in the catalog.",
-		Fix:     "Run sceno icons or sceno guide --json for the allowed list.",
+		Fix:     "Run sceno docs icons or sceno docs guide --json for the allowed list.",
 		Example: `shape box api "API" icon=api`,
 	},
 	CodeLayout: {
@@ -131,7 +131,7 @@ func (r *Report) Enrich() {
 		Tool:        "sceno",
 		Version:     version.Version,
 		RenderReady: r.OK,
-		Hint:        "Run `sceno guide --json` for full spec, shapes, icons, and workflow.",
+		Hint:        "Run `sceno docs guide --json` for full spec, shapes, icons, and workflow.",
 	}
 
 	if r.OK {

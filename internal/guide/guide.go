@@ -15,7 +15,7 @@ import (
 	"github.com/niklas-heer/sceno/internal/version"
 )
 
-// Document is the full machine-readable guide (sceno guide --json).
+// Document is the full machine-readable guide (sceno docs guide --json).
 type Document struct {
 	Tool           string                 `json:"tool"`
 	Version        string                 `json:"version"`
@@ -223,7 +223,7 @@ func Build() Document {
     edge api -> db
   }
 }`,
-		GoalsSummary: "Run sceno goals for mission, quality bar, and ecosystem best practices (d2, Mermaid, Excalidraw, slides, theming, scene analysis).",
+		GoalsSummary: "Run sceno docs goals for mission, quality bar, and ecosystem best practices (d2, Mermaid, Excalidraw, slides, theming, scene analysis).",
 		BestPractices: []string{
 			"Spec is source of truth — never hand-tweak exports; change KDL and re-render",
 			"Validate → describe → render (agents: use --json on validate and describe)",
@@ -240,7 +240,7 @@ func Build() Document {
 			"title=My Platform without quotes — use title=\"My Platform\"",
 			"edge to missing node — define shape before edge in the same block",
 			"layout=free without x= and y= on every shape",
-			"icon=unknown — run sceno icons",
+			"icon=unknown — run sceno docs icons",
 			"Shapes only in slide { } but edges reference ids from another slide",
 			"Duplicate node ids in the same diagram or slide",
 		},

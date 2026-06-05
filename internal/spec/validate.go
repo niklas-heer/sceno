@@ -75,7 +75,7 @@ func validateBody(nodes []model.NodeSpec, edges []model.EdgeSpec, pathPrefix str
 			issues = append(issues, diag.Issue{
 				Code:    diag.CodeParse,
 				Message: fmt.Sprintf("unknown shape %q on node %q", n.Kind, n.ID),
-				Fix:     "Use: sceno shapes — allowed: " + strings.Join(model.AllShapes(), ", "),
+				Fix:     "Use: sceno docs shapes — allowed: " + strings.Join(model.AllShapes(), ", "),
 				Nodes:   []string{n.ID},
 			})
 		}
@@ -83,7 +83,7 @@ func validateBody(nodes []model.NodeSpec, edges []model.EdgeSpec, pathPrefix str
 			issues = append(issues, diag.Issue{
 				Code:    diag.CodeUnknownIcon,
 				Message: fmt.Sprintf("unknown icon %q on node %q", n.Icon, n.ID),
-				Fix:     "Use: sceno icons — allowed: " + strings.Join(iconNames(), ", "),
+				Fix:     "Use: sceno docs icons — allowed: " + strings.Join(iconNames(), ", "),
 				Nodes:   []string{n.ID},
 				Example: `shape box api "API" icon=api`,
 			})

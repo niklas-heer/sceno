@@ -76,7 +76,7 @@ func Run(path string, opt Options) (Report, error) {
 		Recommendations: recs,
 		Agent: AdviseMeta{
 			Summary: buildSummary(vreport, engine),
-			Hint:    "Stack validation uses layered 2D planes (lanes→edges→annotations→nodes→labels). Run sceno guide --json for shape catalog.",
+			Hint:    "Stack validation uses layered 2D planes (lanes→edges→annotations→nodes→labels). Run sceno docs guide --json for shape catalog.",
 			NextSteps: buildNextSteps(path, vreport, engine),
 		},
 	}
