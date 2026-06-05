@@ -11,7 +11,6 @@ import (
 	"github.com/niklas-heer/sceno/internal/export"
 	"github.com/niklas-heer/sceno/internal/guide"
 	"github.com/niklas-heer/sceno/internal/inspect"
-	"github.com/niklas-heer/sceno/internal/pipeline"
 	"github.com/niklas-heer/sceno/internal/spec"
 	"github.com/niklas-heer/sceno/internal/validate"
 	"github.com/niklas-heer/sceno/internal/version"
@@ -116,7 +115,7 @@ func cmdRender(args []string) {
 		os.Exit(2)
 	}
 
-	report, _, err := validate.Run(*in, validate.Options{FixCollisions: !*noFix})
+	result, report, err := validate.LoadAndEvaluate(*in, validate.Options{FixCollisions: !*noFix})
 	if !report.OK {
 		if *jsonErr {
 			_ = report.WriteJSON(os.Stderr)
@@ -129,19 +128,7 @@ func cmdRender(args []string) {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-
-	s, err := spec.LoadFile(*in)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(2)
-	}
-	popt := pipeline.DefaultOptions()
-	popt.ResolveCollision = !*noFix
-	deck, _, err := pipeline.BuildDeck(s, popt)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(2)
-	}
+	deck := result.Deck
 	if len(deck.Slides) == 0 {
 		fmt.Fprintln(os.Stderr, "no slides in diagram")
 		os.Exit(2)

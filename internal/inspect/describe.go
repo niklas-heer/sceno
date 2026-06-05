@@ -16,7 +16,6 @@ import (
 	"github.com/niklas-heer/sceno/internal/pipeline"
 	"github.com/niklas-heer/sceno/internal/render"
 	"github.com/niklas-heer/sceno/internal/scene"
-	"github.com/niklas-heer/sceno/internal/spec"
 	"github.com/niklas-heer/sceno/internal/validate"
 	"github.com/niklas-heer/sceno/internal/version"
 )
@@ -136,16 +135,8 @@ func Run(path string, opt Options) (Report, error) {
 	if opt.ASCIIWidth <= 0 {
 		opt.ASCIIWidth = 56
 	}
-	vreport, _, _ := validate.Run(path, validate.Options{FixCollisions: opt.FixCollisions})
-
-	s, err := spec.LoadFile(path)
-	if err != nil {
-		return Report{}, err
-	}
-	popt := pipeline.DefaultOptions()
-	popt.ResolveCollision = opt.FixCollisions
-	deck, colls, err := pipeline.BuildDeck(s, popt)
-	if err != nil {
+	result, vreport, err := validate.LoadAndEvaluate(path, validate.Options{FixCollisions: opt.FixCollisions})
+	if err != nil && !vreport.OK && len(result.Slides) == 0 {
 		return Report{}, err
 	}
 
@@ -160,25 +151,26 @@ func Run(path string, opt Options) (Report, error) {
 			ReadFirst: []string{
 				"narrative — plain-language overview",
 				"scene — 2D paint order, groups, occlusion, edge visibility",
+				"engine — stack planes, visual rules, findings (same source as validate/advise)",
 				"ascii_map — coarse spatial map (* = node, lines = edges)",
 				"visual_problems — what looks wrong and where",
 				"nodes / edges — exact positions and routes",
 			},
-			Hint: "Pair with sceno validate --json for repair steps; use describe after render-worthy validate passes to sanity-check layout.",
+			Hint: "Uses pipeline.BuildAndEvaluate — same geometry and scene engine as validate and render.",
 		},
 	}
 
-	// Map validation issues by slide (single diagram = slide 0)
-	issuesBySlide := groupIssues(vreport, len(deck.Slides))
-
-	margin := s.Gap / 2
-	if margin < 8 {
-		margin = 8
+	issuesBySlide := groupIssues(vreport, len(result.Slides))
+	margin := 8.0
+	if len(result.Deck.Slides) > 0 {
+		if g := result.Deck.Slides[0].Gap / 2; g >= 8 {
+			margin = g
+		}
 	}
 
-	for i, d := range deck.Slides {
-		slideColls := filterCollisions(colls, &d)
-		sv := describeSlide(d, i, issuesBySlide[i], slideColls, margin, opt.ASCIIWidth)
+	for i, slide := range result.Slides {
+		slideColls := filterCollisions(result.Collisions, &slide.Diagram)
+		sv := describeSlide(slide, i, issuesBySlide[i], slideColls, margin, opt.ASCIIWidth)
 		report.Slides = append(report.Slides, sv)
 	}
 
@@ -186,7 +178,9 @@ func Run(path string, opt Options) (Report, error) {
 	return report, nil
 }
 
-func describeSlide(d model.Diagram, index int, issues []diag.Issue, colls []model.Collision, margin float64, asciiW int) SlideView {
+func describeSlide(slide pipeline.SlideResult, index int, issues []diag.Issue, colls []model.Collision, margin float64, asciiW int) SlideView {
+	d := slide.Diagram
+	evaluation := slide.Eval
 	minX, minY, maxX, maxY := render.Bounds(d)
 	cw, ch := maxX-minX, maxY-minY
 
@@ -210,8 +204,8 @@ func describeSlide(d model.Diagram, index int, issues []diag.Issue, colls []mode
 		sv.Nodes = append(sv.Nodes, describeNode(n, minX, minY, maxX, maxY))
 	}
 
-	sv.Scene = scene.Analyze(&d)
-	sv.Engine = scene.RunEngine(&d)
+	sv.Scene = evaluation.Scene
+	sv.Engine = evaluation.EngineReport()
 
 	edgeHitsNode := map[string]string{}
 	var edgeHitsEdge []model.EdgeCollision
@@ -225,8 +219,8 @@ func describeSlide(d model.Diagram, index int, issues []diag.Issue, colls []mode
 	}
 
 	visByKey := map[string]scene.EdgeVis{}
-	for _, ev := range sv.Scene.EdgeVis {
-		visByKey[ev.Key] = ev
+	for _, edgeVis := range sv.Scene.EdgeVis {
+		visByKey[edgeVis.Key] = edgeVis
 	}
 	for i, re := range d.Routed {
 		ev := describeEdge(re, i, edgeHitsNode[re.Key], visByKey[re.Key], d.Style)
@@ -238,7 +232,7 @@ func describeSlide(d model.Diagram, index int, issues []diag.Issue, colls []mode
 
 	sv.Relationships = spatialRelationships(d.Nodes)
 	sv.VisualProblems = visualProblems(d, issues, colls, margin, edgeHitsNode, edgeHitsEdge)
-	sv.VisualProblems = append(sv.VisualProblems, sceneVisualProblems(sv.Scene, minX, minY, maxX, maxY)...)
+	sv.VisualProblems = append(sv.VisualProblems, findingsToVisualProblems(evaluation.Findings, minX, minY, maxX, maxY)...)
 	sv.VisualProblems = dedupeVisualProblems(sv.VisualProblems)
 	sv.Stats.Overlaps = countSeverity(sv.VisualProblems, "collision")
 	sv.Stats.Columns = len(sv.Columns)
@@ -644,15 +638,15 @@ func buildNarrative(sv SlideView) string {
 	return strings.TrimSpace(b.String())
 }
 
-func sceneVisualProblems(sr scene.Report, minX, minY, maxX, maxY float64) []VisualProblem {
+func findingsToVisualProblems(findings []scene.Finding, minX, minY, maxX, maxY float64) []VisualProblem {
 	var out []VisualProblem
-	for _, iss := range sr.Issues {
-		if iss.Code == diag.CodeSuggestCompact {
+	for _, f := range findings {
+		if f.Severity == "hint" {
 			continue
 		}
-		sev := "warning"
+		iss := f.ToIssue()
 		out = append(out, VisualProblem{
-			Severity: sev,
+			Severity: f.Severity,
 			Code:     string(iss.Code),
 			Message:  iss.Message,
 			Fix:      iss.Fix,

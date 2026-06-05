@@ -49,8 +49,9 @@ func IconPosOptions() []string {
 // TopicDescriptions maps docs topic names to descriptions.
 func TopicDescriptions() map[string]string {
 	return map[string]string{
-		"guide":      "Agent handbook — workflow, commands, examples, properties, stack_model, visual_rules",
-		"spec":       "Full KDL specification (generated from code — diagram, shapes, edges, layout, theme)",
+		"guide":        "Agent handbook — workflow, commands, examples, properties, stack_model, visual_rules",
+		"architecture": "Source-of-truth chain — geometry vs semantics, pipeline.Result, paint order contract",
+		"spec":         "Full KDL specification (generated from code — diagram, shapes, edges, layout, theme)",
 		"goals":      "Product mission, quality bar, ecosystem best practices",
 		"practices":  "Authoring workflow, iterate loop, best practices, common mistakes, visual rules",
 		"stack":      "Stacked 2D plane validation model — lanes, edges, annotations, nodes, labels",
@@ -65,8 +66,9 @@ func TopicDescriptions() map[string]string {
 func DocsCatalogCommands() map[string]string {
 	return map[string]string{
 		"sceno docs":                   "List topics (add --json for catalog)",
-		"sceno docs guide --json":      "Full agent handbook",
-		"sceno docs spec":              "KDL specification (generated from code)",
+		"sceno docs guide --json":           "Full agent handbook",
+		"sceno docs architecture --json":    "Geometry + semantics SoT, pipeline entry point",
+		"sceno docs spec":                   "KDL specification (generated from code)",
 		"sceno docs stack [--json]":    "Stack validation model + visual rules",
 		"sceno docs validation --json": "Validation + advise reference",
 		"sceno docs practices --json":  "Best practices + common mistakes + visual rules",

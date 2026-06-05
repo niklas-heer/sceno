@@ -79,8 +79,9 @@ type AestheticScore struct {
 }
 
 // Analyze inspects a laid-out diagram in 2D (layers, visibility, aesthetics).
+// Scene issues are populated from the unified engine findings via Evaluate.
 func Analyze(d *model.Diagram) Report {
-	return analyzeCore(d)
+	return Evaluate(d).Scene
 }
 
 func analyzeCore(d *model.Diagram) Report {
@@ -101,7 +102,6 @@ func analyzeCore(d *model.Diagram) Report {
 	r.Alignment = alignmentIssues(d)
 	r.Aesthetics = scoreAesthetics(d, r)
 	r.Stack = BuildStack(d).Summary()
-	r.Issues = buildIssues(d, r)
 	return r
 }
 
@@ -395,46 +395,6 @@ func scoreAesthetics(d *model.Diagram, r Report) AestheticScore {
 		EdgeClarity: math.Round(edgeAvg*100) / 100,
 		Notes:       notes,
 	}
-}
-
-func buildIssues(d *model.Diagram, r Report) []diag.Issue {
-	var issues []diag.Issue
-	for _, o := range r.Occlusions {
-		issues = append(issues, diag.Issue{
-			Code:    diag.CodeOccluded,
-			Message: fmt.Sprintf("node %q visually covers %q (%.0f px² overlap)", o.Over, o.Under, o.AreaPx),
-			Fix:     "Separate nodes with gap/layer/row, or fix collision nudge.",
-			Nodes:   []string{o.Over, o.Under},
-		})
-	}
-	for _, ev := range r.EdgeVis {
-		if ev.Visible >= 0.82 {
-			continue
-		}
-		issues = append(issues, diag.Issue{
-			Code:    diag.CodeEdgeHidden,
-			Message: fmt.Sprintf("edge %s→%s is ~%.0f%% visible (runs behind nodes)", ev.From, ev.To, ev.Visible*100),
-			Fix:     "Set fromSide/toSide, increase gap, or reroute with a wider lane offset.",
-			Nodes:   []string{ev.From, ev.To},
-		})
-	}
-	for _, a := range r.Alignment {
-		code := diag.CodeMisaligned
-		issues = append(issues, diag.Issue{
-			Code:    code,
-			Message: a.Message,
-			Fix:     "Align nodes in the same column (consistent layer/at) or balance icon+label layout.",
-			Nodes:   a.Nodes,
-		})
-	}
-	if r.Aesthetics.Overall < 55 && r.Aesthetics.Density < 0.1 {
-		issues = append(issues, diag.Issue{
-			Code:    diag.CodeSuggestCompact,
-			Message: "scene looks sparse and low-contrast for its canvas",
-			Fix:     "Reduce gap, stack rows, or add grouping lanes.",
-		})
-	}
-	return issues
 }
 
 func nonLaneNodes(d *model.Diagram) []model.Node {

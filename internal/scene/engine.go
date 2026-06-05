@@ -1,7 +1,6 @@
 package scene
 
 import (
-	"fmt"
 	"sort"
 	"strings"
 
@@ -21,63 +20,9 @@ type EngineReport struct {
 }
 
 // RunEngine analyzes a laid-out diagram using the stacked-plane model and visual rules.
+// Prefer Evaluate — RunEngine returns the legacy EngineReport view of the same evaluation.
 func RunEngine(d *model.Diagram) EngineReport {
-	if d == nil {
-		return EngineReport{Score: 0, Summary: "empty diagram"}
-	}
-	stack := BuildStack(d)
-	scene := analyzeCore(d)
-	ctx := ruleContext{d: d, stack: stack, scene: scene}
-
-	findings := make([]Finding, 0)
-	var rulesRun []string
-	for _, r := range engineRules {
-		rulesRun = append(rulesRun, r.id)
-		findings = append(findings, r.fn(ctx)...)
-	}
-	findings = dedupeFindings(findings)
-
-	score := scene.Aesthetics.Overall
-	for _, f := range findings {
-		switch f.Severity {
-		case "error":
-			score -= 15
-		case "warning":
-			score -= 8
-		case "hint":
-			score -= 2
-		}
-	}
-	if score < 0 {
-		score = 0
-	}
-	if score > 100 {
-		score = 100
-	}
-
-	var issues []diag.Issue
-	for _, f := range findings {
-		if f.Severity == "hint" {
-			continue
-		}
-		issues = append(issues, f.ToIssue())
-	}
-
-	summary := fmt.Sprintf("stack engine: %d plane(s), %d finding(s), score %d/100",
-		len(stack.Planes), len(findings), score)
-	if len(findings) > 0 {
-		summary += " — " + findings[0].Message
-	}
-
-	return EngineReport{
-		Stack:       stack.Summary(),
-		RulesRun:    rulesRun,
-		Findings:    findings,
-		Issues:      issues,
-		Summary:     summary,
-		Score:       score,
-		VisualRules: VisualRulesCatalog,
-	}
+	return Evaluate(d).EngineReport()
 }
 
 func dedupeFindings(in []Finding) []Finding {

@@ -9,10 +9,7 @@ import (
 	"strings"
 
 	"github.com/niklas-heer/sceno/internal/diag"
-	"github.com/niklas-heer/sceno/internal/model"
-	"github.com/niklas-heer/sceno/internal/pipeline"
 	"github.com/niklas-heer/sceno/internal/scene"
-	"github.com/niklas-heer/sceno/internal/spec"
 	"github.com/niklas-heer/sceno/internal/validate"
 	"github.com/niklas-heer/sceno/internal/version"
 )
@@ -47,19 +44,12 @@ type AdviseMeta struct {
 
 // Run performs deep visual validation and returns prioritized advice.
 func Run(path string, opt Options) (Report, error) {
-	vreport, _, err := validate.Run(path, validate.Options{FixCollisions: opt.FixCollisions})
+	result, vreport, err := validate.LoadAndEvaluate(path, validate.Options{FixCollisions: opt.FixCollisions})
 	if err != nil && !strings.Contains(err.Error(), "spec invalid") && !strings.Contains(err.Error(), "layout") {
 		return Report{}, err
 	}
 
-	var engine scene.EngineReport
-	if s, err := spec.LoadFile(path); err == nil {
-		popt := pipeline.DefaultOptions()
-		popt.ResolveCollision = opt.FixCollisions
-		if deck, _, err := pipeline.BuildDeck(s, popt); err == nil && len(deck.Slides) > 0 {
-			engine = mergeEngineReports(deck.Slides)
-		}
-	}
+	engine := validate.DeckMergedEngine(result)
 	recs := diag.BuildRecommendations(vreport)
 	recs = append(recs, scene.FindingsToRecommendations(engine.Findings)...)
 	recs = dedupeRecs(recs)
@@ -75,8 +65,8 @@ func Run(path string, opt Options) (Report, error) {
 		VisualRules:     scene.VisualRulesCatalog,
 		Recommendations: recs,
 		Agent: AdviseMeta{
-			Summary: buildSummary(vreport, engine),
-			Hint:    "Stack validation uses layered 2D planes (lanes→edges→annotations→nodes→labels). Run sceno docs guide --json for shape catalog.",
+			Summary:   buildSummary(vreport, engine),
+			Hint:      "Stack validation uses layered 2D planes (lanes→edges→annotations→nodes→labels). Run sceno docs guide --json for shape catalog.",
 			NextSteps: buildNextSteps(path, vreport, engine),
 		},
 	}
@@ -125,42 +115,6 @@ func buildNextSteps(path string, v diag.Report, e scene.EngineReport) []string {
 	return steps
 }
 
-// mergeEngineReports combines stack engine output across all slides (min score, merged findings).
-func mergeEngineReports(slides []model.Diagram) scene.EngineReport {
-	if len(slides) == 0 {
-		return scene.EngineReport{}
-	}
-	if len(slides) == 1 {
-		return scene.RunEngine(&slides[0])
-	}
-	var merged scene.EngineReport
-	merged.Score = 100
-	for i := range slides {
-		e := scene.RunEngine(&slides[i])
-		if e.Score < merged.Score {
-			merged.Score = e.Score
-			merged.Stack = e.Stack
-		}
-		merged.Findings = append(merged.Findings, e.Findings...)
-	}
-	merged.Findings = dedupeFindings(merged.Findings)
-	return merged
-}
-
-func dedupeFindings(in []scene.Finding) []scene.Finding {
-	seen := map[string]struct{}{}
-	var out []scene.Finding
-	for _, f := range in {
-		key := f.Code + "|" + f.Message
-		if _, ok := seen[key]; ok {
-			continue
-		}
-		seen[key] = struct{}{}
-		out = append(out, f)
-	}
-	return out
-}
-
 func dedupeRecs(in []diag.Recommendation) []diag.Recommendation {
 	seen := map[string]struct{}{}
 	var out []diag.Recommendation
@@ -202,13 +156,13 @@ func invokeAI(cmd string, report Report) (string, error) {
 
 func buildAIPrompt(report Report) (string, error) {
 	payload := map[string]any{
-		"task":             "Review this Sceno diagram spec layout and suggest KDL edits for visual quality.",
-		"validation_ok":    report.ValidationOK,
-		"visual_score":     report.VisualScore,
-		"engine_findings":  report.Engine.Findings,
-		"recommendations":  report.Recommendations,
-		"visual_rules":     report.VisualRules,
-		"stack":            report.Stack,
+		"task":            "Review this Sceno diagram spec layout and suggest KDL edits for visual quality.",
+		"validation_ok":   report.ValidationOK,
+		"visual_score":    report.VisualScore,
+		"engine_findings": report.Engine.Findings,
+		"recommendations": report.Recommendations,
+		"visual_rules":    report.VisualRules,
+		"stack":           report.Stack,
 	}
 	b, err := json.MarshalIndent(payload, "", "  ")
 	if err != nil {
