@@ -169,13 +169,9 @@ func drawPolishedNodeGG(dc *gg.Context, n model.Node, vp Viewport, ox, oy, scale
 	}
 
 	if n.Icon != "" {
-		ix, iy := x+12*scale, y+12*scale
-		if model.NormalizeShape(n.Kind) == model.ShapeActor {
-			sz := polishedIconSize * scale
-			ix = x + (w-sz)/2
-			iy = y + h*0.14
-		}
-		icons.Draw(dc, n.Icon, ix, iy, polishedIconSize*scale, paint.FgMuted)
+		ix, iy := IconRect(n, polishedIconSize)
+		px, py := vp.PX(ix, iy, scale)
+		icons.Draw(dc, n.Icon, px+ox, py+oy, polishedIconSize*scale, paint.FgMuted)
 	}
 
 	drawPolishedLabelGG(dc, n, x, y, w, h, scale)
@@ -411,20 +407,35 @@ func drawEdgeLabelGG(dc *gg.Context, pts [][]float64, e model.Edge, vp Viewport,
 		return
 	}
 	gpts := geom.SimplifyPath(geom.SlicesToPath(pts))
-	x, y, horiz := geom.LabelPlacement(gpts)
-	if horiz {
-		y -= 10
-	} else {
-		x += 10
+	lines := strings.Split(label, "\n")
+	fontSize := theme.SubSize * scale
+	lineH := fontSize * 1.35
+	maxW := 0.0
+	for _, line := range lines {
+		setGGFont(dc, fonts.WeightMedium, fontSize)
+		lineW, _ := dc.MeasureString(line)
+		if lineW > maxW {
+			maxW = lineW
+		}
 	}
-	px, py := vp.PX(x, y, scale)
+	rx, ry, boxW, boxH, _ := geom.EdgeLabelBox(gpts, 6*scale, 4*scale, lineH, fontSize, lines, maxW/scale)
+	px, py := vp.PX(rx, ry, scale)
 	px += ox
 	py += oy
-	setGGFont(dc, fonts.WeightMedium, theme.SubSize*scale)
+	boxW *= scale
+	boxH *= scale
+	dc.SetRGB(1, 1, 1)
+	dc.DrawRoundedRectangle(px-boxW/2, py-boxH/2, boxW, boxH, 4*scale)
+	dc.FillPreserve()
+	setGGColor(dc, paint.Border)
+	dc.SetLineWidth(1 * scale)
+	dc.Stroke()
+	setGGFont(dc, fonts.WeightMedium, fontSize)
 	setGGColor(dc, paint.FgMuted)
-	for i, line := range strings.Split(label, "\n") {
+	textY := py - boxH/2 + 4*scale + fontSize*0.85
+	for i, line := range lines {
 		lineW, _ := dc.MeasureString(line)
-		dc.DrawString(line, px-lineW/2, py+float64(i)*theme.SubSize*scale*1.2)
+		dc.DrawString(line, px-lineW/2, textY+float64(i)*lineH)
 	}
 }
 
@@ -434,18 +445,25 @@ func drawEdgeLabelPDF(pdf *gofpdf.Fpdf, pts [][]float64, e model.Edge, minX, min
 		return
 	}
 	gpts := geom.SimplifyPath(geom.SlicesToPath(pts))
-	x, y, horiz := geom.LabelPlacement(gpts)
-	if horiz {
-		y -= 10
-	} else {
-		x += 10
+	lines := strings.Split(label, "\n")
+	fontSize := float64(theme.SubSize)
+	lineH := fontSize * 1.35
+	maxW := 0.0
+	for _, line := range lines {
+		w := measure.TextWidth(line, fontSize, fonts.WeightMedium)
+		if w > maxW {
+			maxW = w
+		}
 	}
+	rx, ry, boxW, boxH, _ := geom.EdgeLabelBox(gpts, 6, 4, lineH, fontSize, lines, maxW)
 	setPDFFont(pdf, "M", theme.SubSize)
 	pdf.SetTextColor(113, 113, 122)
-	for i, line := range strings.Split(label, "\n") {
+	textY := ry - boxH/2 + 4 + fontSize*0.85
+	for i, line := range lines {
 		tw := pdf.GetStringWidth(line)
-		pdf.Text(x-minX-tw/2, y-minY+float64(i)*theme.SubSize*1.2, line)
+		pdf.Text(rx-minX-tw/2, textY-minY+float64(i)*lineH, line)
 	}
+	_ = boxW
 }
 
 var pdfFontsRegistered bool

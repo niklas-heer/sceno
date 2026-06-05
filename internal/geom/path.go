@@ -97,3 +97,21 @@ func LabelPlacement(pts []Point) (x, y float64, horizontal bool) {
 	}
 	return mid.X, mid.Y, horiz
 }
+
+// EdgeLabelBox returns a label background rect centered on the best edge segment.
+func EdgeLabelBox(pts []Point, padX, padY, lineH, fontSize float64, lines []string, maxTextW float64) (rx, ry, boxW, boxH float64, horizontal bool) {
+	if len(pts) < 2 || len(lines) == 0 {
+		return 0, 0, 0, 0, true
+	}
+	x, y, horiz := LabelPlacement(pts)
+	if maxTextW < 24 {
+		maxTextW = 24
+	}
+	boxW = maxTextW + padX*2
+	boxH = float64(len(lines))*lineH + padY*2 - (lineH - fontSize)
+	const gap = 8.0
+	if horiz {
+		return x, y - boxH/2 - gap, boxW, boxH, true
+	}
+	return x + boxW/2 + gap, y, boxW, boxH, false
+}

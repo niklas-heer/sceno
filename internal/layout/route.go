@@ -130,6 +130,12 @@ func scorePath(pts []geom.Point, obstacles []model.Node, start, end geom.Point, 
 		}
 	}
 	score += float64(len(pts)) * 6
+	if len(pts) == 2 && math.Abs(pts[0].Y-pts[1].Y) < 1 {
+		score -= 800
+	}
+	if len(pts) == 3 && math.Abs(pts[0].Y-pts[1].Y) < 1 && math.Abs(pts[1].Y-pts[2].Y) < 1 {
+		score -= 400
+	}
 	// Penalize routes that extend far beyond the node bounding span
 	span := math.Hypot(end.X-start.X, end.Y-start.Y)
 	if pathLength(pts) > span*2.5+pad*4 {

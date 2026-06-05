@@ -38,6 +38,16 @@ func related(a, b *model.Node) bool {
 
 // Resolve pushes overlapping nodes apart; same-column nodes only move vertically.
 func Resolve(nodes []model.Node, margin float64, maxIter int) int {
+	return ResolveWithOptions(nodes, margin, maxIter, ResolveOptions{})
+}
+
+type ResolveOptions struct {
+	// PreserveSingleRowAlignment skips vertical nudging between same-row nodes in different columns.
+	PreserveSingleRowAlignment bool
+}
+
+// ResolveWithOptions resolves overlaps with optional layout hints.
+func ResolveWithOptions(nodes []model.Node, margin float64, maxIter int, opt ResolveOptions) int {
 	moves := 0
 	for iter := 0; iter < maxIter; iter++ {
 		moved := false
@@ -50,7 +60,7 @@ func Resolve(nodes []model.Node, margin float64, maxIter int) int {
 				if related(a, b) {
 					continue
 				}
-				sx, sy := separation(a, b, margin)
+				sx, sy := separation(a, b, margin, opt.PreserveSingleRowAlignment)
 				if sx == 0 && sy == 0 {
 					continue
 				}
@@ -92,7 +102,7 @@ func overlaps(a, b model.Rect, gap float64) bool {
 		b.Bottom()+gap > a.Y
 }
 
-func separation(a, b *model.Node, gap float64) (dx, dy float64) {
+func separation(a, b *model.Node, gap float64, preserveSingleRow bool) (dx, dy float64) {
 	overlapX := math.Min(a.Rect.Right(), b.Rect.Right()) - math.Max(a.Rect.X, b.Rect.X)
 	overlapY := math.Min(a.Rect.Bottom(), b.Rect.Bottom()) - math.Max(a.Rect.Y, b.Rect.Y)
 	if overlapX <= 0 && overlapY <= 0 {
@@ -120,6 +130,9 @@ func separation(a, b *model.Node, gap float64) (dx, dy float64) {
 	}
 	if overlapX > 0 {
 		return sx, 0
+	}
+	if preserveSingleRow && a.Row == b.Row && a.Column != b.Column {
+		return 0, 0
 	}
 	return 0, sy
 }

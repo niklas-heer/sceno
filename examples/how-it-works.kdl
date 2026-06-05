@@ -1,7 +1,7 @@
 // How Sceno works — source for README diagram (render with sceno render)
 diagram title="How Sceno Works" subtitle="One KDL file → validate → render → polished exports" layout=auto style=polished gap=24 padding=24 {
 
-  shape actor author "You or\nAI Agent" icon=user fill="#f1f5f9" at=0,0
+  shape box author "You or\nAI Agent" icon=user iconPos=top-left fill="#f1f5f9" at=0,0
   shape document spec "KDL spec\n(.kdl file)" fill="#dbeafe" at=1,0
 
   shape box validate "sceno validate\n--json" icon=shield fill="#ede9fe" at=2,0

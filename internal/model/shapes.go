@@ -47,6 +47,12 @@ func NormalizeShape(k ShapeKind) ShapeKind {
 		return ShapeLane
 	case "callout":
 		return ShapeInfobox
+	case "info":
+		return ShapeInfobox
+	case "warning", "warn":
+		return ShapeInfobox
+	case "tip", "hint":
+		return ShapeInfobox
 	case "decision":
 		return ShapeDiamond
 	case "database", "db", "storage-cylinder":
@@ -86,7 +92,7 @@ func IsContainer(k ShapeKind) bool {
 func AllShapes() []string {
 	return []string{
 		"box", "card", "ellipse", "circle", "actor",
-		"textbox", "note", "infobox", "callout",
+		"textbox", "note", "infobox", "callout", "info", "warning", "tip",
 		"diamond", "decision", "hexagon", "octagon",
 		"cylinder", "database", "cloud", "document",
 		"parallelogram", "triangle", "pill", "terminal", "start", "end",

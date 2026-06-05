@@ -19,17 +19,9 @@ func polishedNodeSVG(n model.Node, dropShadow bool) string {
 		b.WriteString(codeBlockSVG(n))
 		return b.String()
 	}
-	if k == model.ShapeActor && n.Icon != "" {
-		b.WriteString(actorIconBackdropSVG(n, dropShadow))
-	} else {
-		b.WriteString(shapeSVG(n, dropShadow))
-	}
+	b.WriteString(shapeSVG(n, dropShadow))
 	if n.Icon != "" {
-		ix, iy := n.Rect.X+12, n.Rect.Y+12
-		if k == model.ShapeActor {
-			ix = n.Rect.X + (n.Rect.W-iconSize)/2
-			iy = n.Rect.Y + n.Rect.H*0.14
-		}
+		ix, iy := IconRect(n, iconSize)
 		b.WriteString(icons.Group(n.Icon, ix, iy, iconSize, paint.FgMuted))
 	}
 	b.WriteString(polishedLabel(n))
@@ -49,37 +41,34 @@ func polishedLabel(n model.Node) string {
 	}
 	lines := strings.Split(n.Label, "\n")
 	lineH := fs * 1.25
-	iconOff := 0.0
-	contentW := n.Rect.W - measure.PadX
-	if n.Icon != "" {
-		iconOff = 14
-		contentW -= measure.IconColumn
-	}
+	layout := LabelLayoutFor(n)
+	iconOff := layout.IconOffsetY
+	contentW := layout.ContentW
 	totalH := float64(len(lines))*lineH + iconOff
 	if n.Subtitle != "" {
 		totalH += 14
 	}
 	padTop := 14.0
 	padLeft := 14.0
-	topAlign := false
-	k := model.NormalizeShape(n.Kind)
+	topAlign := layout.TopAlign
 	var startY float64
-	switch k {
+	switch model.NormalizeShape(n.Kind) {
 	case model.ShapeInfobox, model.ShapeCallout:
 		topAlign = true
 		padLeft = 18
 		padTop = 16
 		startY = n.Rect.Y + padTop + lineH*0.75 + iconOff
-	case model.ShapeActor:
-		topAlign = true
-		startY = n.Rect.Y + n.Rect.H*0.56 + lineH*0.75 + iconOff
 	default:
-		startY = n.Rect.CY() - totalH/2 + lineH*0.75 + iconOff/2
+		if topAlign {
+			startY = n.Rect.Y + padTop + lineH*0.75 + iconOff
+		} else {
+			startY = n.Rect.CY() - totalH/2 + lineH*0.75 + iconOff/2
+		}
 	}
 	var b strings.Builder
 	for i, line := range lines {
 		tw := measure.TextWidth(line, fs, fonts.WeightMedium)
-		x := labelX(n, tw, contentW)
+		x := labelX(n, tw, contentW, layout)
 		if topAlign && n.Icon == "" {
 			x = n.Rect.X + padLeft + (contentW-tw)/2
 		}
@@ -96,9 +85,12 @@ func polishedLabel(n model.Node) string {
 	return b.String()
 }
 
-func labelX(n model.Node, textW, contentW float64) float64 {
-	if n.Icon != "" {
-		return n.Rect.X + measure.IconColumn + (contentW-textW)/2
+func labelX(n model.Node, textW, contentW float64, layout LabelLayout) float64 {
+	if n.Icon != "" && (n.IconPos == "" || n.IconPos == model.IconTopLeft) {
+		return layout.ContentX + (contentW-textW)/2
+	}
+	if n.Icon != "" && layout.TopAlign {
+		return n.Rect.X + (n.Rect.W-textW)/2
 	}
 	return n.Rect.X + (n.Rect.W-textW)/2
 }

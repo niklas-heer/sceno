@@ -45,6 +45,7 @@ func BuildFromSpec(s model.Spec, opt Options) (model.Diagram, []model.Collision,
 			Subtitle: ns.Subtitle,
 			Kind:     ns.Kind,
 			Icon:     ns.Icon,
+			IconPos:  ns.IconPos,
 			CodeLang: ns.CodeLang,
 			Code:     ns.Code,
 			Fill:     ns.Fill,
@@ -104,9 +105,11 @@ func BuildFromSpec(s model.Spec, opt Options) (model.Diagram, []model.Collision,
 
 	margin := s.Gap / 2
 	colls := collision.Find(d.Nodes, margin)
+	preserveRow := layout.DiagramSingleRow(d.Nodes)
 	if opt.ResolveCollision {
+		resolveOpt := collision.ResolveOptions{PreserveSingleRowAlignment: preserveRow}
 		for pass := 0; pass < 4; pass++ {
-			collision.Resolve(d.Nodes, margin, opt.MaxCollisionIters)
+			collision.ResolveWithOptions(d.Nodes, margin, opt.MaxCollisionIters, resolveOpt)
 			layout.PackColumns(&d, s.Gap)
 			layout.FitParents(&d, s.Padding)
 		}

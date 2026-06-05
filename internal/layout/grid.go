@@ -32,6 +32,9 @@ func Grid(d *model.Diagram, gap float64) {
 		}
 	}
 
+	singleRow := DiagramSingleRow(d.Nodes)
+	rowHeights := rowHeightsByRow(groups, maxCol, singleRow)
+
 	x := gap
 	for col := 0; col <= maxCol; col++ {
 		ns := groups[col]
@@ -44,18 +47,6 @@ func Grid(d *model.Diagram, gap float64) {
 			}
 			return ns[i].ID < ns[j].ID
 		})
-		maxRow := 0
-		for _, n := range ns {
-			if n.Row > maxRow {
-				maxRow = n.Row
-			}
-		}
-		rowH := make([]float64, maxRow+1)
-		for _, n := range ns {
-			if n.Rect.H > rowH[n.Row] {
-				rowH[n.Row] = n.Rect.H
-			}
-		}
 		colW := 0.0
 		for _, n := range ns {
 			if n.Rect.W > colW {
@@ -65,13 +56,57 @@ func Grid(d *model.Diagram, gap float64) {
 		for _, n := range ns {
 			y := gap + titleOffset(d)
 			for r := 0; r < n.Row; r++ {
-				y += rowH[r] + gap
+				y += rowHeights[r] + gap
+			}
+			if singleRow {
+				n.Rect.Y = y + (rowHeights[n.Row]-n.Rect.H)/2
+			} else {
+				n.Rect.Y = y
 			}
 			n.Rect.X = x + (colW-n.Rect.W)/2
-			n.Rect.Y = y
 		}
 		x += colW + gap*2
 	}
+}
+
+func DiagramSingleRow(nodes []model.Node) bool {
+	if len(nodes) == 0 {
+		return false
+	}
+	row := -1
+	for _, n := range nodes {
+		if n.Fixed {
+			continue
+		}
+		if row < 0 {
+			row = n.Row
+			continue
+		}
+		if n.Row != row {
+			return false
+		}
+	}
+	return row >= 0
+}
+
+func rowHeightsByRow(groups map[int][]*model.Node, maxCol int, singleRow bool) []float64 {
+	maxRow := 0
+	for col := 0; col <= maxCol; col++ {
+		for _, n := range groups[col] {
+			if n.Row > maxRow {
+				maxRow = n.Row
+			}
+		}
+	}
+	rowH := make([]float64, maxRow+1)
+	for col := 0; col <= maxCol; col++ {
+		for _, n := range groups[col] {
+			if n.Rect.H > rowH[n.Row] {
+				rowH[n.Row] = n.Rect.H
+			}
+		}
+	}
+	return rowH
 }
 
 func titleOffset(d *model.Diagram) float64 {

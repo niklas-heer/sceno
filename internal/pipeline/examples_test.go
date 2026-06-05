@@ -9,6 +9,7 @@ import (
 
 func TestBuildAllExamples(t *testing.T) {
 	examples := []string{
+		"how-it-works.kdl",
 		"self-service.kdl",
 		"slides-demo.kdl",
 		"slides-dark.kdl",

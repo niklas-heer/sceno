@@ -55,6 +55,7 @@ type Node struct {
 	Subtitle string
 	Kind     ShapeKind
 	Icon     string // catalog name, e.g. cloud, database
+	IconPos  IconPosition
 	CodeLang string // for shape code
 	Code     string // source body
 	Fill     string
@@ -138,6 +139,7 @@ type NodeSpec struct {
 	Subtitle string    `yaml:"subtitle" json:"subtitle"`
 	Kind     ShapeKind `yaml:"kind" json:"kind"`
 	Icon     string    `yaml:"icon" json:"icon"`
+	IconPos  IconPosition `yaml:"iconPos" json:"iconPos,omitempty"`
 	Fill     string    `yaml:"fill" json:"fill"`
 	Stroke   string    `yaml:"stroke" json:"stroke"`
 	Accent   string    `yaml:"accent" json:"accent"`

@@ -1,0 +1,5 @@
+diagram layout=auto gap=24 {
+  shape info info "Info box" icon=info at=0,0
+  shape warning warn "Warning" icon=shield at=1,0
+  shape tip tip "Tip" icon=info at=2,0
+}

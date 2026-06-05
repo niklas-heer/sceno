@@ -235,7 +235,9 @@ func parseKDLShapeAt(toks []kdlTok, start int) (model.NodeSpec, int, error) {
 	i := start
 
 	// Optional kind as first word
+	rawKind := ""
 	if i < len(toks) && toks[i].typ == kdWord && !isKDLStmt(toks[i].str) && isShapeName(toks[i].str) {
+		rawKind = toks[i].str
 		ns.Kind = model.NormalizeShape(model.ShapeKind(toks[i].str))
 		i++
 	}
@@ -259,6 +261,7 @@ func parseKDLShapeAt(toks []kdlTok, start int) (model.NodeSpec, int, error) {
 		}
 	}
 	applyNodeProps(&ns, props)
+	applyShapeVariantDefaults(&ns, rawKind)
 	if ns.ID == "" {
 		return ns, i, fmt.Errorf("shape missing id")
 	}
@@ -281,6 +284,8 @@ func applyNodeProps(ns *model.NodeSpec, props map[string]kdlTok) {
 			ns.Kind = model.NormalizeShape(model.ShapeKind(v.str))
 		case "icon":
 			ns.Icon = v.str
+		case "iconPos", "icon-pos", "iconpos":
+			ns.IconPos = model.ParseIconPosition(v.str)
 		case "fill":
 			ns.Fill = v.str
 		case "stroke":
@@ -323,6 +328,20 @@ func applyNodeProps(ns *model.NodeSpec, props map[string]kdlTok) {
 		case "source", "body":
 			ns.Code = unescapeLabel(v.str)
 		}
+	}
+}
+
+func applyShapeVariantDefaults(ns *model.NodeSpec, rawKind string) {
+	if ns.Accent != "" || rawKind == "" {
+		return
+	}
+	switch strings.ToLower(rawKind) {
+	case "info":
+		ns.Accent = "#3b82f6"
+	case "warning", "warn":
+		ns.Accent = "#f59e0b"
+	case "tip", "hint":
+		ns.Accent = "#10b981"
 	}
 }
 
