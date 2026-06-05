@@ -39,19 +39,25 @@ Run `sceno goals` for the full product goals and ecosystem best practices.
 
 ### One-line install (macOS & Linux)
 
-Downloads the latest release binary, verifies SHA256, and installs to `/usr/local/bin` (override with `--dir`):
+Installs the **latest published release** — downloads the binary for your OS/arch, verifies SHA256, and installs to `/usr/local/bin`:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/niklas-heer/sceno/main/scripts/install.sh | bash
 ```
 
-Install a specific version:
+Custom install directory:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/niklas-heer/sceno/main/scripts/install.sh | bash -s -- --version v0.1.0
+curl -fsSL https://raw.githubusercontent.com/niklas-heer/sceno/main/scripts/install.sh | bash -s -- --dir ~/.local/bin
 ```
 
-Or from a [GitHub Release](https://github.com/niklas-heer/sceno/releases) tarball (includes `install.sh`):
+Pin a specific version (optional):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/niklas-heer/sceno/main/scripts/install.sh | bash -s -- --version v0.2.0
+```
+
+Or from a [GitHub Release](https://github.com/niklas-heer/sceno/releases) tarball (includes `install.sh`; also installs latest unless you pass `--version`):
 
 ```bash
 tar -xzf sceno_darwin_arm64.tar.gz

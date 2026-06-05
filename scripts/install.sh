@@ -2,7 +2,7 @@
 # Install sceno from GitHub releases.
 # Usage:
 #   curl -fsSL https://raw.githubusercontent.com/niklas-heer/sceno/main/scripts/install.sh | bash
-#   curl -fsSL ... | bash -s -- --version v0.1.0
+#   curl -fsSL ... | bash -s -- --version v0.2.0   # optional pin
 #   curl -fsSL ... | bash -s -- --dir ~/.local/bin
 set -euo pipefail
 
@@ -18,7 +18,7 @@ Usage: install.sh [options]
 Install sceno from GitHub releases.
 
 Options:
-  --version VER   Install a specific tag (default: latest release)
+  --version VER   Pin a specific release tag (default: latest published release)
   --dir PATH      Install directory (default: /usr/local/bin)
   --no-verify     Skip SHA256 checksum verification
   -h, --help      Show this help
@@ -29,8 +29,28 @@ Environment:
 
 Examples:
   curl -fsSL https://raw.githubusercontent.com/${REPO}/main/scripts/install.sh | bash
-  curl -fsSL ... | bash -s -- --version v0.1.0 --dir ~/.local/bin
+  curl -fsSL ... | bash -s -- --dir ~/.local/bin
+  curl -fsSL ... | bash -s -- --version v0.2.0
 EOF
+}
+
+fetch_latest_version() {
+  local json tag
+  json="$(curl -fsSL -H "Accept: application/vnd.github+json" \
+    "https://api.github.com/repos/${REPO}/releases/latest")"
+  if command -v python3 >/dev/null 2>&1; then
+    tag="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["tag_name"])' <<< "$json")"
+  elif command -v jq >/dev/null 2>&1; then
+    tag="$(jq -r .tag_name <<< "$json")"
+  else
+    tag="$(printf '%s' "$json" | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\(v[^"]*\)".*/\1/p' | head -1)"
+  fi
+  tag="${tag#v}"
+  if [[ -z "$tag" || "$tag" == "null" ]]; then
+    echo "Could not determine latest release version." >&2
+    exit 1
+  fi
+  echo "$tag"
 }
 
 while [[ $# -gt 0 ]]; do
@@ -86,11 +106,8 @@ BASE_URL="https://github.com/${REPO}/releases/download"
 
 if [[ -z "$VERSION" ]]; then
   echo "Fetching latest ${REPO} release..."
-  VERSION="$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" | sed -n 's/.*"tag_name": *"v\(.*\)".*/\1/p' | head -1)"
-  if [[ -z "$VERSION" ]]; then
-    echo "Could not determine latest release version." >&2
-    exit 1
-  fi
+  VERSION="$(fetch_latest_version)"
+  echo "Latest release: v${VERSION}"
 fi
 
 TAG="v${VERSION}"

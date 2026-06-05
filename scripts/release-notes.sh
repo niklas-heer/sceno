@@ -20,6 +20,13 @@ repo_url() {
   fi
 }
 
+raw_install_script_url() {
+  local slug
+  slug="$(repo_url)"
+  slug="${slug#https://github.com/}"
+  echo "https://raw.githubusercontent.com/${slug}/main/scripts/install.sh"
+}
+
 commit_link() {
   local hash="$1"
   local short="${hash:0:7}"
@@ -237,7 +244,13 @@ generate_github_body() {
     echo "## Install"
     echo
     echo '```bash'
-    echo "curl -fsSL ${url}/releases/download/${tag}/install.sh | bash -s -- --version ${tag}"
+    echo "curl -fsSL $(raw_install_script_url) | bash"
+    echo '```'
+    echo
+    echo "Pin this release:"
+    echo
+    echo '```bash'
+    echo "curl -fsSL $(raw_install_script_url) | bash -s -- --version ${tag}"
     echo '```'
     echo
     echo "Or download \`${tag}\` assets from [GitHub Releases](${url}/releases/tag/${tag})."
@@ -279,7 +292,13 @@ extract_github_body() {
     echo "## Install"
     echo
     echo '```bash'
-    echo "curl -fsSL ${url}/releases/download/${tag}/install.sh | bash -s -- --version ${tag}"
+    echo "curl -fsSL $(raw_install_script_url) | bash"
+    echo '```'
+    echo
+    echo "Pin this release:"
+    echo
+    echo '```bash'
+    echo "curl -fsSL $(raw_install_script_url) | bash -s -- --version ${tag}"
     echo '```'
     echo
     echo "Or download \`${tag}\` assets from [GitHub Releases](${url}/releases/tag/${tag})."
