@@ -87,21 +87,15 @@ Collision and routing checks project onto reduced planes. Full details: `sceno d
 
 | Command | Purpose |
 |---------|---------|
-| `sceno docs [TOPIC] [--json]` | **Self-doc hub** — guide, spec, stack, validation, goals, practices, errors, shapes, icons |
-| `sceno docs guide --json` | Full agent handbook (start here) |
-| `sceno docs stack --json` | Stack validation model + visual rules |
-| `sceno docs validation --json` | validate + advise reference |
-| `sceno guide [--json]` | Alias for `docs guide` |
 | `sceno init -o sceno.kdl` | Starter file |
 | `sceno validate -i f --json` | Validate + repair hints + stack warnings |
 | `sceno advise -i f --json` | Stack engine + visual score + recommendations |
 | `sceno advise -i f --ai` | Optional external AI CLI review (`SCENO_AI_CMD`) |
-| `sceno suggest -i f --json` | Prioritized layout recommendations |
+| `sceno describe -i f --json` | Layout without images (includes engine) |
 | `sceno render -i f -o out --all` | Export everything |
 | `sceno render -format slides` | HTML presentation |
-| `sceno describe -i f --json` | Layout without images (includes engine) |
-| `sceno spec` | KDL spec (alias: `docs spec`) |
-| `sceno goals` | Product goals (alias: `docs goals`) |
+| `sceno docs [TOPIC] [--json]` | **Self-doc hub** — guide, spec, goals, shapes, icons, stack, errors, … |
+| `sceno docs guide --json` | Full agent handbook (start here) |
 | `sceno version [--json]` | Tool version |
 
 ## Error codes

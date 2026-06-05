@@ -1,19 +1,16 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
 	"strings"
 
 	"github.com/niklas-heer/sceno/internal/advise"
-	"github.com/niklas-heer/sceno/internal/diag"
 	"github.com/niklas-heer/sceno/internal/docs"
 	"github.com/niklas-heer/sceno/internal/export"
 	"github.com/niklas-heer/sceno/internal/guide"
 	"github.com/niklas-heer/sceno/internal/inspect"
-	"github.com/niklas-heer/sceno/internal/model"
 	"github.com/niklas-heer/sceno/internal/pipeline"
 	"github.com/niklas-heer/sceno/internal/spec"
 	"github.com/niklas-heer/sceno/internal/validate"
@@ -25,41 +22,82 @@ func main() {
 		usage()
 		os.Exit(2)
 	}
-	switch os.Args[1] {
+	cmd := os.Args[1]
+	args := os.Args[2:]
+
+	switch cmd {
 	case "-V", "--version", "version":
-		cmdVersion(os.Args[2:])
-		return
-	case "render":
-		cmdRender(os.Args[2:])
-	case "validate", "check":
-		cmdValidate(os.Args[2:])
-	case "suggest":
-		cmdSuggest(os.Args[2:])
-	case "advise":
-		cmdAdvise(os.Args[2:])
-	case "guide", "agent":
-		cmdGuide(os.Args[2:])
-	case "docs":
-		cmdDocs(os.Args[2:])
-	case "describe", "feedback", "inspect":
-		cmdDescribe(os.Args[2:])
-	case "icons":
-		cmdIcons()
-	case "shapes":
-		cmdShapes()
+		cmdVersion(args)
 	case "init":
-		cmdInit(os.Args[2:])
-	case "spec":
-		cmdSpec(os.Args[2:])
-	case "goals":
-		cmdGoals()
+		cmdInit(args)
+	case "validate":
+		cmdValidate(args)
+	case "advise":
+		cmdAdvise(args)
+	case "describe":
+		cmdDescribe(args)
+	case "render":
+		cmdRender(args)
+	case "docs":
+		cmdDocs(args)
 	case "help", "-h", "--help":
 		usage()
 	default:
-		fmt.Fprintf(os.Stderr, "unknown command %q\n\n", os.Args[1])
+		if runLegacy(cmd, args) {
+			return
+		}
+		fmt.Fprintf(os.Stderr, "unknown command %q\n\n", cmd)
 		usage()
 		os.Exit(2)
 	}
+}
+
+// runLegacy handles deprecated aliases and prints a short redirect hint.
+func runLegacy(cmd string, args []string) bool {
+	switch cmd {
+	case "check":
+		legacyHint("validate", "sceno validate -i FILE --json")
+		cmdValidate(args)
+		return true
+	case "feedback":
+		legacyHint("describe", "sceno describe -i FILE --json")
+		cmdDescribe(args)
+		return true
+	case "guide", "agent":
+		legacyHint("docs guide", "sceno docs guide --json")
+		cmdGuide(args)
+		return true
+	case "spec":
+		legacyHint("docs spec", "sceno docs spec")
+		cmdSpec(args)
+		return true
+	case "goals":
+		legacyHint("docs goals", "sceno docs goals [--json]")
+		cmdGoals(args)
+		return true
+	case "shapes":
+		legacyHint("docs shapes", "sceno docs shapes")
+		cmdDocsShapes()
+		return true
+	case "icons":
+		legacyHint("docs icons", "sceno docs icons")
+		cmdDocsIcons()
+		return true
+	case "suggest":
+		legacyHint("advise", "sceno advise -i FILE --json")
+		cmdAdvise(args)
+		return true
+	case "inspect":
+		legacyHint("describe", "sceno describe -i FILE --json")
+		cmdDescribe(args)
+		return true
+	default:
+		return false
+	}
+}
+
+func legacyHint(preferred, example string) {
+	fmt.Fprintf(os.Stderr, "note: %q is an alias — prefer %s (e.g. %s)\n", os.Args[1], preferred, example)
 }
 
 func cmdRender(args []string) {
@@ -168,48 +206,6 @@ func cmdValidate(args []string) {
 	os.Exit(report.ExitCode())
 }
 
-func cmdSuggest(args []string) {
-	fs := flag.NewFlagSet("suggest", flag.ExitOnError)
-	in := fs.String("i", "", "input .kdl spec")
-	jsonOut := fs.Bool("json", false, "JSON output with recommendations")
-	_ = fs.Parse(args)
-	if *in == "" {
-		fmt.Fprintln(os.Stderr, "suggest: -i required (.kdl)")
-		os.Exit(2)
-	}
-	report, _, _ := validate.Run(*in, validate.Options{FixCollisions: true})
-	if *jsonOut {
-		out := struct {
-			OK              bool                  `json:"ok"`
-			Warnings        []diag.Issue          `json:"warnings"`
-			Recommendations []diag.Recommendation `json:"recommendations"`
-			Agent           diag.AgentMeta        `json:"agent"`
-		}{
-			OK:              report.OK,
-			Warnings:        report.Warnings,
-			Recommendations: report.Recommendations,
-			Agent:           report.Agent,
-		}
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		_ = enc.Encode(out)
-		return
-	}
-	if len(report.Recommendations) == 0 && len(report.Warnings) == 0 {
-		fmt.Println("no suggestions — layout looks good")
-		return
-	}
-	for _, rec := range report.Recommendations {
-		fmt.Printf("[%s] %s\n", rec.Category, rec.Message)
-		if rec.Fix != "" {
-			fmt.Println("  fix:", rec.Fix)
-		}
-		if rec.Example != "" {
-			fmt.Println("  example:", strings.ReplaceAll(rec.Example, "\n", " / "))
-		}
-	}
-}
-
 func cmdAdvise(args []string) {
 	fs := flag.NewFlagSet("advise", flag.ExitOnError)
 	in := fs.String("i", "", "input .kdl spec")
@@ -262,23 +258,6 @@ func cmdDescribe(args []string) {
 	_ = report.WriteHuman(os.Stdout)
 }
 
-func cmdGuide(args []string) {
-	fs := flag.NewFlagSet("guide", flag.ExitOnError)
-	jsonOut := fs.Bool("json", false, "machine-readable guide for AI agents")
-	_ = fs.Parse(args)
-	if *jsonOut {
-		if err := guide.JSON(os.Stdout); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(2)
-		}
-		return
-	}
-	if err := guide.Markdown(os.Stdout); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(2)
-	}
-}
-
 func cmdDocs(args []string) {
 	jsonOut, rest := parseJSONFlag(args)
 	topic := ""
@@ -286,6 +265,20 @@ func cmdDocs(args []string) {
 		topic = rest[0]
 	}
 	if err := docs.Run(topic, jsonOut, os.Stdout); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(2)
+	}
+}
+
+func cmdDocsShapes() {
+	if err := docs.Run("shapes", false, os.Stdout); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(2)
+	}
+}
+
+func cmdDocsIcons() {
+	if err := docs.Run("icons", false, os.Stdout); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)
 	}
@@ -303,13 +296,38 @@ func parseJSONFlag(args []string) (jsonOut bool, rest []string) {
 	return jsonOut, rest
 }
 
+func cmdGuide(args []string) {
+	fs := flag.NewFlagSet("guide", flag.ExitOnError)
+	jsonOut := fs.Bool("json", false, "machine-readable guide for AI agents")
+	_ = fs.Parse(args)
+	if *jsonOut {
+		if err := guide.JSON(os.Stdout); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(2)
+		}
+		return
+	}
+	if err := guide.Markdown(os.Stdout); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(2)
+	}
+}
+
 func cmdSpec(args []string) {
 	fs := flag.NewFlagSet("spec", flag.ExitOnError)
 	_ = fs.Parse(args)
 	fmt.Print(spec.SpecMarkdown())
 }
 
-func cmdGoals() {
+func cmdGoals(args []string) {
+	jsonOut, _ := parseJSONFlag(args)
+	if jsonOut {
+		if err := docs.Run("goals", true, os.Stdout); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(2)
+		}
+		return
+	}
 	fmt.Print(spec.GoalsMarkdown())
 }
 
@@ -324,13 +342,6 @@ func cmdVersion(args []string) {
 		return
 	}
 	version.WriteHuman(os.Stdout)
-}
-
-func cmdShapes() {
-	fmt.Println("Shapes (use as: shape KIND id \"Label\" ...):")
-	for _, s := range model.AllShapes() {
-		fmt.Println(" ", s)
-	}
 }
 
 func cmdInit(args []string) {
@@ -357,30 +368,20 @@ diagram title="My Diagram" subtitle="Optional subtitle" layout=auto style=polish
 	fmt.Println("next: sceno validate -i", *out, "--json")
 }
 
-func cmdIcons() {
-	fmt.Println("Icons (use as: icon=name):")
-	for _, name := range []string{"api", "cloud", "database", "info", "k8s", "lock", "policy", "queue", "server", "shield", "storage", "user", "users", "workflow"} {
-		fmt.Println(" ", name)
-	}
-}
-
 func usage() {
 	fmt.Fprintf(os.Stderr, "sceno %s — declarative diagrams in KDL (https://kdl.dev)\n\n", version.Version)
-	fmt.Fprintf(os.Stderr, `For AI agents: start with  sceno docs guide --json
+	fmt.Fprintf(os.Stderr, `Workflow:  init → validate → advise → describe → render
 
-  sceno docs [TOPIC] [--json]   self-doc hub (guide, spec, goals, practices, errors, …)
-  sceno guide [--json]          agent handbook (alias: docs guide)
-  sceno init [-o sceno.kdl]   starter spec
-  sceno validate|check -i f --json   validate + repair hints (use every edit)
-  sceno suggest -i f --json     prioritized layout recommendations
-  sceno advise -i f --json      stack validation + visual rules (+ --ai for external CLI)
-  sceno render -i f -o out [--all]
-  sceno render -i f -o deck.slides.html -format slides
-  sceno describe|feedback -i f --json   how it looks (no image needed)
-  sceno spec                    KDL spec (alias: docs spec)
-  sceno goals                   product goals (alias: docs goals)
-  sceno shapes | sceno icons
-  sceno version [--json]        version, commit, build date
+  sceno init [-o sceno.kdl]        create a starter spec
+  sceno validate -i f --json       check spec + layout (run after every edit)
+  sceno advise -i f --json         visual rules, score, recommendations
+  sceno describe -i f --json       layout feedback without viewing images
+  sceno render -i f -o out --all   export svg, png, pdf, html, slides.html
+  sceno docs [TOPIC] [--json]      self-doc: guide, spec, goals, shapes, icons, …
+  sceno version [--json]           version, commit, build date
+
+Docs topics: guide, spec, goals, practices, stack, validation, shapes, icons, errors
+Agents: start with  sceno docs guide --json
 
 `)
 }

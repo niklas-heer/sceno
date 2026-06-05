@@ -71,10 +71,10 @@ func DocsCatalogCommands() map[string]string {
 		"sceno docs validation --json": "Validation + advise reference",
 		"sceno docs practices --json":  "Best practices + common mistakes + visual rules",
 		"sceno docs errors --json":     "Error code repair catalog",
+		"sceno docs goals --json":      "Product mission, quality bar, ecosystem practices",
 		"sceno validate -i f --json":   "Validate spec after every edit",
 		"sceno advise -i f --json":     "Stack engine + visual score + recommendations",
 		"sceno describe -i f --json":   "Layout feedback without viewing images",
-		"sceno suggest -i f --json":    "Prioritized layout recommendations",
 	}
 }
 
