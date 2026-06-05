@@ -37,60 +37,33 @@ func polishedLabel(n model.Node) string {
 	}
 	fs := n.FontSize
 	if fs <= 0 {
-		fs = theme.NodeSize // typographic scale constant
+		fs = theme.NodeSize
 	}
+	cl := measure.LayoutFor(n)
 	lines := strings.Split(n.Label, "\n")
-	lineH := fs * 1.25
-	layout := LabelLayoutFor(n)
-	iconOff := layout.IconOffsetY
-	contentW := layout.ContentW
-	totalH := float64(len(lines))*lineH + iconOff
-	if n.Subtitle != "" {
-		totalH += 14
-	}
-	padTop := 14.0
-	padLeft := 14.0
-	topAlign := layout.TopAlign
-	var startY float64
-	switch model.NormalizeShape(n.Kind) {
-	case model.ShapeInfobox, model.ShapeCallout:
-		topAlign = true
-		padLeft = 18
-		padTop = 16
-		startY = n.Rect.Y + padTop + lineH*0.75 + iconOff
-	default:
-		if topAlign {
-			startY = n.Rect.Y + padTop + lineH*0.75 + iconOff
-		} else {
-			startY = n.Rect.CY() - totalH/2 + lineH*0.75 + iconOff/2
-		}
+	lh := cl.TitleLineH
+	contentW := n.Rect.W - measure.PadX
+	if n.Icon != "" && !cl.TopAlign {
+		contentW -= measure.IconColumn
 	}
 	var b strings.Builder
 	for i, line := range lines {
 		tw := measure.TextWidth(line, fs, fonts.WeightMedium)
-		x := labelX(n, tw, contentW, layout)
-		if topAlign && n.Icon == "" {
-			x = n.Rect.X + padLeft + (contentW-tw)/2
+		tx := n.Rect.X + cl.TitleX
+		if !cl.TopAlign || n.Icon == "" {
+			tx = n.Rect.X + cl.TitleX + (contentW-tw)/2
 		}
-		y := startY + float64(i)*lineH
-		b.WriteString(textEl(line, x, y, fs, paint.FgPrimary, "500"))
+		if n.Icon != "" && (n.IconPos == "" || n.IconPos == model.IconTopLeft) && !cl.TopAlign {
+			tx = n.Rect.X + measure.IconColumn + (contentW-tw)/2
+		}
+		if cl.TopAlign && n.Icon != "" {
+			tx = n.Rect.X + (n.Rect.W-tw)/2
+		}
+		y := n.Rect.Y + cl.TitleStartY + float64(i)*lh
+		b.WriteString(textEl(line, tx, y, fs, paint.FgPrimary, "500"))
 	}
-	if n.Subtitle != "" {
-		subY := n.Rect.Bottom() - 16
-		if topAlign {
-			subY = startY + float64(len(lines))*lineH + 4
-		}
-		b.WriteString(textEl(n.Subtitle, n.Rect.X+padLeft, subY, theme.SubSize, paint.FgMuted, ""))
+	if cl.HasSubtitle {
+		b.WriteString(textEl(n.Subtitle, n.Rect.X+cl.SubtitleX, n.Rect.Y+cl.SubtitleY, theme.SubSize, paint.FgMuted, ""))
 	}
 	return b.String()
-}
-
-func labelX(n model.Node, textW, contentW float64, layout LabelLayout) float64 {
-	if n.Icon != "" && (n.IconPos == "" || n.IconPos == model.IconTopLeft) {
-		return layout.ContentX + (contentW-textW)/2
-	}
-	if n.Icon != "" && layout.TopAlign {
-		return n.Rect.X + (n.Rect.W-textW)/2
-	}
-	return n.Rect.X + (n.Rect.W-textW)/2
 }

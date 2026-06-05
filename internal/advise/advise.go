@@ -104,7 +104,7 @@ func buildNextSteps(path string, v diag.Report, e scene.EngineReport) []string {
 	}
 	steps := []string{
 		"sceno describe -i " + quote(path) + " --json",
-		"sceno render -i " + quote(path) + " -o output/sceno --all",
+		"sceno render -i " + quote(path) + " -o output/sceno",
 	}
 	for _, f := range e.Findings {
 		if f.Severity == "warning" && f.Fix != "" {

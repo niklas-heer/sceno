@@ -7,8 +7,15 @@ import (
 )
 
 // Grid places nodes in layer columns and row slots (stable, non-overlapping base layout).
+// Containers with children are positioned later via FitParents.
 func Grid(d *model.Diagram, gap float64) {
 	ranks := computeRanks(d)
+	childCount := map[string]int{}
+	for i := range d.Nodes {
+		if p := d.Nodes[i].Parent; p != "" {
+			childCount[p]++
+		}
+	}
 	groups := map[int][]*model.Node{}
 
 	for i := range d.Nodes {
@@ -17,8 +24,12 @@ func Grid(d *model.Diagram, gap float64) {
 			n.Column = int(n.Rect.X) // preserve free placement column hint
 			continue
 		}
+		if model.IsContainer(n.Kind) && childCount[n.ID] > 0 {
+			n.Column = -1
+			continue
+		}
 		col := ranks[n.ID]
-		if n.Layer > 0 {
+		if n.AtSet || n.Layer > 0 {
 			col = n.Layer
 		}
 		n.Column = col
@@ -139,8 +150,8 @@ func computeRanks(d *model.Diagram) map[string]int {
 	}
 
 	rank := map[string]int{}
-	queue := []string{}
-	for id := range byID {
+	var queue []string
+	for _, id := range sortedNodeIDs(byID) {
 		if inDeg[id] == 0 {
 			queue = append(queue, id)
 		}
@@ -150,7 +161,9 @@ func computeRanks(d *model.Diagram) map[string]int {
 		id := queue[0]
 		queue = queue[1:]
 		visited++
-		for _, to := range out[id] {
+		tos := append([]string(nil), out[id]...)
+		sort.Strings(tos)
+		for _, to := range tos {
 			next := rank[id] + 1
 			if next > rank[to] {
 				rank[to] = next
@@ -158,11 +171,13 @@ func computeRanks(d *model.Diagram) map[string]int {
 			inDeg[to]--
 			if inDeg[to] == 0 {
 				queue = append(queue, to)
+				sort.Strings(queue)
 			}
 		}
 	}
 	if visited < len(byID) {
-		for id, n := range byID {
+		for _, id := range sortedNodeIDs(byID) {
+			n := byID[id]
 			if _, ok := rank[id]; !ok {
 				rank[id] = n.Layer
 			}

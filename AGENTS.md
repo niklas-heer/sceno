@@ -39,7 +39,7 @@ Visual quality check (no image needed):
 ```bash
 sceno advise -i your.kdl --json   # stack engine, visual score, recommendations
 sceno describe -i your.kdl --json  # positions, ascii map, scene, engine
-sceno render -i your.kdl -o output/sceno --all
+sceno render -i your.kdl -o output/sceno
 ```
 
 ## Stack validation model
@@ -93,7 +93,7 @@ Collision and routing checks project onto reduced planes. Full details: `sceno d
 | `sceno advise -i f --json` | Stack engine + visual score + recommendations |
 | `sceno advise -i f --ai` | Optional external AI CLI review (`SCENO_AI_CMD`) |
 | `sceno describe -i f --json` | Layout without images (includes engine) |
-| `sceno render -i f -o out --all` | Export everything |
+| `sceno render -i f -o out` | Export PNG (default); `-format svg,pdf` for more; `--all` for every format |
 | `sceno render -format slides` | HTML presentation |
 | `sceno docs [TOPIC] [--json]` | **Self-doc hub** — guide, spec, goals, shapes, icons, stack, errors, … |
 | `sceno docs guide --json` | Full agent handbook (start here) |

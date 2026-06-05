@@ -53,6 +53,66 @@ func TestSVGEmbeddedFonts(t *testing.T) {
 	}
 }
 
+func TestParseFormats(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		in   string
+		want []Format
+		err  bool
+	}{
+		{"", []Format{FormatPNG}, false},
+		{"png", []Format{FormatPNG}, false},
+		{"svg,png,pdf", []Format{FormatSVG, FormatPNG, FormatPDF}, false},
+		{"png,png", []Format{FormatPNG}, false},
+		{"slide", []Format{FormatSlides}, false},
+		{"all", nil, true},
+		{"png,all", nil, true},
+		{"gif", nil, true},
+	}
+	for _, tc := range cases {
+		got, err := ParseFormats(tc.in)
+		if tc.err {
+			if err == nil {
+				t.Fatalf("ParseFormats(%q) expected error", tc.in)
+			}
+			continue
+		}
+		if err != nil {
+			t.Fatalf("ParseFormats(%q): %v", tc.in, err)
+		}
+		if len(got) != len(tc.want) {
+			t.Fatalf("ParseFormats(%q) = %v, want %v", tc.in, got, tc.want)
+		}
+		for i := range got {
+			if got[i] != tc.want[i] {
+				t.Fatalf("ParseFormats(%q)[%d] = %q, want %q", tc.in, i, got[i], tc.want[i])
+			}
+		}
+	}
+}
+
+func TestWriteFormatsDeck(t *testing.T) {
+	d := testDiagram(t)
+	deck := model.Deck{Slides: []model.Diagram{d}}
+	dir := t.TempDir()
+
+	single, err := WriteFormatsDeck(deck, filepath.Join(dir, "one"), []Format{FormatPNG}, Options{Style: StylePolished, Scale: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(single) != 1 || !strings.HasSuffix(single[0], ".png") {
+		t.Fatalf("single png: %v", single)
+	}
+
+	multi, err := WriteFormatsDeck(deck, filepath.Join(dir, "bundle"), []Format{FormatPNG, FormatSVG}, Options{Style: StylePolished, Scale: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(multi) != 2 {
+		t.Fatalf("expected 2 files, got %v", multi)
+	}
+}
+
 func TestWriteAllFormats(t *testing.T) {
 	d := testDiagram(t)
 	dir := t.TempDir()

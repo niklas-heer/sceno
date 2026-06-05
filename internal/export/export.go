@@ -21,6 +21,69 @@ const (
 	FormatSlides Format = "slides" // self-contained HTML presentation (16:9)
 )
 
+// AllFormats is the set written by WriteAllDeck / --all.
+var AllFormats = []Format{FormatSVG, FormatPNG, FormatPDF, FormatHTML, FormatSlides}
+
+// ValidFormats lists supported -format values (excluding "all").
+var ValidFormats = []string{"png", "svg", "pdf", "html", "slides"}
+
+// ParseFormats splits a comma-separated -format value (default: png).
+func ParseFormats(s string) ([]Format, error) {
+	s = strings.TrimSpace(strings.ToLower(s))
+	if s == "" {
+		return []Format{FormatPNG}, nil
+	}
+	if s == "all" {
+		return nil, fmt.Errorf("use --all or -format all alone for every format")
+	}
+	parts := strings.Split(s, ",")
+	out := make([]Format, 0, len(parts))
+	seen := map[Format]bool{}
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p == "slide" {
+			p = "slides"
+		}
+		if p == "all" {
+			return nil, fmt.Errorf("-format all cannot be combined with other formats; use --all")
+		}
+		f := Format(p)
+		if !f.Valid() {
+			return nil, fmt.Errorf("unknown format %q (allowed: %s, all)", p, strings.Join(ValidFormats, ", "))
+		}
+		if !seen[f] {
+			seen[f] = true
+			out = append(out, f)
+		}
+	}
+	if len(out) == 0 {
+		return []Format{FormatPNG}, nil
+	}
+	return out, nil
+}
+
+// Valid reports whether f is a supported export format.
+func (f Format) Valid() bool {
+	switch f {
+	case FormatSVG, FormatPNG, FormatPDF, FormatHTML, FormatSlides:
+		return true
+	default:
+		return false
+	}
+}
+
+// Extension returns the conventional file suffix for a format.
+func (f Format) Extension() string {
+	switch f {
+	case FormatSlides:
+		return ".slides.html"
+	case FormatHTML:
+		return ".html"
+	default:
+		return "." + string(f)
+	}
+}
+
 // Options for rendering.
 type Options struct {
 	Style RenderStyle
@@ -187,4 +250,53 @@ func svgContent(d model.Diagram, style RenderStyle) string {
 		return render.PolishedSVG(d)
 	}
 	return render.SVG(d)
+}
+
+// WriteFormatsDeck writes one or more formats. Single-format uses outPath (appends an
+// extension when missing). Multiple formats treat outPath as a base name (extension stripped).
+func WriteFormatsDeck(deck model.Deck, outPath string, formats []Format, opt Options) ([]string, error) {
+	if len(deck.Slides) == 0 {
+		return nil, fmt.Errorf("empty deck")
+	}
+	if len(formats) == 0 {
+		formats = []Format{FormatPNG}
+	}
+	if len(formats) == 1 {
+		p := resolveOutputPath(outPath, formats[0], false)
+		if err := writeOneDeck(deck, p, formats[0], opt); err != nil {
+			return nil, err
+		}
+		return []string{p}, nil
+	}
+	base := strings.TrimSuffix(outPath, filepath.Ext(outPath))
+	var written []string
+	for _, f := range formats {
+		p := base + f.Extension()
+		if err := writeOneDeck(deck, p, f, opt); err != nil {
+			return written, fmt.Errorf("%s: %w", f, err)
+		}
+		written = append(written, p)
+	}
+	return written, nil
+}
+
+func resolveOutputPath(path string, format Format, multi bool) string {
+	if multi {
+		base := strings.TrimSuffix(path, filepath.Ext(path))
+		return base + format.Extension()
+	}
+	if filepath.Ext(path) == "" {
+		return path + format.Extension()
+	}
+	return path
+}
+
+func writeOneDeck(deck model.Deck, path string, format Format, opt Options) error {
+	if format == FormatSlides {
+		return WriteDeck(deck, path, format, opt)
+	}
+	if len(deck.Slides) == 1 {
+		return Write(deck.Slides[0], path, format, opt)
+	}
+	return WriteDeck(deck, path, format, opt)
 }

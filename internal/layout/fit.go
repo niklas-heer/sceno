@@ -12,7 +12,8 @@ func FitParents(d *model.Diagram, pad float64) {
 			children[n.Parent] = append(children[n.Parent], n)
 		}
 	}
-	for pid, kids := range children {
+	for _, pid := range sortedKeys(children) {
+		kids := children[pid]
 		p, ok := byID[pid]
 		if !ok || !model.IsContainer(p.Kind) {
 			continue

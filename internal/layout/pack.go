@@ -16,7 +16,8 @@ func PackColumns(d *model.Diagram, gap float64) {
 		}
 		groups[n.Column] = append(groups[n.Column], n)
 	}
-	for _, ns := range groups {
+	for _, col := range sortedIntKeys(groups) {
+		ns := groups[col]
 		sort.Slice(ns, func(i, j int) bool {
 			if ns[i].Rect.Y != ns[j].Rect.Y {
 				return ns[i].Rect.Y < ns[j].Rect.Y

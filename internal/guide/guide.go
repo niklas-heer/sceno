@@ -146,7 +146,7 @@ func Build() Document {
 			"If ok is false: apply each errors[].fix and errors[].example, then validate again",
 			"sceno advise -i sceno.kdl --json  (visual score + stack rules + recommendations)",
 			"sceno describe -i sceno.kdl --json  (optional: spatial layout without viewing PNG)",
-			"sceno render -i sceno.kdl -o output/sceno --all",
+			"sceno render -i sceno.kdl -o output/sceno",
 		},
 		IterateLoop: []string{
 			"Always run validate --json after editing the KDL file",
@@ -165,8 +165,8 @@ func Build() Document {
 			"sceno validate -i f --json":     "Check spec + layout; returns ok, errors, next_steps",
 			"sceno advise -i f --json":       "Stack engine + visual design rules + recommendations (--ai for external CLI)",
 			"sceno describe -i f --json":     "2D scene (layers, occlusion, edge visibility, engine) + ascii_map",
-			"sceno render -i f -o out --all": "Export svg, png, pdf, html, slides.html",
-			"sceno render -format slides":    "HTML presentation (16:9)",
+			"sceno render -i f -o out":              "Export PNG by default; -format svg,pdf for more; --all for every format",
+			"sceno render -format slides":           "HTML presentation (16:9)",
 			"sceno docs [--json]":            "Self-doc hub — guide, spec, goals, shapes, icons, errors, …",
 			"sceno docs guide --json":        "Agent handbook — start here",
 			"sceno docs spec":               "Full KDL specification",
@@ -267,7 +267,7 @@ func Build() Document {
 			"Shapes only in slide { } but edges reference ids from another slide",
 			"Duplicate node ids in the same diagram or slide",
 		},
-		RenderFormats: []string{"svg", "png", "pdf", "html", "slides", "all"},
+		RenderFormats: []string{"png (default)", "svg", "pdf", "html", "slides", "all", "comma-separated: png,svg,pdf"},
 		VisualRules:   scene.VisualRulesCatalog,
 		StackModel:    scene.StackModelDescription(),
 	}

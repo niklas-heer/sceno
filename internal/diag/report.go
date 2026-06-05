@@ -33,6 +33,7 @@ const (
 	CodeArrowHidden      Code = "arrow_hidden"
 	CodeEdgeLabelChrome  Code = "edge_label_chrome_overlap"
 	CodeEdgeLabelOffAxis Code = "edge_label_off_axis"
+	CodeEdgeSideMismatch Code = "edge_side_mismatch"
 )
 
 // Issue is one actionable problem.

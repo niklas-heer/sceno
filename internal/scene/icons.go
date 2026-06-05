@@ -64,13 +64,17 @@ func ruleIcons(ctx ruleContext) []Finding {
 }
 
 func overlapsLabel(icon model.Rect, n model.Node) bool {
-	layout := measure.LabelLayoutFor(n)
-	labelTop := layout.ContentY + layout.IconOffsetY
-	labelBox := model.Rect{
-		X: layout.ContentX,
-		Y: labelTop,
-		W: layout.ContentW,
-		H: n.Rect.Bottom() - labelTop,
-	}
+		cl := measure.LayoutFor(n)
+		labelTop := n.Rect.Y + cl.TitleStartY
+		contentW := n.Rect.W - measure.PadX
+		if n.Icon != "" && !cl.TopAlign {
+			contentW -= measure.IconColumn
+		}
+		labelBox := model.Rect{
+			X: n.Rect.X + cl.TitleX,
+			Y: labelTop,
+			W: contentW,
+			H: n.Rect.Bottom() - labelTop,
+		}
 	return rectsOverlap(icon, labelBox, 2)
 }

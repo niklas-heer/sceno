@@ -45,8 +45,8 @@ func BuildRecommendations(r Report) []Recommendation {
 	if r.OK && len(r.Warnings) == 0 {
 		add(3, "workflow", "render_ready",
 			"Spec validates cleanly — layout looks good from geometry checks.",
-			"Run sceno describe -i "+quote(r.Input)+" --json, then sceno render --all.",
-			"sceno render -i "+quote(r.Input)+" -o output/sceno --all")
+			"Run sceno describe -i "+quote(r.Input)+" --json, then sceno render -i "+quote(r.Input)+" -o output/sceno.",
+			"sceno render -i "+quote(r.Input)+" -o output/sceno")
 	}
 
 	if !r.OK && len(r.Errors) > 0 {
@@ -67,7 +67,7 @@ func BuildRecommendations(r Report) []Recommendation {
 
 func categoryForCode(code Code) string {
 	switch code {
-	case CodeEdgeCollision, CodeEdgeHidden, CodeArrowDetached, CodeArrowHidden, CodeEdgeLabelChrome, CodeEdgeLabelOffAxis:
+	case CodeEdgeCollision, CodeEdgeHidden, CodeArrowDetached, CodeArrowHidden, CodeEdgeLabelChrome, CodeEdgeLabelOffAxis, CodeEdgeSideMismatch:
 		return "edges"
 	case CodeMisaligned, CodeSuggestCompact, CodeCollision, CodeOccluded, CodeDenseLayout, CodeSlideCrowded, CodeTooManyElements, CodeAnnotationBlocks:
 		return "layout"

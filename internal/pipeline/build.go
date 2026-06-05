@@ -54,6 +54,7 @@ func BuildFromSpec(s model.Spec, opt Options) (model.Diagram, []model.Collision,
 			FontSize: ns.FontSize,
 			Layer:    ns.Layer,
 			Row:      ns.Row,
+			AtSet:    ns.AtSet,
 			Parent:   ns.Parent,
 			Column:   -1,
 			Rect:     model.Rect{W: w, H: h},
@@ -102,6 +103,7 @@ func BuildFromSpec(s model.Spec, opt Options) (model.Diagram, []model.Collision,
 	}
 
 	layout.FitParents(&d, s.Padding)
+	layout.AlignRows(&d, s.Gap)
 
 	margin := s.Gap / 2
 	colls := collision.Find(d.Nodes, margin)
@@ -112,11 +114,14 @@ func BuildFromSpec(s model.Spec, opt Options) (model.Diagram, []model.Collision,
 			collision.ResolveWithOptions(d.Nodes, margin, opt.MaxCollisionIters, resolveOpt)
 			layout.PackColumns(&d, s.Gap)
 			layout.FitParents(&d, s.Padding)
+			layout.AlignRows(&d, s.Gap)
 		}
 		colls = collision.Find(d.Nodes, margin)
 	}
 
 	measure.FitAllNodes(d.Nodes)
+	layout.AlignRows(&d, s.Gap)
+	layout.FitParents(&d, s.Padding)
 
 	layout.RouteEdges(&d)
 	for i := 0; i < 16; i++ {
@@ -134,5 +139,7 @@ func BuildFromSpec(s model.Spec, opt Options) (model.Diagram, []model.Collision,
 		}
 	}
 
+	colls = collision.Find(d.Nodes, margin)
+	measure.ApplyInteriors(d.Nodes)
 	return d, colls, nil
 }

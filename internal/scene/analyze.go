@@ -13,14 +13,6 @@ import (
 	"github.com/niklas-heer/sceno/internal/model"
 )
 
-// Z-order constants (back → front), matching polished render order.
-const (
-	ZCanvas = iota
-	ZLane
-	ZEdge
-	ZNode
-)
-
 // Report is a full 2D scene analysis for one laid-out diagram.
 type Report struct {
 	Style        string         `json:"style"`
@@ -94,7 +86,7 @@ func analyzeCore(d *model.Diagram) Report {
 	}
 	r := Report{
 		Style:      style,
-		PaintOrder: buildPaintOrder(d),
+		PaintOrder: BuildPaintOrder(d),
 		Groups:     findGroups(d),
 	}
 	r.Occlusions = findOcclusions(d)
@@ -103,24 +95,6 @@ func analyzeCore(d *model.Diagram) Report {
 	r.Aesthetics = scoreAesthetics(d, r)
 	r.Stack = BuildStack(d).Summary()
 	return r
-}
-
-func buildPaintOrder(d *model.Diagram) []PaintItem {
-	var items []PaintItem
-	for _, n := range d.Nodes {
-		if n.Kind == model.ShapeLane {
-			items = append(items, PaintItem{Z: ZLane, Kind: "lane", ID: n.ID})
-		}
-	}
-	for _, re := range d.Routed {
-		items = append(items, PaintItem{Z: ZEdge, Kind: "edge", Key: re.Key})
-	}
-	for _, n := range d.Nodes {
-		if n.Kind != model.ShapeLane {
-			items = append(items, PaintItem{Z: ZNode, Kind: "node", ID: n.ID})
-		}
-	}
-	return items
 }
 
 func findGroups(d *model.Diagram) []Group {

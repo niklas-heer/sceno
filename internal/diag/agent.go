@@ -159,7 +159,7 @@ func (r *Report) Enrich() {
 		r.Agent.NextSteps = []string{
 			"sceno advise -i " + quote(r.Input) + " --json",
 			"sceno describe -i " + quote(r.Input) + " --json",
-			"sceno render -i " + quote(r.Input) + " -o output/sceno --all",
+			"sceno render -i " + quote(r.Input) + " -o output/sceno",
 		}
 		if r.Stats.Slides > 1 {
 			r.Agent.NextSteps = append(r.Agent.NextSteps,
@@ -213,7 +213,7 @@ func buildNextSteps(r Report) []string {
 		steps = append(steps, step)
 	}
 	steps = append(steps, "Run: sceno validate -i "+quote(r.Input)+" --json")
-	steps = append(steps, "When ok is true: sceno render -i "+quote(r.Input)+" -o output/sceno --all")
+	steps = append(steps, "When ok is true: sceno render -i "+quote(r.Input)+" -o output/sceno")
 	return steps
 }
 

@@ -24,7 +24,9 @@ type VisualRule struct {
 var VisualRulesCatalog = []VisualRule{
 	{ID: "hierarchy", Name: "Visual hierarchy", Source: "NN/g, IxDF", Description: "Titles and focal nodes should dominate; supporting detail recedes via size and spacing."},
 	{ID: "whitespace", Name: "Whitespace", Source: "Gestalt proximity", Description: "Use gap and padding so groups breathe; avoid overcrowded or empty canvases."},
-	{ID: "alignment", Name: "Alignment", Source: "PowerPoint grids", Description: "Same column/row nodes share center lines; icons and labels balance."},
+	{ID: "alignment", Name: "Alignment", Source: "PowerPoint grids", Description: "Same column/row nodes share center lines; icons and labels balance on a 4px interior grid."},
+	{ID: "content_grid", Name: "Interior content grid", Source: "Sceno measure", Description: "Icon, title, and subtitle snap inside shapes; FitSize uses tight measured bounds."},
+	{ID: "anchor_sides", Name: "Anchor sides", Source: "Sceno geom", Description: "Stacked nodes connect top/bottom; horizontal pipelines use left/right."},
 	{ID: "edge_clarity", Name: "Edge clarity", Source: "d2/Mermaid", Description: "Connectors attach at shape borders; filled arrowheads meet the target edge; labels sit on the connector (opaque box), never over title/subtitle chrome."},
 	{ID: "element_budget", Name: "Element budget", Source: "C4 / architecture", Description: "Prefer ≤15 primary nodes per view; split slides or add lanes for more."},
 	{ID: "slide_focus", Name: "One idea per slide", Source: "10/20/30, Visme", Description: "Each slide should communicate one core idea with a clear focal point."},
@@ -79,6 +81,8 @@ var engineRules = []struct {
 	{"slide_focus", ruleSlideFocus},
 	{"annotations", ruleAnnotations},
 	{"alignment", ruleAlignment},
+	{"content_grid", ruleContentGrid},
+	{"anchor_sides", ruleAnchorSides},
 	{"edge_clarity", ruleEdgeClarity},
 	{"icons", ruleIcons},
 }
@@ -250,6 +254,36 @@ func ruleAnnotations(ctx ruleContext) []Finding {
 				Items:   []string{it.Ref},
 			})
 		}
+	}
+	return out
+}
+
+func ruleContentGrid(ctx ruleContext) []Finding {
+	var out []Finding
+	for _, n := range ctx.d.Nodes {
+		if model.IsContainer(n.Kind) || n.Label == "" {
+			continue
+		}
+		cl := measure.LayoutFor(n)
+		slackW := n.Rect.W - cl.MinW
+		slackH := n.Rect.H - cl.MinH
+		if slackW > 48 || slackH > 40 {
+			out = append(out, Finding{
+				RuleID: "content_grid", Severity: "hint", Plane: PlaneLabel,
+				Code: string(diag.CodeSparseLayout),
+				Message: fmt.Sprintf("node %q has %.0f×%.0fpx unused interior — tight grid fits %.0f×%.0fpx", n.ID, slackW, slackH, cl.MinW, cl.MinH),
+				Fix:     "Remove fixed w/h or shorten labels so auto sizing packs content on the 4px grid.",
+				Items:   []string{n.ID},
+			})
+		}
+	}
+	return out
+}
+
+func ruleAnchorSides(ctx ruleContext) []Finding {
+	var out []Finding
+	for _, re := range ctx.d.Routed {
+		out = append(out, checkEdgeAnchorSides(ctx.d, re)...)
 	}
 	return out
 }

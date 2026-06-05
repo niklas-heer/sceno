@@ -88,7 +88,7 @@ func polishedSVGContent(d model.Diagram, vp Viewport, opt SVGOptions) string {
 		b.WriteString(textEl(d.Subtitle, vp.MinX+32, vp.MinY+62, theme.SubtitleSize, paint.FgMuted, ""))
 	}
 	for _, n := range d.Nodes {
-		if n.Kind == model.ShapeLane {
+		if paintsBeforeEdges(n.Kind) {
 			b.WriteString(polishedNodeSVG(n, opt.DropShadow))
 		}
 	}
@@ -97,7 +97,7 @@ func polishedSVGContent(d model.Diagram, vp Viewport, opt SVGOptions) string {
 		b.WriteString(polishedPath(re.Points, re.Edge, lctx))
 	}
 	for _, n := range d.Nodes {
-		if n.Kind != model.ShapeLane {
+		if !paintsBeforeEdges(n.Kind) {
 			b.WriteString(polishedNodeSVG(n, opt.DropShadow))
 		}
 	}

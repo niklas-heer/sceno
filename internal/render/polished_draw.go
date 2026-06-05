@@ -41,7 +41,7 @@ func DrawPolishedGG(dc *gg.Context, d model.Diagram, ox, oy, scale float64, vp V
 	}
 
 	for _, n := range d.Nodes {
-		if n.Kind == model.ShapeLane {
+		if paintsBeforeEdges(n.Kind) {
 			drawPolishedNodeGG(dc, n, vp, ox, oy, scale)
 		}
 	}
@@ -50,7 +50,7 @@ func DrawPolishedGG(dc *gg.Context, d model.Diagram, ox, oy, scale float64, vp V
 		drawPolishedEdgeGG(dc, re.Points, re.Edge, lctx, vp, ox, oy, scale)
 	}
 	for _, n := range d.Nodes {
-		if n.Kind != model.ShapeLane {
+		if !paintsBeforeEdges(n.Kind) {
 			drawPolishedNodeGG(dc, n, vp, ox, oy, scale)
 		}
 	}
@@ -85,7 +85,7 @@ func DrawPolishedPDF(pdf *gofpdf.Fpdf, d model.Diagram, minX, minY float64) {
 	}
 
 	for _, n := range d.Nodes {
-		if n.Kind == model.ShapeLane {
+		if paintsBeforeEdges(n.Kind) {
 			drawPolishedNodePDF(pdf, n, minX, minY)
 		}
 	}
@@ -94,7 +94,7 @@ func DrawPolishedPDF(pdf *gofpdf.Fpdf, d model.Diagram, minX, minY float64) {
 		drawPolishedEdgePDF(pdf, re.Points, re.Edge, lctx, minX, minY)
 	}
 	for _, n := range d.Nodes {
-		if n.Kind != model.ShapeLane {
+		if !paintsBeforeEdges(n.Kind) {
 			drawPolishedNodePDF(pdf, n, minX, minY)
 		}
 	}
@@ -181,6 +181,13 @@ func drawPolishedNodeGG(dc *gg.Context, n model.Node, vp Viewport, ox, oy, scale
 		dc.SetRGB(sr, sg, sb)
 		dc.Stroke()
 		dc.SetDash()
+	case model.ShapeFrame, model.ShapeGroup:
+		lr, lg, lb := hexRGB(paint.BgLane, 0.97, 0.98, 0.99)
+		dc.SetRGB(lr, lg, lb)
+		dc.DrawRoundedRectangle(x, y, w, h, 14*scale)
+		dc.FillPreserve()
+		dc.SetRGB(sr, sg, sb)
+		dc.Stroke()
 	default:
 		dc.DrawRoundedRectangle(x, y, w, h, 12*scale)
 		dc.FillPreserve()
@@ -210,35 +217,33 @@ func drawPolishedLabelGG(dc *gg.Context, n model.Node, x, y, w, h, scale float64
 	if fs <= 0 {
 		fs = theme.NodeSize
 	}
+	cl := measure.LayoutFor(n)
 	setGGFont(dc, fonts.WeightMedium, fs*scale)
 	setGGColor(dc, paint.FgPrimary)
 	lines := strings.Split(n.Label, "\n")
-	lh := fs * 1.25 * scale
-	iconOff := 0.0
-	if n.Icon != "" {
-		iconOff = 14 * scale
-	}
-	totalH := float64(len(lines))*lh + iconOff
-	if n.Subtitle != "" {
-		totalH += 14 * scale
-	}
-	startY := y + h/2 - totalH/2 + lh*0.75 + iconOff/2
-	contentW := w - measure.PadX * scale
-	if n.Icon != "" {
+	lh := cl.TitleLineH * scale
+	contentW := w - measure.PadX*scale
+	if n.Icon != "" && n.IconPos != model.IconTop && n.IconPos != model.IconTopRight {
 		contentW -= measure.IconColumn * scale
 	}
 	for i, line := range lines {
 		tw, _ := dc.MeasureString(line)
-		tx := x + (w-tw)/2
-		if n.Icon != "" {
+		tx := x + cl.TitleX*scale
+		if !cl.TopAlign || n.Icon == "" {
+			tx = x + cl.TitleX*scale + (contentW-tw)/2
+		}
+		if n.Icon != "" && (n.IconPos == "" || n.IconPos == model.IconTopLeft) && !cl.TopAlign {
 			tx = x + measure.IconColumn*scale + (contentW-tw)/2
 		}
-		dc.DrawString(line, tx, startY+float64(i)*lh)
+		if cl.TopAlign && n.Icon != "" {
+			tx = x + (w-tw)/2
+		}
+		dc.DrawString(line, tx, y+cl.TitleStartY*scale+float64(i)*lh)
 	}
-	if n.Subtitle != "" {
+	if cl.HasSubtitle {
 		setGGFont(dc, fonts.WeightRegular, theme.SubSize*scale)
 		setGGColor(dc, paint.FgMuted)
-		dc.DrawString(n.Subtitle, x+14*scale, y+h-16*scale)
+		dc.DrawString(n.Subtitle, x+cl.SubtitleX*scale, y+cl.SubtitleY*scale)
 	}
 }
 

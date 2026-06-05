@@ -26,9 +26,9 @@ func SVG(d model.Diagram) string {
 	if d.Subtitle != "" {
 		b.WriteString(textEl(d.Subtitle, (minX+maxX)/2-220, minY+58, 16, "#495057", ""))
 	}
-	// Paint order: lanes → edges → nodes (edges stay visible under shapes).
+	// Paint order: containers → edges → nodes (connectors stay visible inside frames).
 	for _, n := range d.Nodes {
-		if n.Kind == model.ShapeLane {
+		if paintsBeforeEdges(n.Kind) {
 			b.WriteString(nodeSketch(n, minX, minY))
 		}
 	}
@@ -38,7 +38,7 @@ func SVG(d model.Diagram) string {
 		b.WriteString(EdgeLabelSketch(re.Points, re.Edge, lctx))
 	}
 	for _, n := range d.Nodes {
-		if n.Kind != model.ShapeLane {
+		if !paintsBeforeEdges(n.Kind) {
 			b.WriteString(nodeSketch(n, minX, minY))
 		}
 	}

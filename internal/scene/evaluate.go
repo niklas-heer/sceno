@@ -149,10 +149,11 @@ func PaintOrderDescription() string {
 	return strings.Join([]string{
 		"Paint order (back → front) is fixed and shared by render and engine:",
 		"1. canvas background",
-		"2. lanes (containers)",
-		"3. edges (connectors)",
+		"2. lanes, frames, groups (container backgrounds)",
+		"3. edges (connector strokes)",
 		"4. nodes (shapes)",
-		"5. labels and chrome (titles)",
-		"Evaluate().PaintOrder lists concrete items for a laid-out diagram.",
+		"5. edge labels",
+		"6. arrowheads",
+		"scene.PaintsBeforeEdges / scene.BuildPaintOrder are the source of truth; render delegates to them.",
 	}, "\n")
 }

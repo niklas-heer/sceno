@@ -9,6 +9,9 @@ func IconRect(n model.Node, size float64) (x, y float64) {
 	if n.Icon == "" {
 		return 0, 0
 	}
+	if n.Interior.Ready && n.Interior.IconSize > 0 {
+		return n.Rect.X + n.Interior.IconX, n.Rect.Y + n.Interior.IconY
+	}
 	pos := n.IconPos
 	if pos == "" {
 		pos = model.IconTopLeft
@@ -37,54 +40,4 @@ type LabelLayout struct {
 	ContentX, ContentY, ContentW float64
 	TopAlign                     bool
 	IconOffsetY                  float64
-}
-
-// LabelLayoutFor returns label region and vertical alignment for a node.
-func LabelLayoutFor(n model.Node) LabelLayout {
-	pos := n.IconPos
-	if pos == "" {
-		pos = model.IconTopLeft
-	}
-	contentW := n.Rect.W - PadX
-	iconOff := 0.0
-	topAlign := false
-
-	switch pos {
-	case model.IconCenter:
-		contentW = n.Rect.W - PadX
-	case model.IconTop, model.IconTopRight:
-		contentW = n.Rect.W - PadX
-		iconOff = IconPad + IconSize + 4
-		topAlign = true
-	default:
-		if n.Icon != "" {
-			contentW -= IconColumn
-			iconOff = 14
-		}
-	}
-
-	k := model.NormalizeShape(n.Kind)
-	switch k {
-	case model.ShapeInfobox, model.ShapeCallout:
-		topAlign = true
-	case model.ShapeActor:
-		if n.Icon != "" && pos == model.IconTopLeft {
-			topAlign = true
-			iconOff = IconPad + IconSize + 6
-			contentW = n.Rect.W - PadX
-		}
-	}
-
-	contentX := n.Rect.X + PadX
-	if n.Icon != "" && pos == model.IconTopLeft {
-		contentX = n.Rect.X + IconColumn
-	}
-
-	return LabelLayout{
-		ContentX:    contentX,
-		ContentY:    n.Rect.Y,
-		ContentW:    contentW,
-		TopAlign:    topAlign,
-		IconOffsetY: iconOff,
-	}
 }

@@ -33,20 +33,46 @@ func Anchor(n model.Node, side model.Side) Point {
 	}
 }
 
+// StackedVertically is true when nodes share a column band and are meaningfully separated on Y.
+func StackedVertically(from, to model.Node) bool {
+	band := math.Min(from.Rect.W, to.Rect.W)*0.45 + 12
+	if math.Abs(from.Rect.CX()-to.Rect.CX()) > band {
+		return false
+	}
+	minH := math.Min(from.Rect.H, to.Rect.H)
+	if minH < 1 {
+		minH = 1
+	}
+	return math.Abs(from.Rect.CY()-to.Rect.CY()) > minH*0.25
+}
+
 // BestSides picks exit/entry sides from relative node positions.
+// Vertically stacked nodes attach top/bottom; horizontal pipelines use left/right.
 func BestSides(from, to model.Node) (model.Side, model.Side) {
+	if StackedVertically(from, to) {
+		dy := to.Rect.CY() - from.Rect.CY()
+		if dy >= 0 {
+			return model.SideBottom, model.SideTop
+		}
+		return model.SideTop, model.SideBottom
+	}
 	dx := to.Rect.CX() - from.Rect.CX()
 	dy := to.Rect.CY() - from.Rect.CY()
-	if math.Abs(dx) >= math.Abs(dy) {
-		if dx >= 0 {
-			return model.SideRight, model.SideLeft
+	if math.Abs(dy) > math.Abs(dx)*0.85 {
+		if dy >= 0 {
+			return model.SideBottom, model.SideTop
 		}
-		return model.SideLeft, model.SideRight
+		return model.SideTop, model.SideBottom
 	}
-	if dy >= 0 {
-		return model.SideBottom, model.SideTop
+	if dx >= 0 {
+		return model.SideRight, model.SideLeft
 	}
-	return model.SideTop, model.SideBottom
+	return model.SideLeft, model.SideRight
+}
+
+// IsHorizontalSide reports left/right attachment sides.
+func IsHorizontalSide(s model.Side) bool {
+	return s == model.SideLeft || s == model.SideRight
 }
 
 func rectAnchor(r model.Rect, side model.Side) Point {

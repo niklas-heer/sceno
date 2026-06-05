@@ -102,10 +102,10 @@ func legacyHint(preferred, example string) {
 func cmdRender(args []string) {
 	fs := flag.NewFlagSet("render", flag.ExitOnError)
 	in := fs.String("i", "", "input .kdl spec")
-	out := fs.String("o", "", "output path")
+	out := fs.String("o", "", "output path (base name when writing multiple formats)")
 	style := fs.String("style", "polished", "sketch or polished")
-	format := fs.String("format", "svg", "svg|png|pdf|html|slides|all")
-	all := fs.Bool("all", false, "write all formats")
+	format := fs.String("format", "png", "output format(s): png, svg, pdf, html, slides, all (comma-separated for multiple)")
+	all := fs.Bool("all", false, "write all formats (svg, png, pdf, html, slides.html)")
 	noFix := fs.Bool("no-fix", false, "skip collision resolution")
 	jsonErr := fs.Bool("json-errors", false, "on failure print validate JSON to stderr")
 	_ = fs.Parse(args)
@@ -135,7 +135,7 @@ func cmdRender(args []string) {
 	}
 
 	opt := export.Options{Style: export.RenderStyle(*style), Scale: 2}
-	f := strings.ToLower(*format)
+	f := strings.ToLower(strings.TrimSpace(*format))
 	if *all || f == "all" {
 		base := *out
 		if base == "" {
@@ -155,23 +155,20 @@ func cmdRender(args []string) {
 		fmt.Fprintln(os.Stderr, "render: -o required")
 		os.Exit(2)
 	}
-	if f == "slides" || f == "slide" {
-		if err := export.WriteDeck(deck, *out, export.FormatSlides, opt); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(2)
-		}
-	} else if len(deck.Slides) == 1 {
-		if err := export.Write(deck.Slides[0], *out, export.Format(f), opt); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(2)
-		}
-	} else {
-		if err := export.WriteDeck(deck, *out, export.Format(f), opt); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(2)
-		}
+
+	formats, err := export.ParseFormats(*format)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "render:", err)
+		os.Exit(2)
 	}
-	fmt.Println("wrote", *out)
+	paths, err := export.WriteFormatsDeck(deck, *out, formats, opt)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(2)
+	}
+	for _, p := range paths {
+		fmt.Println("wrote", p)
+	}
 }
 
 func cmdValidate(args []string) {
@@ -363,7 +360,9 @@ func usage() {
   sceno validate -i f --json       check spec + layout (run after every edit)
   sceno advise -i f --json         visual rules, score, recommendations
   sceno describe -i f --json       layout feedback without viewing images
-  sceno render -i f -o out --all   export svg, png, pdf, html, slides.html
+  sceno render -i f -o out              export PNG (default)
+  sceno render -i f -o out -format svg,pdf   export selected formats
+  sceno render -i f -o out --all        export svg, png, pdf, html, slides.html
   sceno docs [TOPIC] [--json]      self-doc: guide, spec, goals, shapes, icons, …
   sceno version [--json]           version, commit, build date
 

@@ -79,12 +79,35 @@ func routeWithLane(start, end geom.Point, obstacles []model.Node, pad, laneOff f
 			continue
 		}
 		sc := scorePath(c, obstacles, start, end, pad)
-		if sc < bestScore {
+		if betterPath(sc, c, bestScore, best) {
 			bestScore = sc
 			best = c
 		}
 	}
 	return snapPathEnds(best, start, end)
+}
+
+// betterPath picks a lower score, or deterministically breaks ties (fewer bends, lexicographic).
+func betterPath(sc float64, c []geom.Point, bestScore float64, best []geom.Point) bool {
+	const eps = 1e-6
+	if sc < bestScore-eps {
+		return true
+	}
+	if sc > bestScore+eps {
+		return false
+	}
+	if len(c) != len(best) {
+		return len(c) < len(best)
+	}
+	for i := range c {
+		if c[i].X != best[i].X {
+			return c[i].X < best[i].X
+		}
+		if c[i].Y != best[i].Y {
+			return c[i].Y < best[i].Y
+		}
+	}
+	return false
 }
 
 // snapPathEnds forces endpoints onto shape border anchors (routing may bend nearby).

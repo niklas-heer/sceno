@@ -19,7 +19,7 @@ The diagram above is defined in [`examples/how-it-works.kdl`](examples/how-it-wo
 ```bash
 sceno validate -i examples/how-it-works.kdl --json
 sceno advise -i examples/how-it-works.kdl --json   # visual score + arrow/label checks
-sceno render -i examples/how-it-works.kdl -o docs/how-it-works.png --format png
+sceno render -i examples/how-it-works.kdl -o docs/how-it-works
 ```
 
 ## For AI agents
@@ -114,7 +114,7 @@ Seven core commands — everything else lives under `sceno docs`:
 | `sceno advise -i f --json` | Stack engine + visual score + recommendations |
 | `sceno advise -i f --ai` | Optional AI review via `SCENO_AI_CMD` |
 | `sceno describe -i f --json` | **Visual feedback without images** — narrative, ASCII map, scene, engine, problems |
-| `sceno render -i f -o out --all` | Export svg, png, pdf, html, slides.html |
+| `sceno render -i f -o out` | Export PNG (default); `-format svg,pdf` for more; `--all` for every format |
 | `sceno render -format slides` | 16:9 HTML presentation |
 | `sceno docs [TOPIC] [--json]` | **Self-doc hub** — guide, spec, goals, shapes, icons, stack, errors, … |
 | `sceno version [--json]` | Version, commit, build date |
@@ -127,7 +127,7 @@ Legacy aliases (`check`, `guide`, `spec`, `goals`, `shapes`, `icons`, `suggest`,
 sceno init -o platform.kdl
 # edit platform.kdl
 sceno validate -i platform.kdl --json
-sceno render -i platform.kdl -o output/sceno --all
+sceno render -i platform.kdl -o output/sceno
 ```
 
 ## Spec example

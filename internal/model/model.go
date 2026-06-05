@@ -48,6 +48,23 @@ type ThemeConfig struct {
 	Vars        map[string]string `json:"vars,omitempty"`        // e.g. background, foreground, card
 }
 
+// InteriorLayout is the snapped icon+label grid inside a shape (pipeline/engine SoT).
+type InteriorLayout struct {
+	IconX, IconY float64
+	IconSize     float64
+	TitleX       float64
+	TitleStartY  float64
+	TitleLineH   float64
+	TitleLines   int
+	SubtitleX    float64
+	SubtitleY    float64
+	HasSubtitle  bool
+	TopAlign     bool
+	MinW         float64
+	MinH         float64
+	Ready        bool
+}
+
 // Node is a placed diagram element.
 type Node struct {
 	ID       string
@@ -65,9 +82,11 @@ type Node struct {
 	Layer    int
 	Row      int
 	Column   int
+	AtSet    bool // explicit at=col,row (layer 0 is valid)
 	Fixed    bool
 	Parent   string
 	Rect     Rect
+	Interior InteriorLayout
 }
 
 // Edge connects two nodes with optional anchor sides and label.
@@ -146,6 +165,7 @@ type NodeSpec struct {
 	FontSize float64   `yaml:"fontSize" json:"fontSize"`
 	Layer    int       `yaml:"layer" json:"layer"`
 	Row      int       `yaml:"row" json:"row"`
+	AtSet    bool      `yaml:"atSet" json:"atSet,omitempty"`
 	Parent   string    `yaml:"parent" json:"parent"`
 	W        float64   `yaml:"w" json:"w"`
 	H        float64   `yaml:"h" json:"h"`

@@ -31,3 +31,13 @@ func TestResolveSeparatesOverlap(t *testing.T) {
 		t.Fatalf("still overlapping: %+v", c)
 	}
 }
+
+func TestContainerIgnoresOutsideNodes(t *testing.T) {
+	nodes := []model.Node{
+		{ID: "frame", Kind: model.ShapeFrame, Rect: model.Rect{X: 0, Y: 0, W: 300, H: 200}},
+		{ID: "outside", Rect: model.Rect{X: 50, Y: 50, W: 80, H: 40}},
+	}
+	if c := Find(nodes, 8); len(c) != 0 {
+		t.Fatalf("container should not collide with outside nodes: %+v", c)
+	}
+}

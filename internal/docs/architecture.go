@@ -53,6 +53,11 @@ func buildArchitectureDoc() ArchitectureDoc {
 			"Build once per command — no double pipeline.BuildDeck in validate then render",
 			"Render projects geometry; it must not re-derive validation rules",
 			"Visual rules live in scene.engineRules — single catalog for validate, advise, docs",
+			"Paint order and container backgrounds: scene.PaintsBeforeEdges / scene.BuildPaintOrder",
+			"Interior shape layout: measure.ApplyInteriors → model.Node.Interior (4px grid, icon+label bands)",
+			"Edge anchors: geom.BestSides / geom.StackedVertically — top/bottom when stacked",
+			"Grid placement: at=col,row sets AtSet so layer 0 columns are not overridden by edge ranks",
+			"Hybrid layout: layout=hybrid|auto grid-snaps flow nodes; x/y or layer=0 callouts float free",
 			"Backward compat: scene.RunEngine and scene.Analyze wrap scene.Evaluate",
 		},
 		AntiPatterns: []string{

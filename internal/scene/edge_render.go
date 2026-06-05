@@ -29,6 +29,43 @@ func edgeRenderFindings(d *model.Diagram) []Finding {
 	return out
 }
 
+func checkEdgeAnchorSides(d *model.Diagram, re model.RoutedEdge) []Finding {
+	byID := map[string]model.Node{}
+	for _, n := range d.Nodes {
+		byID[n.ID] = n
+	}
+	a, okA := byID[re.Edge.From]
+	b, okB := byID[re.Edge.To]
+	if !okA || !okB || !geom.StackedVertically(a, b) {
+		return nil
+	}
+	idealF, idealT := geom.BestSides(a, b)
+	fs, ts := re.Edge.FromSide, re.Edge.ToSide
+	explicit := (fs != "" && fs != model.SideAuto) || (ts != "" && ts != model.SideAuto)
+	if fs == "" || fs == model.SideAuto {
+		fs = idealF
+	}
+	if ts == "" || ts == model.SideAuto {
+		ts = idealT
+	}
+	if !geom.IsHorizontalSide(fs) && !geom.IsHorizontalSide(ts) {
+		return nil
+	}
+	sev := "hint"
+	if explicit {
+		sev = "warning"
+	}
+	key := re.Edge.From + "→" + re.Edge.To
+	return []Finding{{
+		RuleID: "edge_clarity", Severity: sev, Plane: PlaneEdge,
+		Code: string(diag.CodeEdgeSideMismatch),
+		Message: fmt.Sprintf("edge %s is vertical but uses side anchors (%s→%s); prefer top/bottom", key, fs, ts),
+		Fix:     "Omit fromSide/toSide for auto top/bottom, or set fromSide=bottom toSide=top when stacked.",
+		Example: `edge gate -> blocked fromSide=bottom toSide=top`,
+		Items:   []string{re.Edge.From, re.Edge.To},
+	}}
+}
+
 func checkEdgeArrow(d *model.Diagram, re model.RoutedEdge) []Finding {
 	gpts := geom.SimplifyPath(geom.SlicesToPath(re.Points))
 	if len(gpts) < 2 {

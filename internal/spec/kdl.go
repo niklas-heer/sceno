@@ -299,7 +299,8 @@ func applyNodeProps(ns *model.NodeSpec, props map[string]kdlTok) {
 		case "row":
 			ns.Row = int(v.num)
 		case "at":
-			// at=layer,row
+			// at=layer,row — explicit grid slot (layer 0 is valid)
+			ns.AtSet = true
 			parts := strings.Split(v.str, ",")
 			if len(parts) >= 1 {
 				if n, err := strconv.Atoi(strings.TrimSpace(parts[0])); err == nil {

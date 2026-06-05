@@ -33,6 +33,13 @@ func related(a, b *model.Node) bool {
 	if model.IsContainer(b.Kind) && a.Parent == b.ID {
 		return true
 	}
+	// Containers are visual grouping — ignore collisions with nodes outside their subtree.
+	if model.IsContainer(a.Kind) && b.Parent != a.ID {
+		return true
+	}
+	if model.IsContainer(b.Kind) && a.Parent != b.ID {
+		return true
+	}
 	return false
 }
 

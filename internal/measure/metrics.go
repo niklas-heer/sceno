@@ -111,6 +111,8 @@ func applyShapePadding(w, h *float64, k model.ShapeKind) {
 	if *h < 40 {
 		*h = 40
 	}
+	*w = Snap(*w)
+	*h = Snap(*h)
 }
 
 const (
@@ -164,32 +166,33 @@ func FitSize(n model.NodeSpec) (w, h float64) {
 		}
 		return w, h
 	}
-	needW, needH := ContentSize(n)
-	w, h = needW, needH
+	cl := BuildContentLayout(nodeFromSpec(n))
+	w, h = cl.MinW, cl.MinH
 	if n.W > 0 && n.W > w {
 		w = n.W
 	}
 	if n.H > 0 && n.H > h {
 		h = n.H
 	}
-	return w, h
+	return Snap(w), Snap(h)
+}
+
+func nodeFromSpec(ns model.NodeSpec) model.Node {
+	return model.Node{
+		Label: ns.Label, Subtitle: ns.Subtitle, Kind: ns.Kind,
+		Icon: ns.Icon, IconPos: ns.IconPos, FontSize: ns.FontSize,
+		Rect: model.Rect{W: 200, H: 120},
+	}
 }
 
 // Overflow returns how many pixels label content exceeds the node rect (0 = fits).
 func Overflow(n model.Node) (overW, overH float64) {
-	ns := model.NodeSpec{
-		Label:    n.Label,
-		Subtitle: n.Subtitle,
-		Kind:     n.Kind,
-		Icon:     n.Icon,
-		FontSize: n.FontSize,
+	cl := LayoutFor(n)
+	if n.Rect.W < cl.MinW {
+		overW = cl.MinW - n.Rect.W
 	}
-	needW, needH := ContentSize(ns)
-	if n.Rect.W < needW {
-		overW = needW - n.Rect.W
-	}
-	if n.Rect.H < needH {
-		overH = needH - n.Rect.H
+	if n.Rect.H < cl.MinH {
+		overH = cl.MinH - n.Rect.H
 	}
 	return overW, overH
 }

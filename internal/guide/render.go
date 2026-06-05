@@ -17,7 +17,7 @@ func RenderSpecMarkdown() string {
 	b.WriteString("Diagram is defined in **[KDL](https://kdl.dev/)** only. Generated from code — run `sceno docs spec`.\n\n")
 	b.WriteString("## Quick start\n\n```kdl\n")
 	b.WriteString(SpecExample())
-	b.WriteString("\n```\n\n```bash\nsceno init -o platform.kdl\nsceno validate -i platform.kdl --json\nsceno advise -i platform.kdl --json\nsceno render -i platform.kdl -o out --all\n```\n\n")
+	b.WriteString("\n```\n\n```bash\nsceno init -o platform.kdl\nsceno validate -i platform.kdl --json\nsceno advise -i platform.kdl --json\nsceno render -i platform.kdl -o out\n```\n\n")
 
 	b.WriteString("## Document structure\n\n")
 	b.WriteString("| Statement | Example |\n|-----------|---------|\n")

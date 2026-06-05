@@ -25,3 +25,15 @@ func TestBestSidesHorizontal(t *testing.T) {
 		t.Fatalf("got %s %s", f, tside)
 	}
 }
+
+func TestBestSidesVerticalStack(t *testing.T) {
+	from := model.Node{Rect: model.Rect{X: 100, Y: 0, W: 80, H: 50}}
+	to := model.Node{Rect: model.Rect{X: 105, Y: 120, W: 80, H: 50}}
+	if !StackedVertically(from, to) {
+		t.Fatal("expected stacked vertically")
+	}
+	f, tside := BestSides(from, to)
+	if f != model.SideBottom || tside != model.SideTop {
+		t.Fatalf("got %s %s want bottom top", f, tside)
+	}
+}
