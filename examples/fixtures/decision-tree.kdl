@@ -1,0 +1,14 @@
+// Decision tree — vertical branches from diamond gates
+diagram title="Approval Workflow" layout=auto style=polished gap=40 padding=28 {
+
+  shape box submit "Submit" icon=folder iconPos=top at=0,0
+  shape diamond review "Review?" fill="#fef3c7" at=0,1
+  shape box approved "Approved" icon=shield fill="#d1fae5" at=1,1
+  shape warning rejected "Rejected" icon=info fill="#fef3c7" at=0,2
+  shape box archive "Archive" icon=folder iconPos=top at=1,2
+
+  edge submit -> review
+  edge review -> approved fromSide=right toSide=left label="yes"
+  edge review -> rejected fromSide=bottom toSide=top label="no"
+  edge approved -> archive fromSide=bottom toSide=top
+}

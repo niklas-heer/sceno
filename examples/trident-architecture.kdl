@@ -1,0 +1,39 @@
+diagram title="Project Trident — Architecture Overview" subtitle="Self-service AWS infrastructure for application teams via CPS Platform Engineering" layout=auto style=polished gap=32 padding=28 {
+
+  // ── Application Team (top lane, cols 3–9) ────────────────────────────────
+  shape frame consumer "Application Team (Consumer)"
+
+  shape document repo "Consumer Repo" subtitle="infra/ + app code" icon=storage iconPos=top fill="#dbeafe" parent=consumer at=3,1
+  shape document stack "Pulumi Stack" subtitle="Kotlin · Python · TypeScript" icon=api iconPos=top fill="#dbeafe" parent=consumer at=4,1
+  shape hexagon ci "GitLab CI" subtitle="pulumi preview / up" icon=workflow iconPos=top fill="#dbeafe" parent=consumer at=5,1
+  shape diamond gate "CrossGuard" subtitle="Policy Check" fill="#dbeafe" parent=consumer at=6,1
+  shape cloud aws "AWS (eu-central-1)" subtitle="SQS · SNS · S3 · …" icon=cloud iconPos=top fill="#dbeafe" parent=consumer at=7,1
+  shape tip pass "Deployed" subtitle="changes applied" icon=shield fill="#d1fae5" parent=consumer at=8,1
+  shape warning blocked "Blocked" subtitle="no changes" icon=info fill="#fef3c7" parent=consumer at=6,2
+
+  edge repo -> stack fromSide=right toSide=left
+  edge stack -> ci fromSide=right toSide=left label="push"
+  edge ci -> gate fromSide=right toSide=left
+  edge gate -> aws fromSide=right toSide=left label="pass"
+  edge gate -> blocked fromSide=bottom toSide=top
+  edge aws -> pass fromSide=right toSide=left
+
+  // ── Cross-account IAM (outside consumer frame) ─────────────────────────────
+  shape box iam "Cross-account IAM" subtitle="Managed by components\ninvisible to consumers" icon=lock iconPos=top fill="#f1f5f9" at=9,1
+
+  edge pass -> iam fromSide=right toSide=left label="IAM role"
+
+  // ── Platform Engineering (bottom lane, cols 1–2, row 4+) ───────────────
+  shape frame platform "Platform Engineering (CPS)"
+
+  shape hexagon components "trident-components" subtitle="Pulumi components\nfor AWS services" icon=api iconPos=top fill="#ede9fe" parent=platform at=1,5
+  shape cylinder nexus "Nexus Registry" subtitle="Python · TS · Java · Kotlin · Go" icon=storage iconPos=top fill="#ede9fe" parent=platform at=2,5
+  shape hexagon policy "trident-policy-pack" subtitle="CrossGuard\ntags, region, env" icon=policy iconPos=top fill="#ede9fe" parent=platform at=1,6
+  shape hexagon runner "Trident CI Runner" subtitle="Provisioned to consumers" icon=server iconPos=top fill="#ede9fe" parent=platform at=2,6
+
+  edge policy -> runner fromSide=right toSide=left label="bundled"
+
+  // ── Cross-boundary ───────────────────────────────────────────────────────
+  edge nexus -> stack fromSide=right toSide=left label="install SDK"
+  edge runner -> ci fromSide=right toSide=left label="provisioned"
+}

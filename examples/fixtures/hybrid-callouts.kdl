@@ -1,0 +1,16 @@
+// Hybrid layout — snapped pipeline + free-floating callouts (presentation style)
+diagram title="Release Train" subtitle="Grid flow with floating notes" layout=hybrid style=polished gap=36 padding=28 {
+
+  shape box plan "Plan" icon=layers iconPos=top fill="#dbeafe" at=0,0
+  shape box build "Build" icon=workflow iconPos=top fill="#d1fae5" at=1,0
+  shape box test "Test" icon=shield iconPos=top fill="#fef3c7" at=2,0
+  shape box deploy "Deploy" icon=cloud iconPos=top fill="#ede9fe" at=3,0
+
+  shape callout risk "Risk" subtitle="change advisory" icon=shield accent="#f59e0b" layer=0 x=520 y=48 w=200 h=72
+  shape callout tip "Tip" subtitle="feature flags gate prod" icon=info accent="#3b82f6" layer=0 x=520 y=200 w=200 h=72
+
+  edge plan -> build label="sprint"
+  edge build -> test
+  edge test -> deploy label="promote"
+  edge test -> risk fromSide=right toSide=left dashed=true
+}

@@ -1,0 +1,18 @@
+// Multi-lane — parallel swimlanes with cross-lane edges
+diagram title="CI/CD Lanes" layout=auto style=polished gap=28 padding=24 {
+
+  shape lane dev "Development"
+  shape box repo "Code" icon=git parent=dev at=0,0
+  shape box pr "Pull Request" icon=workflow parent=dev at=1,0
+
+  shape lane ops "Operations"
+  shape box staging "Staging" icon=server parent=ops at=0,1
+  shape box prod "Production" icon=cloud parent=ops at=1,1
+
+  shape infobox gate "Manual Gate" subtitle="SRE approval" icon=shield accent="#7c3aed" at=2,0
+
+  edge repo -> pr label="push"
+  edge pr -> staging fromSide=bottom toSide=top label="merge"
+  edge staging -> gate
+  edge gate -> prod fromSide=bottom toSide=top label="promote"
+}

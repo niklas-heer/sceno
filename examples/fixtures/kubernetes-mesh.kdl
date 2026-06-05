@@ -1,0 +1,19 @@
+// Kubernetes service mesh — sidecar ingress pattern
+diagram title="Payments Mesh" subtitle="EKS · Istio · mTLS" layout=auto style=polished gap=32 padding=24 {
+
+  shape lane cluster "EKS Cluster"
+
+  shape box ingress "Ingress" icon=cloud iconPos=top fill="#dbeafe" parent=cluster at=0,0
+  shape hexagon checkout "checkout-svc" icon=api iconPos=top fill="#d1fae5" parent=cluster at=1,0
+  shape hexagon fraud "fraud-svc" icon=shield iconPos=top fill="#fef3c7" parent=cluster at=2,0
+  shape cylinder ledger "ledger-svc" icon=database iconPos=top fill="#ede9fe" parent=cluster at=3,0
+  shape box notify "notify-svc" icon=bell iconPos=top fill="#ffedd5" parent=cluster at=4,0
+
+  shape infobox mesh "Istio" subtitle="mTLS · retries · telemetry" icon=lock accent="#6366f1" at=0,2
+
+  edge ingress -> checkout label="HTTPS"
+  edge checkout -> fraud label="score"
+  edge checkout -> ledger label="debit"
+  edge ledger -> notify fromSide=right toSide=left label="receipt"
+  edge fraud -> checkout fromSide=bottom toSide=top label="block" dashed=true color="#dc2626"
+}

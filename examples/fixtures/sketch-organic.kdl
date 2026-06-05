@@ -1,0 +1,12 @@
+// Sketch style — organic curved connectors
+diagram title="Brainstorm" subtitle="Sketch routing regression" layout=auto style=sketch gap=36 padding=24 {
+
+  shape box idea "Idea" at=0,0
+  shape box refine "Refine" at=1,0
+  shape box ship "Ship" at=2,0
+  shape note parking "Parking lot" subtitle="v2 items" at=0,1
+
+  edge idea -> refine label="iterate"
+  edge refine -> ship
+  edge refine -> parking dashed=true
+}

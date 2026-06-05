@@ -1,0 +1,22 @@
+// C4-style context — retail banking platform boundaries
+diagram title="Retail Banking Context" subtitle="C4 Level 1 — system landscape" layout=auto style=polished gap=40 padding=32 {
+
+  shape actor customer "Customer" icon=user at=0,1
+  shape actor staff "Branch Staff" icon=users at=0,2
+
+  shape box mobile "Mobile App" icon=user fill="#dbeafe" at=1,1
+  shape box web "Web Banking" icon=globe fill="#dbeafe" at=1,2
+  shape box core "Core Banking" subtitle="accounts · loans" icon=server fill="#ede9fe" at=2,1
+  shape cylinder warehouse "Data Warehouse" subtitle="regulatory reporting" icon=storage iconPos=top fill="#ffedd5" at=3,1
+  shape cloud partner "Partner APIs" icon=cloud fill="#f1f5f9" at=2,2
+
+  shape callout pci "PCI Scope" subtitle="card data never hits core" icon=shield accent="#e11d48" at=3,0 w=220 h=76
+
+  edge customer -> mobile fromSide=right toSide=left
+  edge customer -> web fromSide=right toSide=left
+  edge staff -> core fromSide=right toSide=left label="admin"
+  edge mobile -> core label="REST"
+  edge web -> core label="REST"
+  edge core -> warehouse label="ETL"
+  edge core -> partner fromSide=bottom toSide=top
+}
