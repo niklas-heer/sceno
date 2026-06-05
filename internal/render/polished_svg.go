@@ -93,8 +93,9 @@ func polishedSVGContent(d model.Diagram, vp Viewport, opt SVGOptions) string {
 		}
 	}
 	for _, re := range d.Routed {
-		b.WriteString(polishedPath(re.Points, re.Edge))
-		b.WriteString(EdgeLabelSVG(re.Points, re.Edge))
+		lctx := LabelContext(d, re.Edge)
+		b.WriteString(polishedPath(re.Points, re.Edge, lctx))
+		b.WriteString(EdgeLabelSVG(re.Points, re.Edge, lctx))
 	}
 	for _, n := range d.Nodes {
 		if n.Kind != model.ShapeLane {

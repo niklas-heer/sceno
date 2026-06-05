@@ -258,7 +258,7 @@ func ruleEdgeClarity(ctx ruleContext) []Finding {
 		if label == "" {
 			continue
 		}
-		if hit, nodeID := edgeLabelHitsNode(ctx.d, re.Points, label); hit {
+		if hit, nodeID := edgeLabelHitsNode(ctx.d, re, label); hit {
 			out = append(out, Finding{
 				RuleID: "edge_clarity", Severity: "warning", Plane: PlaneEdge,
 				Code: string(diag.CodeEdgeCollision),
@@ -271,10 +271,20 @@ func ruleEdgeClarity(ctx ruleContext) []Finding {
 	return out
 }
 
-func edgeLabelHitsNode(d *model.Diagram, pts [][]float64, label string) (bool, string) {
-	gpts := geom.SimplifyPath(geom.SlicesToPath(pts))
+func edgeLabelHitsNode(d *model.Diagram, re model.RoutedEdge, label string) (bool, string) {
+	gpts := geom.SimplifyPath(geom.SlicesToPath(re.Points))
 	if len(gpts) < 2 {
 		return false, ""
+	}
+	byID := map[string]model.Node{}
+	for _, n := range d.Nodes {
+		byID[n.ID] = n
+	}
+	var lctx *geom.EdgeLabelContext
+	if a, okA := byID[re.Edge.From]; okA {
+		if b, okB := byID[re.Edge.To]; okB {
+			lctx = &geom.EdgeLabelContext{From: a.Rect, To: b.Rect}
+		}
 	}
 	lines := strings.Split(label, "\n")
 	fontSize := 12.0
@@ -286,7 +296,7 @@ func edgeLabelHitsNode(d *model.Diagram, pts [][]float64, label string) (bool, s
 			maxW = w
 		}
 	}
-	rx, ry, boxW, boxH, _ := geom.EdgeLabelBox(gpts, 6, 4, lineH, fontSize, lines, maxW)
+	rx, ry, boxW, boxH, _ := geom.EdgeLabelBox(gpts, 6, 4, lineH, fontSize, lines, maxW, lctx)
 	lb := model.Rect{X: rx - boxW/2, Y: ry - boxH/2, W: boxW, H: boxH}
 	margin := math.Max(d.Gap*0.15, 4)
 	for _, n := range d.Nodes {

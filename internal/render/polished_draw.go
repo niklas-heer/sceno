@@ -46,8 +46,9 @@ func DrawPolishedGG(dc *gg.Context, d model.Diagram, ox, oy, scale float64, vp V
 		}
 	}
 	for _, re := range d.Routed {
-		drawPolishedEdgeGG(dc, re.Points, re.Edge, vp, ox, oy, scale)
-		drawEdgeLabelGG(dc, re.Points, re.Edge, vp, ox, oy, scale)
+		lctx := LabelContext(d, re.Edge)
+		drawPolishedEdgeGG(dc, re.Points, re.Edge, lctx, vp, ox, oy, scale)
+		drawEdgeLabelGG(dc, re.Points, re.Edge, lctx, vp, ox, oy, scale)
 	}
 	for _, n := range d.Nodes {
 		if n.Kind != model.ShapeLane {
@@ -80,8 +81,9 @@ func DrawPolishedPDF(pdf *gofpdf.Fpdf, d model.Diagram, minX, minY float64) {
 		}
 	}
 	for _, re := range d.Routed {
-		drawPolishedEdgePDF(pdf, re.Points, re.Edge, minX, minY)
-		drawEdgeLabelPDF(pdf, re.Points, re.Edge, minX, minY)
+		lctx := LabelContext(d, re.Edge)
+		drawPolishedEdgePDF(pdf, re.Points, re.Edge, lctx, minX, minY)
+		drawEdgeLabelPDF(pdf, re.Points, re.Edge, lctx, minX, minY)
 	}
 	for _, n := range d.Nodes {
 		if n.Kind != model.ShapeLane {
@@ -222,13 +224,11 @@ func drawPolishedLabelGG(dc *gg.Context, n model.Node, x, y, w, h, scale float64
 	}
 }
 
-func drawPolishedEdgeGG(dc *gg.Context, pts [][]float64, e model.Edge, vp Viewport, ox, oy, scale float64) {
-	if len(pts) < 2 {
+func drawPolishedEdgeGG(dc *gg.Context, pts [][]float64, e model.Edge, lctx *geom.EdgeLabelContext, vp Viewport, ox, oy, scale float64) {
+	segments := edgePathSegments(pts, e, lctx)
+	if len(segments) == 0 {
 		return
 	}
-	gpts := geom.SlicesToPath(pts)
-	gpts = geom.SimplifyPath(gpts)
-	gpts = geom.TrimArrowEnd(gpts)
 	stroke := e.Color
 	if stroke == "" {
 		stroke = paint.EdgeDefault
@@ -241,16 +241,22 @@ func drawPolishedEdgeGG(dc *gg.Context, pts [][]float64, e model.Edge, vp Viewpo
 	if e.Dashed {
 		dc.SetDash(5*scale, 4*scale)
 	}
-	for i := 1; i < len(gpts); i++ {
-		x1, y1 := vp.PX(gpts[i-1].X, gpts[i-1].Y, scale)
-		x2, y2 := vp.PX(gpts[i].X, gpts[i].Y, scale)
-		dc.DrawLine(x1+ox, y1+oy, x2+ox, y2+oy)
+	for si, seg := range segments {
+		gpts := geom.SimplifyPath(seg)
+		if si == len(segments)-1 {
+			gpts = geom.TrimArrowEnd(gpts)
+		}
+		for i := 1; i < len(gpts); i++ {
+			x1, y1 := vp.PX(gpts[i-1].X, gpts[i-1].Y, scale)
+			x2, y2 := vp.PX(gpts[i].X, gpts[i].Y, scale)
+			dc.DrawLine(x1+ox, y1+oy, x2+ox, y2+oy)
+		}
+		dc.Stroke()
+		if si == len(segments)-1 && len(gpts) >= 2 {
+			drawArrowGG(dc, gpts[len(gpts)-2], gpts[len(gpts)-1], vp, ox, oy, scale, stroke)
+		}
 	}
-	dc.Stroke()
 	dc.SetDash()
-	if len(gpts) >= 2 {
-		drawArrowGG(dc, gpts[len(gpts)-2], gpts[len(gpts)-1], vp, ox, oy, scale, stroke)
-	}
 }
 
 func drawArrowGG(dc *gg.Context, prev, last geom.Point, vp Viewport, ox, oy, scale float64, stroke string) {
@@ -355,8 +361,9 @@ func drawPolishedLabelPDF(pdf *gofpdf.Fpdf, n model.Node, x, y, w, h float64) {
 	}
 }
 
-func drawPolishedEdgePDF(pdf *gofpdf.Fpdf, pts [][]float64, e model.Edge, minX, minY float64) {
-	if len(pts) < 2 {
+func drawPolishedEdgePDF(pdf *gofpdf.Fpdf, pts [][]float64, e model.Edge, lctx *geom.EdgeLabelContext, minX, minY float64) {
+	segments := edgePathSegments(pts, e, lctx)
+	if len(segments) == 0 {
 		return
 	}
 	stroke := e.Color
@@ -370,38 +377,34 @@ func drawPolishedEdgePDF(pdf *gofpdf.Fpdf, pts [][]float64, e model.Edge, minX, 
 	} else {
 		pdf.SetDashPattern(nil, 0)
 	}
-	for i := 1; i < len(pts); i++ {
-		if len(pts[i]) < 2 || len(pts[i-1]) < 2 {
-			continue
+	for si, seg := range segments {
+		gpts := geom.SimplifyPath(seg)
+		if si == len(segments)-1 {
+			gpts = geom.TrimArrowEnd(gpts)
 		}
-		x1 := pts[i-1][0] - minX
-		y1 := pts[i-1][1] - minY
-		x2 := pts[i][0] - minX
-		y2 := pts[i][1] - minY
-		pdf.Line(x1, y1, x2, y2)
-	}
-	pdf.SetDashPattern(nil, 0)
-	// Arrow head
-	if len(pts) >= 2 {
-		prev, last := pts[len(pts)-2], pts[len(pts)-1]
-		if len(prev) >= 2 && len(last) >= 2 {
-			x1 := prev[0] - minX
-			y1 := prev[1] - minY
-			x2 := last[0] - minX
-			y2 := last[1] - minY
-			angle := math.Atan2(y2-y1, x2-x1)
+		for i := 1; i < len(gpts); i++ {
+			x1 := gpts[i-1].X - minX
+			y1 := gpts[i-1].Y - minY
+			x2 := gpts[i].X - minX
+			y2 := gpts[i].Y - minY
+			pdf.Line(x1, y1, x2, y2)
+		}
+		if si == len(segments)-1 && len(gpts) >= 2 {
+			prev, last := gpts[len(gpts)-2], gpts[len(gpts)-1]
+			angle := math.Atan2(last.Y-prev.Y, last.X-prev.X)
 			sz := 7.0
 			pdf.SetFillColor(r, g, b)
 			pdf.Polygon([]gofpdf.PointType{
-				{X: x2, Y: y2},
-				{X: x2 - math.Cos(angle-0.4)*sz, Y: y2 - math.Sin(angle-0.4)*sz},
-				{X: x2 - math.Cos(angle+0.4)*sz, Y: y2 - math.Sin(angle+0.4)*sz},
+				{X: last.X - minX, Y: last.Y - minY},
+				{X: last.X - minX - math.Cos(angle-0.4)*sz, Y: last.Y - minY - math.Sin(angle-0.4)*sz},
+				{X: last.X - minX - math.Cos(angle+0.4)*sz, Y: last.Y - minY - math.Sin(angle+0.4)*sz},
 			}, "F")
 		}
 	}
+	pdf.SetDashPattern(nil, 0)
 }
 
-func drawEdgeLabelGG(dc *gg.Context, pts [][]float64, e model.Edge, vp Viewport, ox, oy, scale float64) {
+func drawEdgeLabelGG(dc *gg.Context, pts [][]float64, e model.Edge, lctx *geom.EdgeLabelContext, vp Viewport, ox, oy, scale float64) {
 	label := strings.TrimSpace(e.Label)
 	if label == "" || len(pts) < 2 {
 		return
@@ -418,7 +421,7 @@ func drawEdgeLabelGG(dc *gg.Context, pts [][]float64, e model.Edge, vp Viewport,
 			maxW = lineW
 		}
 	}
-	rx, ry, boxW, boxH, _ := geom.EdgeLabelBox(gpts, 6*scale, 4*scale, lineH, fontSize, lines, maxW/scale)
+	rx, ry, boxW, boxH, _ := geom.EdgeLabelBox(gpts, 6*scale, 4*scale, lineH, fontSize, lines, maxW/scale, lctx)
 	px, py := vp.PX(rx, ry, scale)
 	px += ox
 	py += oy
@@ -439,7 +442,7 @@ func drawEdgeLabelGG(dc *gg.Context, pts [][]float64, e model.Edge, vp Viewport,
 	}
 }
 
-func drawEdgeLabelPDF(pdf *gofpdf.Fpdf, pts [][]float64, e model.Edge, minX, minY float64) {
+func drawEdgeLabelPDF(pdf *gofpdf.Fpdf, pts [][]float64, e model.Edge, lctx *geom.EdgeLabelContext, minX, minY float64) {
 	label := strings.TrimSpace(e.Label)
 	if label == "" || len(pts) < 2 {
 		return
@@ -455,7 +458,7 @@ func drawEdgeLabelPDF(pdf *gofpdf.Fpdf, pts [][]float64, e model.Edge, minX, min
 			maxW = w
 		}
 	}
-	rx, ry, boxW, boxH, _ := geom.EdgeLabelBox(gpts, 6, 4, lineH, fontSize, lines, maxW)
+	rx, ry, boxW, boxH, _ := geom.EdgeLabelBox(gpts, 6, 4, lineH, fontSize, lines, maxW, lctx)
 	setPDFFont(pdf, "M", theme.SubSize)
 	pdf.SetTextColor(113, 113, 122)
 	textY := ry - boxH/2 + 4 + fontSize*0.85

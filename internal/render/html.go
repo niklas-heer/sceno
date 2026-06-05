@@ -55,8 +55,9 @@ func HTML(d model.Diagram) string {
 	b.WriteString(SVGArrowMarkers(d))
 	b.WriteString(`</defs>`)
 	for _, re := range d.Routed {
-		b.WriteString(polishedPath(re.Points, re.Edge))
-		b.WriteString(EdgeLabelSVG(re.Points, re.Edge))
+		lctx := LabelContext(d, re.Edge)
+		b.WriteString(polishedPath(re.Points, re.Edge, lctx))
+		b.WriteString(EdgeLabelSVG(re.Points, re.Edge, lctx))
 	}
 	b.WriteString(`</svg>`)
 	for _, n := range d.Nodes {

@@ -30,7 +30,6 @@ func SVGArrowMarkers(d model.Diagram) string {
 
 func svgArrowMarker(color string) string {
 	id := arrowMarkerID(color)
-	// Lucide-style open chevron — reads cleaner than a filled triangle.
 	return fmt.Sprintf(`<marker id="%s" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="%.1f" markerHeight="%.1f" orient="auto" markerUnits="userSpaceOnUse"><path d="M 2 3 L 8 6 L 2 9" fill="none" stroke="%s" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></marker>`,
 		id, theme.ArrowMarkerSize, theme.ArrowMarkerSize, color)
 }
@@ -49,13 +48,64 @@ func arrowMarkerID(color string) string {
 	return "arrow-" + strings.ToLower(s)
 }
 
-func polishedPath(pts [][]float64, e model.Edge) string {
+// LabelContext returns endpoint rects for edge label placement.
+func LabelContext(d model.Diagram, e model.Edge) *geom.EdgeLabelContext {
+	byID := map[string]model.Node{}
+	for _, n := range d.Nodes {
+		byID[n.ID] = n
+	}
+	a, okA := byID[e.From]
+	b, okB := byID[e.To]
+	if !okA || !okB {
+		return nil
+	}
+	return &geom.EdgeLabelContext{From: a.Rect, To: b.Rect}
+}
+
+func polishedPath(pts [][]float64, e model.Edge, ctx *geom.EdgeLabelContext) string {
+	segments := edgePathSegments(pts, e, ctx)
+	var b strings.Builder
+	for i, seg := range segments {
+		b.WriteString(polishedPathSegment(seg, e, i == len(segments)-1))
+	}
+	return b.String()
+}
+
+func edgePathSegments(pts [][]float64, e model.Edge, ctx *geom.EdgeLabelContext) [][]geom.Point {
+	gpts := geom.SimplifyPath(geom.SlicesToPath(pts))
+	if len(gpts) < 2 {
+		return nil
+	}
+	label := strings.TrimSpace(e.Label)
+	if label == "" || ctx == nil {
+		return [][]geom.Point{gpts}
+	}
+	lines := strings.Split(label, "\n")
+	fontSize := float64(theme.SubSize)
+	lineH := fontSize * 1.35
+	maxW := 0.0
+	for _, line := range lines {
+		w := measure.TextWidth(line, fontSize, fonts.WeightMedium)
+		if w > maxW {
+			maxW = w
+		}
+	}
+	rx, ry, boxW, boxH, horiz := geom.EdgeLabelBox(gpts, 6, 4, lineH, fontSize, lines, maxW, ctx)
+	if !horiz {
+		return [][]geom.Point{gpts}
+	}
+	box := geom.LabelBoxRect(rx, ry, boxW, boxH)
+	return geom.SplitPathForLabel(gpts, box)
+}
+
+func polishedPathSegment(pts []geom.Point, e model.Edge, withArrow bool) string {
 	if len(pts) < 2 {
 		return ""
 	}
-	gpts := geom.SlicesToPath(pts)
-	gpts = geom.SimplifyPath(gpts)
-	gpts = geom.TrimArrowEnd(gpts)
+	gpts := geom.SimplifyPath(pts)
+	if withArrow {
+		gpts = geom.TrimArrowEnd(gpts)
+	}
 	if len(gpts) < 2 {
 		return ""
 	}
@@ -68,13 +118,16 @@ func polishedPath(pts [][]float64, e model.Edge) string {
 	if e.Dashed {
 		dash = ` stroke-dasharray="5 4"`
 	}
-	marker := arrowMarkerID(stroke)
-	return fmt.Sprintf(`<path d="%s" fill="none" stroke="%s" stroke-width="%.2f" stroke-opacity="%s" stroke-linejoin="round" stroke-linecap="round"%s marker-end="url(#%s)"/>`,
+	marker := ""
+	if withArrow {
+		marker = fmt.Sprintf(` marker-end="url(#%s)"`, arrowMarkerID(stroke))
+	}
+	return fmt.Sprintf(`<path d="%s" fill="none" stroke="%s" stroke-width="%.2f" stroke-opacity="%s" stroke-linejoin="round" stroke-linecap="round"%s%s/>`,
 		pathD, stroke, theme.EdgeWidth, paint.EdgeOpacity, dash, marker)
 }
 
 // EdgeLabelSVG renders a readable label on the longest edge segment.
-func EdgeLabelSVG(pts [][]float64, e model.Edge) string {
+func EdgeLabelSVG(pts [][]float64, e model.Edge, ctx *geom.EdgeLabelContext) string {
 	label := strings.TrimSpace(e.Label)
 	if label == "" || len(pts) < 2 {
 		return ""
@@ -94,7 +147,7 @@ func EdgeLabelSVG(pts [][]float64, e model.Edge) string {
 		}
 	}
 	padX, padY := 6.0, 4.0
-	rx, ry, boxW, boxH, _ := geom.EdgeLabelBox(gpts, padX, padY, lineH, fontSize, lines, maxW)
+	rx, ry, boxW, boxH, _ := geom.EdgeLabelBox(gpts, padX, padY, lineH, fontSize, lines, maxW, ctx)
 	var b strings.Builder
 	b.WriteString(fmt.Sprintf(`<rect x="%.1f" y="%.1f" width="%.1f" height="%.1f" rx="4" fill="%s" stroke="%s" stroke-width="1"/>`,
 		rx-boxW/2, ry-boxH/2, boxW, boxH, paint.BgCard, paint.Border))
@@ -107,8 +160,8 @@ func EdgeLabelSVG(pts [][]float64, e model.Edge) string {
 }
 
 // EdgeLabelSketch renders a hand-drawn style edge label.
-func EdgeLabelSketch(pts [][]float64, e model.Edge) string {
-	return EdgeLabelSVG(pts, e)
+func EdgeLabelSketch(pts [][]float64, e model.Edge, ctx *geom.EdgeLabelContext) string {
+	return EdgeLabelSVG(pts, e, ctx)
 }
 
 func findEdge(d model.Diagram, key string) model.Edge {

@@ -1,6 +1,10 @@
 package geom
 
-import "math"
+import (
+	"math"
+
+	"github.com/niklas-heer/sceno/internal/model"
+)
 
 // ArrowTipLength is how far to shorten the last segment for marker geometry.
 const ArrowTipLength = 11.0
@@ -98,8 +102,14 @@ func LabelPlacement(pts []Point) (x, y float64, horizontal bool) {
 	return mid.X, mid.Y, horiz
 }
 
-// EdgeLabelBox returns a label background rect centered on the best edge segment.
-func EdgeLabelBox(pts []Point, padX, padY, lineH, fontSize float64, lines []string, maxTextW float64) (rx, ry, boxW, boxH float64, horizontal bool) {
+// EdgeLabelContext supplies endpoint nodes so labels clear shapes and sit in the gap.
+type EdgeLabelContext struct {
+	From, To model.Rect
+}
+
+// EdgeLabelBox returns the label center and size on the best edge segment.
+// When ctx is set, horizontal labels center in the node gap and sit above both shapes.
+func EdgeLabelBox(pts []Point, padX, padY, lineH, fontSize float64, lines []string, maxTextW float64, ctx *EdgeLabelContext) (rx, ry, boxW, boxH float64, horizontal bool) {
 	if len(pts) < 2 || len(lines) == 0 {
 		return 0, 0, 0, 0, true
 	}
@@ -109,9 +119,72 @@ func EdgeLabelBox(pts []Point, padX, padY, lineH, fontSize float64, lines []stri
 	}
 	boxW = maxTextW + padX*2
 	boxH = float64(len(lines))*lineH + padY*2 - (lineH - fontSize)
-	const gap = 10.0
+	const gap = 12.0
 	if horiz {
-		return x, y - boxH/2 - gap, boxW, boxH, true
+		rx = x
+		if ctx != nil {
+			gapLeft := ctx.From.Right() + 6
+			gapRight := ctx.To.X - 6
+			if gapRight > gapLeft {
+				rx = (gapLeft + gapRight) / 2
+			}
+			minTop := ctx.From.Y
+			if ctx.To.Y < minTop {
+				minTop = ctx.To.Y
+			}
+			ry = minTop - gap - boxH/2
+		} else {
+			ry = y - boxH/2 - gap
+		}
+		return rx, ry, boxW, boxH, true
 	}
-	return x + boxW/2 + gap, y, boxW, boxH, false
+	rx = x + boxW/2 + gap
+	ry = y
+	return rx, ry, boxW, boxH, false
+}
+
+// LabelBoxRect returns the axis-aligned bounds for a label box.
+func LabelBoxRect(rx, ry, boxW, boxH float64) model.Rect {
+	return model.Rect{X: rx - boxW/2, Y: ry - boxH/2, W: boxW, H: boxH}
+}
+
+// SplitPathForLabel breaks a path around a horizontal label box (gap in the connector).
+func SplitPathForLabel(pts []Point, box model.Rect) [][]Point {
+	if len(pts) < 2 || box.W <= 0 {
+		return [][]Point{pts}
+	}
+	gpts := SimplifyPath(pts)
+	if len(gpts) < 2 {
+		return [][]Point{pts}
+	}
+	var out [][]Point
+	for i := 1; i < len(gpts); i++ {
+		a, b := gpts[i-1], gpts[i]
+		if math.Abs(a.Y-b.Y) > 1 || math.Abs(b.X-a.X) < 1 {
+			out = append(out, []Point{a, b})
+			continue
+		}
+		// Horizontal segment — split around label x span
+		left, right := a, b
+		if left.X > right.X {
+			left, right = right, left
+		}
+		pad := 4.0
+		lx := box.X - pad
+		rx := box.Right() + pad
+		if rx <= left.X || lx >= right.X {
+			out = append(out, []Point{a, b})
+			continue
+		}
+		if lx > left.X {
+			out = append(out, []Point{a, Point{X: lx, Y: a.Y}})
+		}
+		if rx < right.X {
+			out = append(out, []Point{Point{X: rx, Y: b.Y}, b})
+		}
+	}
+	if len(out) == 0 {
+		return [][]Point{pts}
+	}
+	return out
 }
