@@ -109,7 +109,7 @@ func EdgeLabelBox(pts []Point, padX, padY, lineH, fontSize float64, lines []stri
 	}
 	boxW = maxTextW + padX*2
 	boxH = float64(len(lines))*lineH + padY*2 - (lineH - fontSize)
-	const gap = 8.0
+	const gap = 10.0
 	if horiz {
 		return x, y - boxH/2 - gap, boxW, boxH, true
 	}

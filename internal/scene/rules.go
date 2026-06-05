@@ -3,10 +3,13 @@ package scene
 import (
 	"fmt"
 	"math"
+	"strings"
 
 	"github.com/niklas-heer/sceno/internal/diag"
+	"github.com/niklas-heer/sceno/internal/fonts"
 	"github.com/niklas-heer/sceno/internal/geom"
 	"github.com/niklas-heer/sceno/internal/layout"
+	"github.com/niklas-heer/sceno/internal/measure"
 	"github.com/niklas-heer/sceno/internal/model"
 )
 
@@ -23,7 +26,7 @@ var VisualRulesCatalog = []VisualRule{
 	{ID: "hierarchy", Name: "Visual hierarchy", Source: "NN/g, IxDF", Description: "Titles and focal nodes should dominate; supporting detail recedes via size and spacing."},
 	{ID: "whitespace", Name: "Whitespace", Source: "Gestalt proximity", Description: "Use gap and padding so groups breathe; avoid overcrowded or empty canvases."},
 	{ID: "alignment", Name: "Alignment", Source: "PowerPoint grids", Description: "Same column/row nodes share center lines; icons and labels balance."},
-	{ID: "edge_clarity", Name: "Edge clarity", Source: "d2/Mermaid", Description: "Connectors stay visible; route around nodes with fromSide/toSide."},
+	{ID: "edge_clarity", Name: "Edge clarity", Source: "d2/Mermaid", Description: "Connectors attach at shape borders; arrowheads meet the edge; labels sit on the connector with clearance."},
 	{ID: "element_budget", Name: "Element budget", Source: "C4 / architecture", Description: "Prefer ≤15 primary nodes per view; split slides or add lanes for more."},
 	{ID: "slide_focus", Name: "One idea per slide", Source: "10/20/30, Visme", Description: "Each slide should communicate one core idea with a clear focal point."},
 	{ID: "annotations", Name: "Callouts & notes", Source: "PowerPoint", Description: "Use infobox/note/tip for context without blocking the main flow."},
@@ -250,7 +253,51 @@ func ruleEdgeClarity(ctx ruleContext) []Finding {
 			Items:   []string{ev.From, ev.To},
 		})
 	}
+	for _, re := range ctx.d.Routed {
+		label := strings.TrimSpace(re.Edge.Label)
+		if label == "" {
+			continue
+		}
+		if hit, nodeID := edgeLabelHitsNode(ctx.d, re.Points, label); hit {
+			out = append(out, Finding{
+				RuleID: "edge_clarity", Severity: "warning", Plane: PlaneEdge,
+				Code: string(diag.CodeEdgeCollision),
+				Message: fmt.Sprintf("edge label %q on %s→%s overlaps node %q", label, re.Edge.From, re.Edge.To, nodeID),
+				Fix:     "Increase gap, shorten the label, or move nodes so the label sits on a clear connector segment.",
+				Items:   []string{re.Edge.From, re.Edge.To, nodeID},
+			})
+		}
+	}
 	return out
+}
+
+func edgeLabelHitsNode(d *model.Diagram, pts [][]float64, label string) (bool, string) {
+	gpts := geom.SimplifyPath(geom.SlicesToPath(pts))
+	if len(gpts) < 2 {
+		return false, ""
+	}
+	lines := strings.Split(label, "\n")
+	fontSize := 12.0
+	lineH := fontSize * 1.35
+	maxW := 0.0
+	for _, line := range lines {
+		w := measure.TextWidth(line, fontSize, fonts.WeightMedium)
+		if w > maxW {
+			maxW = w
+		}
+	}
+	rx, ry, boxW, boxH, _ := geom.EdgeLabelBox(gpts, 6, 4, lineH, fontSize, lines, maxW)
+	lb := model.Rect{X: rx - boxW/2, Y: ry - boxH/2, W: boxW, H: boxH}
+	margin := math.Max(d.Gap*0.15, 4)
+	for _, n := range d.Nodes {
+		if model.IsContainer(n.Kind) {
+			continue
+		}
+		if rectsOverlap(lb, n.Rect, margin) {
+			return true, n.ID
+		}
+	}
+	return false, ""
 }
 
 func countPrimaryNodes(d *model.Diagram) int {
