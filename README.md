@@ -10,8 +10,8 @@ Declarative architecture diagrams in **[KDL](https://kdl.dev/)** — one readabl
 
 1. **Write** a [KDL](https://kdl.dev/) spec (by hand or with an AI agent)
 2. **Validate** — `sceno validate --json` catches errors with fix hints
-3. **Advise** *(optional)* — stack validation, visual score, design recommendations
-4. **Describe** *(optional)* — layout feedback without opening images
+3. **Advise** — stack validation, visual score, design recommendations
+4. **Describe** — layout feedback without opening images (ASCII map, edge routes)
 5. **Render** — export SVG, PNG, PDF, HTML, and slide decks
 
 The diagram above is defined in [`examples/how-it-works.kdl`](examples/how-it-works.kdl) and rendered by Sceno:
@@ -99,28 +99,25 @@ mask install  # go install with build metadata
 sceno version
 ```
 
-Requires **Go 1.23+**.
+Requires **Go 1.25+**.
 
 ## Commands
 
+Seven core commands — everything else lives under `sceno docs`:
+
 | Command | Description |
 |---------|-------------|
-| `sceno docs [TOPIC] [--json]` | **Self-doc hub** — guide, spec, stack, validation, goals, practices, errors, … |
-| `sceno guide [--json]` | Agent handbook (alias) |
 | `sceno init [-o sceno.kdl]` | Create a starter spec |
 | `sceno validate -i f --json` | Validate + repair hints + stack rule warnings |
 | `sceno advise -i f --json` | Stack engine + visual score + recommendations |
 | `sceno advise -i f --ai` | Optional AI review via `SCENO_AI_CMD` |
-| `sceno check -i f --json` | Alias for `validate` |
-| `sceno suggest -i f --json` | Prioritized layout recommendations |
+| `sceno describe -i f --json` | **Visual feedback without images** — narrative, ASCII map, scene, engine, problems |
 | `sceno render -i f -o out --all` | Export svg, png, pdf, html, slides.html |
 | `sceno render -format slides` | 16:9 HTML presentation |
-| `sceno describe -i f --json` | **Visual feedback without images** — narrative, ASCII map, scene, engine, problems |
-| `sceno feedback` | Alias for `describe` |
-| `sceno spec` | Full KDL specification |
-| `sceno goals` | Product goals and quality bar |
+| `sceno docs [TOPIC] [--json]` | **Self-doc hub** — guide, spec, goals, shapes, icons, stack, errors, … |
 | `sceno version [--json]` | Version, commit, build date |
-| `sceno shapes` / `sceno icons` | Quick lists |
+
+Legacy aliases (`check`, `guide`, `spec`, `goals`, `shapes`, `icons`, `suggest`, `feedback`) still work and print a redirect hint to stderr.
 
 ## Quick start
 
