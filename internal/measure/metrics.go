@@ -13,7 +13,7 @@ const (
 	PadX        = 28.0
 	PadY        = 20.0
 	IconColumn  = 36.0
-	IconSize    = 18.0
+	IconSize    = 20.0
 	lineSpacing = 1.32
 	subtitleH   = 15.0
 )

@@ -97,6 +97,26 @@ func TestRunErrorsJSON(t *testing.T) {
 	if doc.ErrorCodes["dense_layout"].Fix == "" {
 		t.Fatal("expected dense_layout in catalog")
 	}
+	if doc.ErrorCodes["arrow_detached"].Fix == "" {
+		t.Fatal("expected arrow_detached in catalog")
+	}
+}
+
+func TestRunArchitectureJSON(t *testing.T) {
+	var buf bytes.Buffer
+	if err := Run("architecture", true, &buf); err != nil {
+		t.Fatal(err)
+	}
+	var doc ArchitectureDoc
+	if err := json.Unmarshal(buf.Bytes(), &doc); err != nil {
+		t.Fatal(err)
+	}
+	if doc.EntryPoint == "" || doc.GeometrySoT == "" || doc.SemanticsSoT == "" {
+		t.Fatalf("architecture doc incomplete: %+v", doc)
+	}
+	if len(doc.Pipeline) < 4 || len(doc.Consumers) < 4 {
+		t.Fatalf("expected full pipeline doc: %+v", doc)
+	}
 }
 
 func TestRunGoalsJSON(t *testing.T) {
@@ -110,6 +130,23 @@ func TestRunGoalsJSON(t *testing.T) {
 	}
 	if doc.Mission == "" || len(doc.ProductGoals) < 5 || len(doc.Principles) < 2 {
 		t.Fatalf("goals doc incomplete: %+v", doc)
+	}
+}
+
+func TestRunIconsJSON(t *testing.T) {
+	var buf bytes.Buffer
+	if err := Run("icons", true, &buf); err != nil {
+		t.Fatal(err)
+	}
+	var doc IconsDoc
+	if err := json.Unmarshal(buf.Bytes(), &doc); err != nil {
+		t.Fatal(err)
+	}
+	if len(doc.Icons) < 25 || len(doc.Categories) < 5 || len(doc.Tips) < 3 {
+		t.Fatalf("icons doc incomplete: icons=%d categories=%d", len(doc.Icons), len(doc.Categories))
+	}
+	if doc.ByCategory["data"] == nil || doc.Names[0] == "" {
+		t.Fatalf("expected by_category and names: %+v", doc)
 	}
 }
 

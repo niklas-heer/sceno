@@ -26,6 +26,9 @@ type Document struct {
 	ErrorCodes     map[string]diag.CodeDoc `json:"error_codes"`
 	Shapes         []string               `json:"shapes"`
 	Icons          []string               `json:"icons"`
+	IconCatalog    []icons.Entry          `json:"icon_catalog"`
+	IconCategories []string               `json:"icon_categories"`
+	IconTips       []string               `json:"icon_tips"`
 	DiagramProps   map[string]string      `json:"diagram_properties"`
 	ShapeProps     map[string]string      `json:"shape_properties"`
 	EdgeProps      map[string]string      `json:"edge_properties"`
@@ -86,7 +89,22 @@ func Markdown(w io.Writer) error {
 	b.WriteString("## Shapes\n\n")
 	b.WriteString(strings.Join(d.Shapes, ", ") + "\n\n")
 	b.WriteString("## Icons\n\n")
-	b.WriteString(strings.Join(d.Icons, ", ") + "\n\n")
+	b.WriteString("Run `sceno docs icons` for the full catalog (categories, suggested shapes, iconPos).\n\n")
+	for _, tip := range d.IconTips {
+		b.WriteString("- " + tip + "\n")
+	}
+	b.WriteString("\n")
+	for _, cat := range d.IconCategories {
+		fmt.Fprintf(&b, "### %s\n\n", cat)
+		for _, e := range icons.ByCategory()[cat] {
+			fmt.Fprintf(&b, "- `%s` — %s", e.ID, e.Use)
+			if len(e.SuggestedShapes) > 0 {
+				fmt.Fprintf(&b, " (shapes: %s)", strings.Join(e.SuggestedShapes, ", "))
+			}
+			b.WriteString("\n")
+		}
+		b.WriteString("\n")
+	}
 	b.WriteString("## Stack model\n\n")
 	b.WriteString(d.StackModel + "\n\n")
 	b.WriteString("## Visual rules\n\n")
@@ -162,7 +180,10 @@ func Build() Document {
 		},
 		ErrorCodes:  codes,
 		Shapes:      append(shapeList, "code (lang=, source=) — syntax-highlighted block for slides"),
-		Icons:       iconList,
+		Icons:          iconList,
+		IconCatalog:    icons.Catalog(),
+		IconCategories: icons.Categories(),
+		IconTips:       icons.DocTips(),
 		DiagramProps: map[string]string{
 			"title":    "Diagram title (quoted if spaces)",
 			"subtitle": "Subtitle under title",
@@ -233,6 +254,7 @@ func Build() Document {
 			"Polished style for architecture; sketch style for whiteboard/Excalidraw-like organic edges",
 			"Slides: one slide block per screen; mix sceno shapes and code blocks as needed",
 			"Use infobox, info, tip, warning, or note for callouts — accent stripe + subtitle",
+			"Pair icons with shape kind: database→cylinder, cloud→cloud; sceno docs icons for pairings",
 			"Run sceno advise --json for stack-plane validation and visual design recommendations",
 		},
 		CommonMistakes: []string{
@@ -240,7 +262,8 @@ func Build() Document {
 			"title=My Platform without quotes — use title=\"My Platform\"",
 			"edge to missing node — define shape before edge in the same block",
 			"layout=free without x= and y= on every shape",
-			"icon=unknown — run sceno docs icons",
+			"icon=unknown — run sceno docs icons --json (catalog has categories + suggested shapes)",
+			"icon on every node in a dense slide — pick one icon per focal component",
 			"Shapes only in slide { } but edges reference ids from another slide",
 			"Duplicate node ids in the same diagram or slide",
 		},

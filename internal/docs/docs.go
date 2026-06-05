@@ -27,12 +27,13 @@ const (
 	TopicValidation Topic = "validation"
 	TopicShapes     Topic = "shapes"
 	TopicIcons      Topic = "icons"
-	TopicErrors     Topic = "errors"
+	TopicErrors        Topic = "errors"
+	TopicArchitecture  Topic = "architecture"
 )
 
 // AllTopics lists available doc topics in display order.
 var AllTopics = []Topic{
-	TopicGuide, TopicSpec, TopicGoals, TopicPractices, TopicStack, TopicValidation,
+	TopicGuide, TopicArchitecture, TopicSpec, TopicGoals, TopicPractices, TopicStack, TopicValidation,
 	TopicShapes, TopicIcons, TopicErrors,
 }
 
@@ -90,12 +91,17 @@ type ShapesDoc struct {
 	Notes   []string          `json:"notes,omitempty"`
 }
 
-// IconsDoc lists icon names.
+// IconsDoc is the full icon catalog for authoring and CLI discovery.
 type IconsDoc struct {
-	Tool    string   `json:"tool"`
-	Version string   `json:"version"`
-	Icons   []string `json:"icons"`
-	Usage   string   `json:"usage"`
+	Tool         string              `json:"tool"`
+	Version      string              `json:"version"`
+	Usage        string              `json:"usage"`
+	IconPos      []string            `json:"icon_pos"`
+	Tips         []string            `json:"tips"`
+	Categories   []string            `json:"categories"`
+	Icons        []icons.Entry       `json:"icons"`
+	ByCategory   map[string][]icons.Entry `json:"by_category"`
+	Names        []string            `json:"names"`
 }
 
 // ErrorsDoc is the full error catalog for repair loops.
@@ -155,6 +161,11 @@ func Run(topic string, jsonOut bool, w io.Writer) error {
 			return guide.JSON(w)
 		}
 		return guide.Markdown(w)
+	case TopicArchitecture:
+		if jsonOut {
+			return writeArchitectureJSON(w)
+		}
+		return writeArchitectureMarkdown(w)
 	case TopicSpec:
 		if jsonOut {
 			return writeSpecJSON(w)
@@ -317,6 +328,8 @@ func writeValidationMarkdown(w io.Writer) error {
 	b.WriteString(g.StackModel + "\n\n")
 	b.WriteString("## Commands\n\n")
 	b.WriteString("- `sceno validate -i FILE --json` — blocking errors + warnings + recommendations\n")
+	b.WriteString("- Edge render checks (same math as export): `arrow_detached`, `edge_label_chrome_overlap`, `edge_label_off_axis`\n")
+	b.WriteString("- Icon rule (`icons`): catalog names only, label clearance, iconPos hints — `sceno docs icons --json`\n")
 	b.WriteString("- `sceno advise -i FILE --json` — visual score, stack planes, rule findings\n")
 	b.WriteString("- `sceno advise -i FILE --ai` — optional external AI CLI (`SCENO_AI_CMD`)\n\n")
 	b.WriteString("## Visual rules\n\n")
@@ -390,13 +403,16 @@ func writeShapesHuman(w io.Writer) error {
 }
 
 func writeIconsJSON(w io.Writer) error {
-	names := icons.Names()
-	sort.Strings(names)
 	doc := IconsDoc{
-		Tool:    "sceno",
-		Version: version.Version,
-		Icons:   names,
-		Usage:   "icon=name on shape lines",
+		Tool:       "sceno",
+		Version:    version.Version,
+		Usage:      "Add icon=name on shape lines; pair with shape kind (database→cylinder, cloud→cloud).",
+		IconPos:    []string{"top-left", "top", "top-right", "center", "bottom-left", "bottom", "bottom-right"},
+		Tips:       icons.DocTips(),
+		Categories: icons.Categories(),
+		Icons:      icons.Catalog(),
+		ByCategory: icons.ByCategory(),
+		Names:      icons.Names(),
 	}
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
@@ -404,9 +420,32 @@ func writeIconsJSON(w io.Writer) error {
 }
 
 func writeIconsHuman(w io.Writer) error {
-	fmt.Fprintln(w, "Icons (use as: icon=name):")
-	for _, name := range icons.Names() {
-		fmt.Fprintln(w, " ", name)
+	fmt.Fprintln(w, "Sceno icon catalog — use icon=<id> on shape lines")
+	fmt.Fprintln(w)
+	fmt.Fprintln(w, "Placement (iconPos=):")
+	for _, p := range []string{"top-left (default)", "top", "top-right", "center", "bottom-left", "bottom", "bottom-right"} {
+		fmt.Fprintln(w, " ", p)
+	}
+	fmt.Fprintln(w)
+	fmt.Fprintln(w, "Tips:")
+	for _, tip := range icons.DocTips() {
+		fmt.Fprintln(w, " -", tip)
+	}
+	fmt.Fprintln(w)
+	for _, cat := range icons.Categories() {
+		fmt.Fprintf(w, "## %s\n\n", cat)
+		for _, e := range icons.ByCategory()[cat] {
+			shapes := ""
+			if len(e.SuggestedShapes) > 0 {
+				shapes = " — shapes: " + strings.Join(e.SuggestedShapes, ", ")
+			}
+			pos := ""
+			if e.DefaultIconPos != "" {
+				pos = " — iconPos=" + e.DefaultIconPos
+			}
+			fmt.Fprintf(w, "  %-12s %s%s%s\n", e.ID, e.Use, shapes, pos)
+		}
+		fmt.Fprintln(w)
 	}
 	return nil
 }
