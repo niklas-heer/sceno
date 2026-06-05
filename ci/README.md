@@ -11,9 +11,9 @@ Pipeline-as-code for Sceno. Same commands run locally and in GitHub Actions.
 
 ```bash
 # From repo root
-make ci                              # full CI
-make ci-test                         # go test -race
-make ci-smoke                        # build + integration smoke
+mask ci                              # full CI
+mask ci-test                         # go test -race
+mask ci-smoke                        # build + integration smoke
 
 dagger functions                     # list pipeline functions
 dagger call test --source=.

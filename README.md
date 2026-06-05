@@ -71,8 +71,8 @@ Ensure `$(go env GOPATH)/bin` is on your `PATH`. The embedded `VERSION` file is 
 ```bash
 git clone https://github.com/niklas-heer/sceno.git
 cd sceno
-make build    # produces ./sceno (version from VERSION file)
-make install  # go install with build metadata
+mask build    # produces ./sceno (version from VERSION file)
+mask install  # go install with build metadata
 sceno version
 ```
 
@@ -233,11 +233,13 @@ sceno goals
 
 ## Development
 
+Requires [mask](https://github.com/jacobdeichert/mask) for project tasks (`brew install mask`).
+
 ```bash
-make test      # unit tests (local Go)
-make verify    # quick local build + render smoke test
-make ci        # full CI via Dagger (same as GitHub Actions)
-make build
+mask test      # unit tests (local Go)
+mask verify    # quick local build + render smoke test
+mask ci        # full CI via Dagger (same as GitHub Actions)
+mask build
 ```
 
 ### CI with Dagger
@@ -246,9 +248,9 @@ The CI pipeline lives in [`ci/`](ci/) as Go code. Run it locally before pushing:
 
 ```bash
 # Requires Docker (or Colima) and the Dagger CLI: https://docs.dagger.io/install
-make ci                  # full pipeline: test, smoke, scripts, cross-build
-make ci-test             # tests only
-make ci-smoke            # build + integration smoke checks
+mask ci                  # full pipeline: test, smoke, scripts, cross-build
+mask ci-test             # tests only
+mask ci-smoke            # build + integration smoke checks
 dagger functions         # list all pipeline commands
 dagger call ci --source=.
 ```
@@ -257,16 +259,38 @@ GitHub Actions is a thin wrapper that calls `dagger call ci` — no duplicated s
 
 ## Releasing
 
-Version lives in [`internal/version/VERSION`](internal/version/VERSION). Releases are fully automated when you push a matching tag:
+One command — semver is inferred from [Conventional Commits](https://www.conventionalcommits.org/) since the last tag, then CI runs, VERSION and CHANGELOG update, and the tag is pushed:
 
 ```bash
-make bump-patch          # or bump-minor / bump-major
-git commit -am "chore: release v$(cat internal/version/VERSION)"
-make release-tag         # creates annotated tag vX.Y.Z
-git push origin main && git push origin v$(cat internal/version/VERSION)
+mask release
 ```
 
-CI on `main` runs `make ci` (Dagger). Pushing `v*.*.*` triggers [`.github/workflows/release.yml`](.github/workflows/release.yml) which calls `dagger call release` to build tarballs + `SHA256SUMS` + `install.sh`.
+| Commit prefix | Version bump (on 0.x) |
+|---------------|------------------------|
+| `fix:` | patch (0.1.0 → 0.1.1) |
+| `feat:` | minor (0.1.0 → 0.2.0) |
+| `feat!:` or `BREAKING CHANGE:` | major (0.1.0 → 1.0.0) |
+
+`mask release` will:
+
+1. Suggest the next version (e.g. **0.2.0**) and show which commits drove the bump
+2. Ask for confirmation (skip with `-y`)
+3. Run full CI via Dagger
+4. Bump `internal/version/VERSION` and prepend `CHANGELOG.md`
+5. Commit, tag `vX.Y.Z`, and push — GitHub Actions publishes binaries
+
+Preview without changing anything:
+
+```bash
+mask release --dry-run
+mask next-version    # print suggested version only
+```
+
+Flags: `-y` confirm, `-n` dry-run, `--skip-ci`, `-V 0.2.1` override version, `-f` release off main.
+
+Pushing `v*.*.*` triggers [`.github/workflows/release.yml`](.github/workflows/release.yml), which builds tarballs, `SHA256SUMS`, and `install.sh` for [GitHub Releases](https://github.com/niklas-heer/sceno/releases).
+
+All tasks are defined in [`maskfile.md`](maskfile.md) (`mask --help`).
 
 ## License
 
