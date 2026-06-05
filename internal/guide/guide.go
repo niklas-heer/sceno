@@ -250,6 +250,6 @@ func Build() Document {
 		},
 		RenderFormats: []string{"svg", "png", "pdf", "html", "slides", "all"},
 		VisualRules:   scene.VisualRulesCatalog,
-		StackModel:    "Diagrams are validated as stacked 2D planes: background → lanes → edges → structure → annotations (infobox/note) → nodes → labels → chrome (title). Collision and routing checks project onto reduced planes.",
+		StackModel:    scene.StackModelDescription(),
 	}
 }

@@ -14,7 +14,7 @@ Browse all documentation topics:
 sceno docs --json
 ```
 
-Key topics:
+Key topics (all **generated from code** at runtime — no separate markdown to maintain):
 
 ```bash
 sceno docs stack --json       # stacked-plane validation model + visual rules

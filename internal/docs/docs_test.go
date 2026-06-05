@@ -3,8 +3,19 @@ package docs
 import (
 	"bytes"
 	"encoding/json"
+	"strings"
 	"testing"
 )
+
+func TestRunSpecFromCode(t *testing.T) {
+	var buf bytes.Buffer
+	if err := Run("spec", false, &buf); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(buf.String(), "iconPos") {
+		t.Fatal("spec should be generated from code with iconPos")
+	}
+}
 
 func TestCatalogJSON(t *testing.T) {
 	var buf bytes.Buffer

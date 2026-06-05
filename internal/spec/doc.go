@@ -1,18 +1,12 @@
 package spec
 
-import _ "embed"
+import "github.com/niklas-heer/sceno/internal/guide"
 
-// SpecMarkdown is the full KDL specification.
-//
-//go:embed SPEC.md
-var SpecMarkdown string
+// SpecMarkdown returns the KDL specification (generated from code).
+func SpecMarkdown() string { return guide.RenderSpecMarkdown() }
 
-// GoalsMarkdown describes product mission and quality bar.
-//
-//go:embed GOALS.md
-var GoalsMarkdown string
+// GoalsMarkdown returns product goals (generated from code).
+func GoalsMarkdown() string { return guide.RenderGoalsMarkdown() }
 
-// StackMarkdown describes the stacked-plane validation model.
-//
-//go:embed STACK.md
-var StackMarkdown string
+// StackMarkdown returns the stack validation model (generated from code).
+func StackMarkdown() string { return guide.RenderStackMarkdown() }

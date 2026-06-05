@@ -12,7 +12,6 @@ import (
 	"github.com/niklas-heer/sceno/internal/icons"
 	"github.com/niklas-heer/sceno/internal/model"
 	"github.com/niklas-heer/sceno/internal/scene"
-	"github.com/niklas-heer/sceno/internal/spec"
 	"github.com/niklas-heer/sceno/internal/version"
 )
 
@@ -113,38 +112,15 @@ func WriteCatalogJSON(w io.Writer) error {
 	return enc.Encode(BuildCatalog())
 }
 
-// BuildCatalog returns the docs index.
+// BuildCatalog returns the docs index (from guide catalog — single source of truth).
 func BuildCatalog() Catalog {
-	topics := map[string]string{
-		string(TopicGuide):      "Agent handbook — workflow, commands, examples, properties, stack_model, visual_rules",
-		string(TopicSpec):       "Full KDL specification (diagram, shapes, edges, layout, theme, validation codes)",
-		string(TopicGoals):     "Product mission, quality bar, ecosystem best practices",
-		string(TopicPractices): "Authoring workflow, iterate loop, best practices, common mistakes, visual rules",
-		string(TopicStack):     "Stacked 2D plane validation model — lanes, edges, annotations, nodes, labels",
-		string(TopicValidation): "validate + advise commands, error codes, visual rules, stack model summary",
-		string(TopicShapes):    "Allowed shape kinds including info, tip, warning callouts",
-		string(TopicIcons):     "Allowed icon names",
-		string(TopicErrors):    "Error and warning codes with fix and example for every validation issue",
-	}
 	return Catalog{
 		Tool:        "sceno",
 		Version:     version.Version,
-		Description: "Self-documenting CLI — every topic is available as markdown or JSON for AI agents.",
+		Description: "Self-documenting CLI — documentation generated from code at runtime.",
 		StartHere:   "sceno docs guide --json",
-		Topics:      topics,
-		Commands: map[string]string{
-			"sceno docs":                     "List topics (add --json for catalog)",
-			"sceno docs guide --json":        "Full agent handbook",
-			"sceno docs spec":                "KDL specification",
-			"sceno docs stack [--json]":      "Stack validation model + visual rules",
-			"sceno docs validation --json":   "Validation + advise reference",
-			"sceno docs practices --json":    "Best practices + common mistakes + visual rules",
-			"sceno docs errors --json":       "Error code repair catalog",
-			"sceno validate -i f --json":     "Validate spec after every edit",
-			"sceno advise -i f --json":       "Stack engine + visual score + recommendations",
-			"sceno describe -i f --json":     "Layout feedback without viewing images",
-			"sceno suggest -i f --json":      "Prioritized layout recommendations",
-		},
+		Topics:      guide.TopicDescriptions(),
+		Commands:    guide.DocsCatalogCommands(),
 	}
 }
 
@@ -183,10 +159,10 @@ func Run(topic string, jsonOut bool, w io.Writer) error {
 		if jsonOut {
 			return writeSpecJSON(w)
 		}
-		_, err := io.WriteString(w, spec.SpecMarkdown)
+		_, err := io.WriteString(w, guide.RenderSpecMarkdown())
 		return err
 	case TopicGoals:
-		_, err := io.WriteString(w, spec.GoalsMarkdown)
+		_, err := io.WriteString(w, guide.RenderGoalsMarkdown())
 		return err
 	case TopicPractices:
 		if jsonOut {
@@ -197,7 +173,7 @@ func Run(topic string, jsonOut bool, w io.Writer) error {
 		if jsonOut {
 			return writeStackJSON(w)
 		}
-		_, err := io.WriteString(w, spec.StackMarkdown)
+		_, err := io.WriteString(w, guide.RenderStackMarkdown())
 		return err
 	case TopicValidation:
 		if jsonOut {
@@ -218,7 +194,8 @@ func Run(topic string, jsonOut bool, w io.Writer) error {
 		if jsonOut {
 			return writeErrorsJSON(w)
 		}
-		return writeErrorsMarkdown(w)
+		_, err := io.WriteString(w, guide.RenderErrorsMarkdown())
+		return err
 	default:
 		return fmt.Errorf("unknown docs topic %q — run sceno docs for topics", topic)
 	}
@@ -229,7 +206,7 @@ func writeSpecJSON(w io.Writer) error {
 		"tool":    "sceno",
 		"version": version.Version,
 		"format":  "kdl",
-		"spec":    spec.SpecMarkdown,
+		"spec":    guide.RenderSpecMarkdown(),
 	}
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
@@ -261,7 +238,7 @@ func writeStackJSON(w io.Writer) error {
 		Version:     version.Version,
 		StackModel:  g.StackModel,
 		VisualRules: scene.VisualRulesCatalog,
-		Markdown:    spec.StackMarkdown,
+		Markdown:    guide.RenderStackMarkdown(),
 		Commands: map[string]string{
 			"sceno advise -i f --json":   "Visual score + stack planes + rule findings",
 			"sceno describe -i f --json": "Includes scene.stack and slides[n].engine",
@@ -351,10 +328,7 @@ func writeShapesJSON(w io.Writer) error {
 		Shapes:  shapes,
 		Usage:   `shape KIND id "Label" props...`,
 		Props:   g.ShapeProps,
-		Notes: []string{
-			"info, warning, tip are semantic infobox variants with default accent colors",
-			"iconPos controls icon placement (top-left default)",
-		},
+		Notes:   guide.ShapeNotes(),
 	}
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
@@ -363,12 +337,17 @@ func writeShapesJSON(w io.Writer) error {
 
 func writeShapesHuman(w io.Writer) error {
 	fmt.Fprintln(w, `Shapes (use as: shape KIND id "Label" ...):`)
-	for _, s := range model.AllShapes() {
-		fmt.Fprintln(w, " ", s)
+	for _, e := range guide.ShapeCatalog() {
+		alias := ""
+		if len(e.Aliases) > 0 {
+			alias = " (" + strings.Join(e.Aliases, ", ") + ")"
+		}
+		fmt.Fprintf(w, "  %-14s %s%s\n", e.Kind, e.Use, alias)
 	}
 	fmt.Fprintln(w, "")
-	fmt.Fprintln(w, "Callouts: info (blue), warning (amber), tip (green), infobox, note, textbox")
-	fmt.Fprintln(w, "Icon placement: iconPos=top-left|top|center|bottom|...")
+	for _, n := range guide.ShapeNotes() {
+		fmt.Fprintln(w, " ", n)
+	}
 	return nil
 }
 
@@ -403,25 +382,4 @@ func writeErrorsJSON(w io.Writer) error {
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
 	return enc.Encode(doc)
-}
-
-func writeErrorsMarkdown(w io.Writer) error {
-	var b strings.Builder
-	b.WriteString("# Sceno — error codes\n\n")
-	codes := make([]string, 0, len(diag.ErrorCatalog))
-	for c := range diag.ErrorCatalog {
-		codes = append(codes, string(c))
-	}
-	sort.Strings(codes)
-	for _, c := range codes {
-		doc := diag.ErrorCatalog[diag.Code(c)]
-		fmt.Fprintf(&b, "## `%s`\n\n", c)
-		b.WriteString(doc.Meaning + "\n\n")
-		b.WriteString("**Fix:** " + doc.Fix + "\n\n")
-		if doc.Example != "" {
-			b.WriteString("```kdl\n" + doc.Example + "\n```\n\n")
-		}
-	}
-	_, err := io.WriteString(w, b.String())
-	return err
 }

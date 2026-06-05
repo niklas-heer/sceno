@@ -10,8 +10,9 @@ Declarative architecture diagrams in **[KDL](https://kdl.dev/)** — one readabl
 
 1. **Write** a [KDL](https://kdl.dev/) spec (by hand or with an AI agent)
 2. **Validate** — `sceno validate --json` catches errors with fix hints
-3. **Describe** *(optional)* — layout feedback without opening images
-4. **Render** — export SVG, PNG, PDF, HTML, and slide decks
+3. **Advise** *(optional)* — stack validation, visual score, design recommendations
+4. **Describe** *(optional)* — layout feedback without opening images
+5. **Render** — export SVG, PNG, PDF, HTML, and slide decks
 
 The diagram above is defined in [`examples/how-it-works.kdl`](examples/how-it-works.kdl) and rendered by Sceno:
 
@@ -27,7 +28,7 @@ sceno render -i examples/how-it-works.kdl -o docs/how-it-works.png --format png
 sceno docs guide --json
 ```
 
-Browse all topics: `sceno docs --json` (guide, spec, goals, practices, **stack**, **validation**, errors, shapes, icons).
+Browse all topics: `sceno docs --json` (guide, spec, goals, practices, stack, validation, errors, shapes, icons). Documentation is **generated from code** at runtime.
 
 **After every KDL edit:**
 

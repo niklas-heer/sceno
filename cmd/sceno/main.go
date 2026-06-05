@@ -306,11 +306,11 @@ func parseJSONFlag(args []string) (jsonOut bool, rest []string) {
 func cmdSpec(args []string) {
 	fs := flag.NewFlagSet("spec", flag.ExitOnError)
 	_ = fs.Parse(args)
-	fmt.Print(spec.SpecMarkdown)
+	fmt.Print(spec.SpecMarkdown())
 }
 
 func cmdGoals() {
-	fmt.Print(spec.GoalsMarkdown)
+	fmt.Print(spec.GoalsMarkdown())
 }
 
 func cmdVersion(args []string) {
