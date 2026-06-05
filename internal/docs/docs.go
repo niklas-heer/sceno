@@ -1,4 +1,3 @@
-// Package docs serves self-documentation for humans and AI agents.
 package docs
 
 import (
@@ -12,6 +11,7 @@ import (
 	"github.com/niklas-heer/sceno/internal/guide"
 	"github.com/niklas-heer/sceno/internal/icons"
 	"github.com/niklas-heer/sceno/internal/model"
+	"github.com/niklas-heer/sceno/internal/scene"
 	"github.com/niklas-heer/sceno/internal/spec"
 	"github.com/niklas-heer/sceno/internal/version"
 )
@@ -20,18 +20,21 @@ import (
 type Topic string
 
 const (
-	TopicGuide     Topic = "guide"
-	TopicSpec      Topic = "spec"
-	TopicGoals     Topic = "goals"
-	TopicPractices Topic = "practices"
-	TopicShapes    Topic = "shapes"
-	TopicIcons     Topic = "icons"
-	TopicErrors    Topic = "errors"
+	TopicGuide      Topic = "guide"
+	TopicSpec       Topic = "spec"
+	TopicGoals      Topic = "goals"
+	TopicPractices  Topic = "practices"
+	TopicStack      Topic = "stack"
+	TopicValidation Topic = "validation"
+	TopicShapes     Topic = "shapes"
+	TopicIcons      Topic = "icons"
+	TopicErrors     Topic = "errors"
 )
 
 // AllTopics lists available doc topics in display order.
 var AllTopics = []Topic{
-	TopicGuide, TopicSpec, TopicGoals, TopicPractices, TopicShapes, TopicIcons, TopicErrors,
+	TopicGuide, TopicSpec, TopicGoals, TopicPractices, TopicStack, TopicValidation,
+	TopicShapes, TopicIcons, TopicErrors,
 }
 
 // Catalog is the machine-readable index (sceno docs --json with no topic).
@@ -46,21 +49,46 @@ type Catalog struct {
 
 // PracticesDoc is best-practices for agents.
 type PracticesDoc struct {
-	Tool           string   `json:"tool"`
-	Version        string   `json:"version"`
-	Workflow       []string `json:"workflow"`
-	IterateLoop    []string `json:"iterate_loop"`
-	BestPractices  []string `json:"best_practices"`
-	CommonMistakes []string `json:"common_mistakes"`
-	RenderFormats  []string `json:"render_formats"`
+	Tool           string             `json:"tool"`
+	Version        string             `json:"version"`
+	Workflow       []string           `json:"workflow"`
+	IterateLoop    []string           `json:"iterate_loop"`
+	BestPractices  []string           `json:"best_practices"`
+	CommonMistakes []string           `json:"common_mistakes"`
+	RenderFormats  []string           `json:"render_formats"`
+	StackModel     string             `json:"stack_model"`
+	VisualRules    []scene.VisualRule `json:"visual_rules"`
+}
+
+// StackDoc is the stack validation model for agents.
+type StackDoc struct {
+	Tool        string             `json:"tool"`
+	Version     string             `json:"version"`
+	StackModel  string             `json:"stack_model"`
+	VisualRules []scene.VisualRule `json:"visual_rules"`
+	Markdown    string             `json:"markdown"`
+	Commands    map[string]string  `json:"commands"`
+}
+
+// ValidationDoc summarizes validation and advise for agents.
+type ValidationDoc struct {
+	Tool            string                  `json:"tool"`
+	Version         string                  `json:"version"`
+	ValidateCommand string                  `json:"validate_command"`
+	AdviseCommand   string                  `json:"advise_command"`
+	ErrorCodes      map[string]diag.CodeDoc `json:"error_codes"`
+	VisualRules     []scene.VisualRule      `json:"visual_rules"`
+	StackModel      string                  `json:"stack_model"`
 }
 
 // ShapesDoc lists shape kinds.
 type ShapesDoc struct {
-	Tool    string   `json:"tool"`
-	Version string   `json:"version"`
-	Shapes  []string `json:"shapes"`
-	Usage   string   `json:"usage"`
+	Tool    string            `json:"tool"`
+	Version string            `json:"version"`
+	Shapes  []string          `json:"shapes"`
+	Usage   string            `json:"usage"`
+	Props   map[string]string `json:"shape_properties,omitempty"`
+	Notes   []string          `json:"notes,omitempty"`
 }
 
 // IconsDoc lists icon names.
@@ -73,8 +101,8 @@ type IconsDoc struct {
 
 // ErrorsDoc is the full error catalog for repair loops.
 type ErrorsDoc struct {
-	Tool       string                 `json:"tool"`
-	Version    string                 `json:"version"`
+	Tool       string                  `json:"tool"`
+	Version    string                  `json:"version"`
 	ErrorCodes map[string]diag.CodeDoc `json:"error_codes"`
 }
 
@@ -88,13 +116,15 @@ func WriteCatalogJSON(w io.Writer) error {
 // BuildCatalog returns the docs index.
 func BuildCatalog() Catalog {
 	topics := map[string]string{
-		string(TopicGuide):     "Agent handbook — workflow, commands, examples, properties",
-		string(TopicSpec):      "Full KDL specification (diagram, shapes, edges, layout, theme)",
+		string(TopicGuide):      "Agent handbook — workflow, commands, examples, properties, stack_model, visual_rules",
+		string(TopicSpec):       "Full KDL specification (diagram, shapes, edges, layout, theme, validation codes)",
 		string(TopicGoals):     "Product mission, quality bar, ecosystem best practices",
-		string(TopicPractices): "Authoring workflow, iterate loop, best practices, common mistakes",
-		string(TopicShapes):    "Allowed shape kinds",
+		string(TopicPractices): "Authoring workflow, iterate loop, best practices, common mistakes, visual rules",
+		string(TopicStack):     "Stacked 2D plane validation model — lanes, edges, annotations, nodes, labels",
+		string(TopicValidation): "validate + advise commands, error codes, visual rules, stack model summary",
+		string(TopicShapes):    "Allowed shape kinds including info, tip, warning callouts",
 		string(TopicIcons):     "Allowed icon names",
-		string(TopicErrors):    "Error codes with fix and example for every validation issue",
+		string(TopicErrors):    "Error and warning codes with fix and example for every validation issue",
 	}
 	return Catalog{
 		Tool:        "sceno",
@@ -103,13 +133,17 @@ func BuildCatalog() Catalog {
 		StartHere:   "sceno docs guide --json",
 		Topics:      topics,
 		Commands: map[string]string{
-			"sceno docs":                    "List topics (add --json for catalog)",
-			"sceno docs guide --json":       "Full agent handbook",
-			"sceno docs spec":               "KDL specification",
-			"sceno docs practices --json":   "Best practices + common mistakes",
-			"sceno docs errors --json":      "Error code repair catalog",
-			"sceno validate -i f --json":    "Validate spec after every edit",
-			"sceno describe -i f --json":    "Layout feedback without viewing images",
+			"sceno docs":                     "List topics (add --json for catalog)",
+			"sceno docs guide --json":        "Full agent handbook",
+			"sceno docs spec":                "KDL specification",
+			"sceno docs stack [--json]":      "Stack validation model + visual rules",
+			"sceno docs validation --json":   "Validation + advise reference",
+			"sceno docs practices --json":    "Best practices + common mistakes + visual rules",
+			"sceno docs errors --json":       "Error code repair catalog",
+			"sceno validate -i f --json":     "Validate spec after every edit",
+			"sceno advise -i f --json":       "Stack engine + visual score + recommendations",
+			"sceno describe -i f --json":     "Layout feedback without viewing images",
+			"sceno suggest -i f --json":      "Prioritized layout recommendations",
 		},
 	}
 }
@@ -122,7 +156,7 @@ func WriteHumanUsage(w io.Writer) {
 	fmt.Fprintln(w, "")
 	fmt.Fprintln(w, "Topics:")
 	for _, t := range AllTopics {
-		fmt.Fprintf(w, "  %-12s %s\n", t, c.Topics[string(t)])
+		fmt.Fprintf(w, "  %-14s %s\n", t, c.Topics[string(t)])
 	}
 	fmt.Fprintln(w, "")
 	fmt.Fprintln(w, "Usage: sceno docs TOPIC [--json]")
@@ -159,6 +193,17 @@ func Run(topic string, jsonOut bool, w io.Writer) error {
 			return writePracticesJSON(w)
 		}
 		return writePracticesMarkdown(w)
+	case TopicStack:
+		if jsonOut {
+			return writeStackJSON(w)
+		}
+		_, err := io.WriteString(w, spec.StackMarkdown)
+		return err
+	case TopicValidation:
+		if jsonOut {
+			return writeValidationJSON(w)
+		}
+		return writeValidationMarkdown(w)
 	case TopicShapes:
 		if jsonOut {
 			return writeShapesJSON(w)
@@ -201,10 +246,71 @@ func writePracticesJSON(w io.Writer) error {
 		BestPractices:  g.BestPractices,
 		CommonMistakes: g.CommonMistakes,
 		RenderFormats:  g.RenderFormats,
+		StackModel:     g.StackModel,
+		VisualRules:    g.VisualRules,
 	}
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
 	return enc.Encode(doc)
+}
+
+func writeStackJSON(w io.Writer) error {
+	g := guide.Build()
+	doc := StackDoc{
+		Tool:        "sceno",
+		Version:     version.Version,
+		StackModel:  g.StackModel,
+		VisualRules: scene.VisualRulesCatalog,
+		Markdown:    spec.StackMarkdown,
+		Commands: map[string]string{
+			"sceno advise -i f --json":   "Visual score + stack planes + rule findings",
+			"sceno describe -i f --json": "Includes scene.stack and slides[n].engine",
+			"sceno validate -i f --json": "Blocking errors + stack rule warnings",
+			"sceno advise -i f --ai":     "Optional: SCENO_AI_CMD external CLI review",
+		},
+	}
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "  ")
+	return enc.Encode(doc)
+}
+
+func writeValidationJSON(w io.Writer) error {
+	g := guide.Build()
+	codes := make(map[string]diag.CodeDoc, len(diag.ErrorCatalog))
+	for c, doc := range diag.ErrorCatalog {
+		codes[string(c)] = doc
+	}
+	doc := ValidationDoc{
+		Tool:            "sceno",
+		Version:         version.Version,
+		ValidateCommand: "sceno validate -i FILE --json",
+		AdviseCommand:   "sceno advise -i FILE --json [--ai] [--ai-cmd CMD]",
+		ErrorCodes:      codes,
+		VisualRules:     scene.VisualRulesCatalog,
+		StackModel:      g.StackModel,
+	}
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "  ")
+	return enc.Encode(doc)
+}
+
+func writeValidationMarkdown(w io.Writer) error {
+	g := guide.Build()
+	var b strings.Builder
+	b.WriteString("# Sceno — validation & advise\n\n")
+	b.WriteString("## Stack model\n\n")
+	b.WriteString(g.StackModel + "\n\n")
+	b.WriteString("## Commands\n\n")
+	b.WriteString("- `sceno validate -i FILE --json` — blocking errors + warnings + recommendations\n")
+	b.WriteString("- `sceno advise -i FILE --json` — visual score, stack planes, rule findings\n")
+	b.WriteString("- `sceno advise -i FILE --ai` — optional external AI CLI (`SCENO_AI_CMD`)\n\n")
+	b.WriteString("## Visual rules\n\n")
+	for _, r := range scene.VisualRulesCatalog {
+		fmt.Fprintf(&b, "- **%s** (%s): %s\n", r.Name, r.ID, r.Description)
+	}
+	b.WriteString("\nSee `sceno docs errors --json` for all error codes.\n")
+	_, err := io.WriteString(w, b.String())
+	return err
 }
 
 func writePracticesMarkdown(w io.Writer) error {
@@ -219,7 +325,9 @@ func writePracticesMarkdown(w io.Writer) error {
 	for _, step := range g.IterateLoop {
 		b.WriteString("- " + step + "\n")
 	}
-	b.WriteString("\n## Best practices\n\n")
+	b.WriteString("\n## Stack model\n\n")
+	b.WriteString(g.StackModel + "\n\n")
+	b.WriteString("## Best practices\n\n")
 	for _, p := range g.BestPractices {
 		b.WriteString("- " + p + "\n")
 	}
@@ -236,11 +344,17 @@ func writePracticesMarkdown(w io.Writer) error {
 func writeShapesJSON(w io.Writer) error {
 	shapes := model.AllShapes()
 	sort.Strings(shapes)
+	g := guide.Build()
 	doc := ShapesDoc{
 		Tool:    "sceno",
 		Version: version.Version,
 		Shapes:  shapes,
 		Usage:   `shape KIND id "Label" props...`,
+		Props:   g.ShapeProps,
+		Notes: []string{
+			"info, warning, tip are semantic infobox variants with default accent colors",
+			"iconPos controls icon placement (top-left default)",
+		},
 	}
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
@@ -252,6 +366,9 @@ func writeShapesHuman(w io.Writer) error {
 	for _, s := range model.AllShapes() {
 		fmt.Fprintln(w, " ", s)
 	}
+	fmt.Fprintln(w, "")
+	fmt.Fprintln(w, "Callouts: info (blue), warning (amber), tip (green), infobox, note, textbox")
+	fmt.Fprintln(w, "Icon placement: iconPos=top-left|top|center|bottom|...")
 	return nil
 }
 

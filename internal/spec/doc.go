@@ -11,3 +11,8 @@ var SpecMarkdown string
 //
 //go:embed GOALS.md
 var GoalsMarkdown string
+
+// StackMarkdown describes the stacked-plane validation model.
+//
+//go:embed STACK.md
+var StackMarkdown string

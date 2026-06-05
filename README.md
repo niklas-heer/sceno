@@ -27,15 +27,16 @@ sceno render -i examples/how-it-works.kdl -o docs/how-it-works.png --format png
 sceno docs guide --json
 ```
 
-Browse all topics: `sceno docs --json` (guide, spec, goals, practices, errors, shapes, icons).
+Browse all topics: `sceno docs --json` (guide, spec, goals, practices, **stack**, **validation**, errors, shapes, icons).
 
 **After every KDL edit:**
 
 ```bash
 sceno validate -i sceno.kdl --json
+sceno advise -i sceno.kdl --json   # visual score + stack rules (after ok)
 ```
 
-The JSON report includes `ok`, `errors` (with `fix` + `example`), `warnings`, and `agent.next_steps`. Only render when `ok` is true.
+The JSON report includes `ok`, `errors` (with `fix` + `example`), `warnings`, `recommendations`, and `agent.next_steps`. Only render when `ok` is true.
 
 See [AGENTS.md](AGENTS.md) for the full agent playbook.
 
@@ -103,15 +104,17 @@ Requires **Go 1.23+**.
 
 | Command | Description |
 |---------|-------------|
-| `sceno docs [TOPIC] [--json]` | **Self-doc hub** for agents (guide, spec, practices, errors, …) |
+| `sceno docs [TOPIC] [--json]` | **Self-doc hub** — guide, spec, stack, validation, goals, practices, errors, … |
 | `sceno guide [--json]` | Agent handbook (alias) |
 | `sceno init [-o sceno.kdl]` | Create a starter spec |
-| `sceno validate -i f --json` | Validate + repair hints + recommendations |
+| `sceno validate -i f --json` | Validate + repair hints + stack rule warnings |
+| `sceno advise -i f --json` | Stack engine + visual score + recommendations |
+| `sceno advise -i f --ai` | Optional AI review via `SCENO_AI_CMD` |
 | `sceno check -i f --json` | Alias for `validate` |
 | `sceno suggest -i f --json` | Prioritized layout recommendations |
 | `sceno render -i f -o out --all` | Export svg, png, pdf, html, slides.html |
 | `sceno render -format slides` | 16:9 HTML presentation |
-| `sceno describe -i f --json` | **Visual feedback without images** — narrative, ASCII map, positions, problems |
+| `sceno describe -i f --json` | **Visual feedback without images** — narrative, ASCII map, scene, engine, problems |
 | `sceno feedback` | Alias for `describe` |
 | `sceno spec` | Full KDL specification |
 | `sceno goals` | Product goals and quality bar |
@@ -143,21 +146,27 @@ diagram title="My Platform" layout=auto gap=32 padding=24 {
 
 > The root block keyword in KDL specs is `diagram { }` — that is the file format, not the CLI name.
 
-## Describe layout (no vision required)
+## Describe & advise (no vision required)
 
-Agents that cannot view PNG/SVG can still sanity-check layout:
+Agents that cannot view PNG/SVG can sanity-check layout and visual design:
 
 ```bash
+sceno advise -i examples/how-it-works.kdl --json
 sceno describe -i examples/self-service.kdl --json
 ```
 
-Example fields:
+**Advise** fields: `visual_score`, `stack` (plane counts), `engine.findings`, `recommendations`, optional `ai_review`.
+
+**Describe** fields:
 
 - `slides[0].narrative` — plain-language overview + scene summary
-- `slides[0].scene` — paint order, groups, occlusion, edge visibility, aesthetic score
+- `slides[0].scene` — paint order, groups, occlusion, edge visibility, aesthetic score, `stack`
+- `slides[0].engine` — stack validation findings and visual score
 - `slides[0].ascii_map` — coarse character grid of node positions and edge paths
-- `slides[0].visual_problems` — overlaps, hidden edges, misalignment (not layout hints)
-- `slides[0].edges[].route` — `from (x,y), down 120px then right 200px, to (x,y)`
+- `slides[0].visual_problems` — overlaps, hidden edges, misalignment
+- `slides[0].edges[].route` — step-by-step connector path
+
+Stack model details: `sceno docs stack --json`.
 
 ## Validation (AI-ready)
 

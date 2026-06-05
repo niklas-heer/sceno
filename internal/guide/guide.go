@@ -3,6 +3,7 @@ package guide
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"sort"
 	"strings"
@@ -10,6 +11,7 @@ import (
 	"github.com/niklas-heer/sceno/internal/diag"
 	"github.com/niklas-heer/sceno/internal/icons"
 	"github.com/niklas-heer/sceno/internal/model"
+	"github.com/niklas-heer/sceno/internal/scene"
 	"github.com/niklas-heer/sceno/internal/version"
 )
 
@@ -33,6 +35,8 @@ type Document struct {
 	BestPractices  []string               `json:"best_practices"`
 	RenderFormats  []string               `json:"render_formats"`
 	GoalsSummary   string                 `json:"goals_summary"`
+	VisualRules    []scene.VisualRule     `json:"visual_rules"`
+	StackModel     string                 `json:"stack_model"`
 }
 
 // JSON writes the agent guide.
@@ -83,7 +87,17 @@ func Markdown(w io.Writer) error {
 	b.WriteString(strings.Join(d.Shapes, ", ") + "\n\n")
 	b.WriteString("## Icons\n\n")
 	b.WriteString(strings.Join(d.Icons, ", ") + "\n\n")
-	b.WriteString("## Common mistakes\n\n")
+	b.WriteString("## Stack model\n\n")
+	b.WriteString(d.StackModel + "\n\n")
+	b.WriteString("## Visual rules\n\n")
+	for _, r := range d.VisualRules {
+		fmt.Fprintf(&b, "- **%s** (`%s`): %s\n", r.Name, r.ID, r.Description)
+	}
+	b.WriteString("\n## Best practices\n\n")
+	for _, p := range d.BestPractices {
+		b.WriteString("- " + p + "\n")
+	}
+	b.WriteString("\n## Common mistakes\n\n")
 	for _, m := range d.CommonMistakes {
 		b.WriteString("- " + m + "\n")
 	}
@@ -112,35 +126,43 @@ func Build() Document {
 			"Edit sceno.kdl (KDL only — see spec_minimal)",
 			"sceno validate -i sceno.kdl --json",
 			"If ok is false: apply each errors[].fix and errors[].example, then validate again",
-			"sceno describe -i sceno.kdl --json  (optional: sanity-check layout without viewing PNG)",
+			"sceno advise -i sceno.kdl --json  (visual score + stack rules + recommendations)",
+			"sceno describe -i sceno.kdl --json  (optional: spatial layout without viewing PNG)",
 			"sceno render -i sceno.kdl -o output/sceno --all",
 		},
 		IterateLoop: []string{
 			"Always run validate --json after editing the KDL file",
 			"Read agent.next_steps and agent.summary in the JSON response",
+			"Run advise --json for visual design rules (whitespace, hierarchy, slide focus)",
 			"Never invent shape kinds or icon names — use lists in this guide",
-			"Use layout=auto with layer, row, or at=col,row unless you need exact x/y",
+			"Use layout=auto with layer, row, or at=col,row unless you need exact x/y (layout=free)",
 			"Quote labels with spaces: title=\"My Platform\" not title=My Platform",
 			"Use \\n inside quotes for line breaks: \"API\\nGateway\"",
+			"Use info/tip/warning/infobox for callouts; iconPos=top-left for icons",
 			"Edges only connect node ids defined in the same diagram or slide { } block",
-			"Use sceno describe --json to see spatial layout without opening images",
+			"Use sceno describe --json to see spatial layout; sceno docs stack for plane model",
 		},
 		Commands: map[string]string{
-			"sceno docs guide --json":    "Self-doc hub — start here for AI context",
-			"sceno docs spec":            "Full KDL specification",
-			"sceno docs practices --json":"Best practices + common mistakes",
-			"sceno docs errors --json":   "Error code repair catalog",
-			"sceno guide [--json]":       "Agent handbook (alias for docs guide)",
-			"sceno init [-o file.kdl]":  "Create a starter spec",
-			"sceno validate -i f --json": "Check spec + layout; returns ok, errors, next_steps",
-			"sceno describe -i f --json": "2D scene (layers, occlusion, edge visibility) + ascii_map + visual_problems",
+			"sceno docs [--json]":         "Self-doc hub — guide, spec, stack, validation, errors, …",
+			"sceno docs guide --json":     "Self-doc hub — start here for AI context",
+			"sceno docs stack [--json]":   "Stack validation model + visual rules",
+			"sceno docs validation --json":"validate + advise reference",
+			"sceno docs spec":             "Full KDL specification",
+			"sceno docs practices --json": "Best practices + common mistakes",
+			"sceno docs errors --json":    "Error code repair catalog",
+			"sceno guide [--json]":        "Agent handbook (alias for docs guide)",
+			"sceno init [-o file.kdl]":    "Create a starter spec",
+			"sceno validate -i f --json":  "Check spec + layout; returns ok, errors, next_steps",
+			"sceno advise -i f --json":    "Stack engine + visual design rules + recommendations (--ai for external CLI)",
+			"sceno suggest -i f --json":   "Prioritized layout recommendations",
+			"sceno describe -i f --json":  "2D scene (layers, occlusion, edge visibility, engine) + ascii_map",
 			"sceno render -i f -o out --all": "Export svg, png, pdf, html, slides.html",
 			"sceno render -format slides": "HTML presentation (16:9)",
-			"sceno spec":               "Full KDL specification (markdown)",
-			"sceno shapes":             "List shape kinds",
-			"sceno icons":              "List icon names",
-			"sceno goals":              "Product goals",
-			"sceno version [--json]":   "Tool version and build metadata",
+			"sceno spec":                  "Full KDL specification (markdown)",
+			"sceno shapes":                "List shape kinds",
+			"sceno icons":                 "List icon names",
+			"sceno goals":                 "Product goals",
+			"sceno version [--json]":      "Tool version and build metadata",
 		},
 		ErrorCodes:  codes,
 		Shapes:      append(shapeList, "code (lang=, source=) — syntax-highlighted block for slides"),
@@ -164,6 +186,7 @@ func Build() Document {
 		},
 		ShapeProps: map[string]string{
 			"icon":     "Catalog icon name",
+			"iconPos":  "Icon placement: top-left (default) | top | top-right | center | bottom-left | bottom | bottom-right",
 			"fill":     "Background #hex",
 			"stroke":   "Border #hex",
 			"accent":   "Callout stripe #hex",
@@ -213,7 +236,8 @@ func Build() Document {
 			"Group related nodes in columns (layer/at); avoid single-node orphan columns when possible",
 			"Polished style for architecture; sketch style for whiteboard/Excalidraw-like organic edges",
 			"Slides: one slide block per screen; mix sceno shapes and code blocks as needed",
-			"Borrowed from d2/Mermaid: declarative text, themes, layers; from PowerPoint: slide blocks",
+			"Use infobox, info, tip, warning, or note for callouts — accent stripe + subtitle",
+			"Run sceno advise --json for stack-plane validation and visual design recommendations",
 		},
 		CommonMistakes: []string{
 			"Using YAML/JSON — only .kdl is accepted",
@@ -225,5 +249,7 @@ func Build() Document {
 			"Duplicate node ids in the same diagram or slide",
 		},
 		RenderFormats: []string{"svg", "png", "pdf", "html", "slides", "all"},
+		VisualRules:   scene.VisualRulesCatalog,
+		StackModel:    "Diagrams are validated as stacked 2D planes: background → lanes → edges → structure → annotations (infobox/note) → nodes → labels → chrome (title). Collision and routing checks project onto reduced planes.",
 	}
 }

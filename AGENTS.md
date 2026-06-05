@@ -8,18 +8,20 @@ Use this tool to produce architecture diagrams from a single **KDL** (`.kdl`) fi
 sceno docs guide --json
 ```
 
-Or browse all documentation topics:
+Browse all documentation topics:
 
 ```bash
 sceno docs --json
 ```
 
-Optional context:
+Key topics:
 
 ```bash
-sceno docs goals        # product goals + quality bar
+sceno docs stack --json       # stacked-plane validation model + visual rules
+sceno docs validation --json  # validate + advise commands, error codes
+sceno docs goals              # product goals + quality bar
 sceno docs practices --json   # workflow + best practices
-sceno docs spec         # full KDL specification
+sceno docs spec               # full KDL specification
 sceno docs errors --json      # error code repair catalog
 ```
 
@@ -31,61 +33,84 @@ sceno validate -i your.kdl --json
 
 Do **not** render until `ok` is true.
 
-Optional layout check (no image needed):
+Visual quality check (no image needed):
 
 ```bash
-sceno describe -i your.kdl --json   # positions, ascii map, scene, problems
+sceno advise -i your.kdl --json   # stack engine, visual score, recommendations
+sceno describe -i your.kdl --json  # positions, ascii map, scene, engine
 sceno render -i your.kdl -o output/sceno --all
 ```
 
-## Describe output
+## Stack validation model
+
+Diagrams are validated as **stacked 2D planes** (back → front):
+
+`background → lanes → edges → structure → annotations → nodes → labels → chrome`
+
+Collision and routing checks project onto reduced planes. Full details: `sceno docs stack --json`.
+
+## Describe & advise output
 
 `sceno describe --json` returns:
 
 - `slides[n].narrative` — what the slide communicates
-- `slides[n].scene` — 2D analysis (paint order, occlusion, edge visibility)
+- `slides[n].scene` — 2D analysis (paint order, occlusion, edge visibility, `stack`)
+- `slides[n].engine` — stack engine findings, visual score, rules run
 - `slides[n].ascii_map` — coarse spatial grid
 - `slides[n].visual_problems` — overlaps, hidden edges, misalignment
 - `slides[n].edges[].route` — step-by-step connector path
 
-`sceno validate --json` also warns on `edge_hidden`, `occluded`, and `misaligned` via the same scene model.
+`sceno advise --json` returns:
 
-Use after validate passes to confirm the diagram reads well before shipping PNG/SVG.
+- `visual_score` — 0–100 quality score
+- `stack` — plane counts
+- `engine.findings` — visual design rule outcomes with `fix` hints
+- `recommendations` — prioritized actionable hints
+- `ai_review` — when `--ai` and `SCENO_AI_CMD` are set
+
+`sceno validate --json` also warns on stack rules: `edge_hidden`, `occluded`, `misaligned`, `dense_layout`, `slide_crowded`, etc.
 
 ## Rules
 
 1. **KDL only** — `.kdl` files; root block is `diagram { }` in the spec language.
 2. **Validate after every edit** — `sceno validate -i file.kdl --json`.
-3. **Read `agent.next_steps`** when `ok` is false; apply `errors[].fix` and `errors[].example`.
-4. **Define shapes before edges** in the same `diagram { }` or `slide "Title" { }` block.
-5. **Do not invent** shape kinds or icon names — use lists from `sceno guide --json`.
-6. **Prefer `layout=auto`** with `layer`, `row`, or `at=col,row` unless you need exact `x`/`y`.
-7. **Quote labels with spaces** — `title="My Platform"`.
-8. **Use `\n` in quoted strings** for line breaks inside labels.
+3. **Advise for polish** — `sceno advise -i file.kdl --json` after validate passes.
+4. **Read `agent.next_steps`** when `ok` is false; apply `errors[].fix` and `errors[].example`.
+5. **Define shapes before edges** in the same `diagram { }` or `slide "Title" { }` block.
+6. **Do not invent** shape kinds or icon names — use lists from `sceno docs guide --json`.
+7. **Prefer `layout=auto`** with `layer`, `row`, or `at=col,row`; use `layout=free` + `x`/`y` for free placement.
+8. **Quote labels with spaces** — `title="My Platform"`.
+9. **Use `\n` in quoted strings** for line breaks inside labels.
+10. **Callouts** — `shape info`, `tip`, `warning`, `infobox`, `note` for annotations; `iconPos=top-left` for icons.
 
 ## Commands
 
 | Command | Purpose |
 |---------|---------|
-| `sceno docs [TOPIC] [--json]` | **Self-doc hub** — guide, spec, goals, practices, errors, shapes, icons |
+| `sceno docs [TOPIC] [--json]` | **Self-doc hub** — guide, spec, stack, validation, goals, practices, errors, shapes, icons |
 | `sceno docs guide --json` | Full agent handbook (start here) |
+| `sceno docs stack --json` | Stack validation model + visual rules |
+| `sceno docs validation --json` | validate + advise reference |
 | `sceno guide [--json]` | Alias for `docs guide` |
 | `sceno init -o sceno.kdl` | Starter file |
-| `sceno validate -i f --json` | Validate + repair hints + recommendations |
+| `sceno validate -i f --json` | Validate + repair hints + stack warnings |
+| `sceno advise -i f --json` | Stack engine + visual score + recommendations |
+| `sceno advise -i f --ai` | Optional external AI CLI review (`SCENO_AI_CMD`) |
 | `sceno suggest -i f --json` | Prioritized layout recommendations |
 | `sceno render -i f -o out --all` | Export everything |
 | `sceno render -format slides` | HTML presentation |
-| `sceno describe -i f --json` | Layout without images |
+| `sceno describe -i f --json` | Layout without images (includes engine) |
 | `sceno spec` | KDL spec (alias: `docs spec`) |
 | `sceno goals` | Product goals (alias: `docs goals`) |
 | `sceno version [--json]` | Tool version |
 
 ## Error codes
 
-Full fixes and examples: `sceno guide --json` → `error_codes`.
+Full fixes and examples: `sceno docs errors --json` or `sceno guide --json` → `error_codes`.
 
 ## Examples in repo
 
+- `examples/how-it-works.kdl` — README pipeline diagram
 - `examples/self-service.kdl` — full platform diagram
 - `examples/slides-demo.kdl` — slide deck
 - `examples/slides-dark.kdl` — dark theme + code
