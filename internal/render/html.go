@@ -26,7 +26,8 @@ func HTML(d model.Diagram) string {
 *{box-sizing:border-box}body{margin:0;font-family:Inter,ui-sans-serif,system-ui,sans-serif;background:var(--background);color:var(--foreground);-webkit-font-smoothing:antialiased}
 .viewport{width:100%;min-height:100vh;overflow:auto;padding:32px 20px 48px}
 .canvas{position:relative;margin:0 auto;background:var(--card);border:1px solid var(--border);border-radius:calc(var(--radius) * 2);box-shadow:0 1px 2px var(--ring),0 20px 50px rgb(9 9 11 / 5%)}
-.edges{position:absolute;inset:0;pointer-events:none;z-index:0}
+.edges,.edge-labels{position:absolute;inset:0;pointer-events:none;z-index:0}
+.edge-labels{z-index:2}
 .node{position:absolute;z-index:1;border:1px solid var(--border);background:var(--card);border-radius:calc(var(--radius) + 4px);padding:14px 16px 14px 44px;box-shadow:0 1px 2px var(--ring);font-size:13px;line-height:1.5;white-space:pre-wrap;font-weight:500}
 .node .title{font-weight:600;letter-spacing:-0.01em}.node .sub{font-size:11px;color:var(--muted-foreground);margin-top:4px;display:block;font-weight:400}
 .node .ico{position:absolute;left:14px;top:50%;transform:translateY(-50%);width:22px;height:22px;color:var(--muted-foreground)}
@@ -57,13 +58,23 @@ func HTML(d model.Diagram) string {
 	for _, re := range d.Routed {
 		lctx := LabelContext(d, re.Edge)
 		b.WriteString(polishedPath(re.Points, re.Edge, lctx))
-		b.WriteString(EdgeLabelSVG(re.Points, re.Edge, lctx))
 	}
 	b.WriteString(`</svg>`)
 	for _, n := range d.Nodes {
 		b.WriteString(htmlNode(n, ox, oy))
 	}
-	b.WriteString(`</div></div></body></html>`)
+	b.WriteString(`<svg class="edge-labels" xmlns="http://www.w3.org/2000/svg" width="` + fmt.Sprintf("%.0f", cw) + `" height="` + fmt.Sprintf("%.0f", ch) + `" viewBox="` + fmt.Sprintf("%.1f %.1f %.1f %.1f", ox, oy, cw, ch) + `">`)
+	for _, re := range d.Routed {
+		if strings.TrimSpace(re.Edge.Label) == "" {
+			continue
+		}
+		lctx := LabelContext(d, re.Edge)
+		b.WriteString(EdgeLabelSVG(re.Points, re.Edge, lctx))
+	}
+	for _, re := range d.Routed {
+		b.WriteString(ArrowHeadSVG(re.Points, re.Edge))
+	}
+	b.WriteString(`</svg></div></div></body></html>`)
 	return b.String()
 }
 

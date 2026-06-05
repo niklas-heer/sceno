@@ -11,7 +11,7 @@ import (
 	"github.com/niklas-heer/sceno/internal/theme"
 )
 
-// SVGArrowMarkers emits arrow markers for each edge stroke color used.
+// SVGArrowMarkers emits arrow markers for sketch style exports.
 func SVGArrowMarkers(d model.Diagram) string {
 	seen := map[string]struct{}{paint.EdgeDefault: {}}
 	for _, re := range d.Routed {
@@ -30,7 +30,7 @@ func SVGArrowMarkers(d model.Diagram) string {
 
 func svgArrowMarker(color string) string {
 	id := arrowMarkerID(color)
-	return fmt.Sprintf(`<marker id="%s" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="%.1f" markerHeight="%.1f" orient="auto" markerUnits="userSpaceOnUse"><path d="M 2 3 L 8 6 L 2 9" fill="none" stroke="%s" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></marker>`,
+	return fmt.Sprintf(`<marker id="%s" viewBox="0 0 10 10" refX="0" refY="5" markerWidth="%.1f" markerHeight="%.1f" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 1.5 L 9 5 L 0 8.5 Z" fill="%s"/></marker>`,
 		id, theme.ArrowMarkerSize, theme.ArrowMarkerSize, color)
 }
 
@@ -65,8 +65,8 @@ func LabelContext(d model.Diagram, e model.Edge) *geom.EdgeLabelContext {
 func polishedPath(pts [][]float64, e model.Edge, ctx *geom.EdgeLabelContext) string {
 	segments := edgePathSegments(pts, e, ctx)
 	var b strings.Builder
-	for i, seg := range segments {
-		b.WriteString(polishedPathSegment(seg, e, i == len(segments)-1))
+	for _, seg := range segments {
+		b.WriteString(polishedStrokeSegment(seg, e))
 	}
 	return b.String()
 }
@@ -76,36 +76,15 @@ func edgePathSegments(pts [][]float64, e model.Edge, ctx *geom.EdgeLabelContext)
 	if len(gpts) < 2 {
 		return nil
 	}
-	label := strings.TrimSpace(e.Label)
-	if label == "" || ctx == nil {
-		return [][]geom.Point{gpts}
-	}
-	lines := strings.Split(label, "\n")
-	fontSize := float64(theme.SubSize)
-	lineH := fontSize * 1.35
-	maxW := 0.0
-	for _, line := range lines {
-		w := measure.TextWidth(line, fontSize, fonts.WeightMedium)
-		if w > maxW {
-			maxW = w
-		}
-	}
-	rx, ry, boxW, boxH, horiz := geom.EdgeLabelBox(gpts, 6, 4, lineH, fontSize, lines, maxW, ctx)
-	if !horiz {
-		return [][]geom.Point{gpts}
-	}
-	box := geom.LabelBoxRect(rx, ry, boxW, boxH)
-	return geom.SplitPathForLabel(gpts, box)
+	return [][]geom.Point{gpts}
 }
 
-func polishedPathSegment(pts []geom.Point, e model.Edge, withArrow bool) string {
+func polishedStrokeSegment(pts []geom.Point, e model.Edge) string {
 	if len(pts) < 2 {
 		return ""
 	}
 	gpts := geom.SimplifyPath(pts)
-	if withArrow {
-		gpts = geom.TrimArrowEnd(gpts)
-	}
+	gpts = geom.TrimArrowEnd(gpts)
 	if len(gpts) < 2 {
 		return ""
 	}
@@ -118,43 +97,43 @@ func polishedPathSegment(pts []geom.Point, e model.Edge, withArrow bool) string 
 	if e.Dashed {
 		dash = ` stroke-dasharray="5 4"`
 	}
-	marker := ""
-	if withArrow {
-		marker = fmt.Sprintf(` marker-end="url(#%s)"`, arrowMarkerID(stroke))
+	return fmt.Sprintf(`<path d="%s" fill="none" stroke="%s" stroke-width="%.2f" stroke-opacity="%s" stroke-linejoin="round" stroke-linecap="round"%s/>`,
+		pathD, stroke, theme.EdgeWidth, paint.EdgeOpacity, dash)
+}
+
+// ArrowHeadSVG draws a filled arrowhead with tip on the target border (paint after nodes).
+func ArrowHeadSVG(pts [][]float64, e model.Edge) string {
+	gpts := geom.SimplifyPath(geom.SlicesToPath(pts))
+	ag, ok := geom.ArrowGeometryForPath(gpts)
+	if !ok {
+		return ""
 	}
-	return fmt.Sprintf(`<path d="%s" fill="none" stroke="%s" stroke-width="%.2f" stroke-opacity="%s" stroke-linejoin="round" stroke-linecap="round"%s%s/>`,
-		pathD, stroke, theme.EdgeWidth, paint.EdgeOpacity, dash, marker)
+	stroke := e.Color
+	if stroke == "" {
+		stroke = paint.FgMuted
+	}
+	t1, t2, t3 := geom.ArrowHeadPoints(ag.Prev, ag.Tip, theme.ArrowMarkerSize)
+	return fmt.Sprintf(`<polygon points="%.2f,%.2f %.2f,%.2f %.2f,%.2f" fill="%s"/>`,
+		t1.X, t1.Y, t2.X, t2.Y, t3.X, t3.Y, stroke)
 }
 
 // EdgeLabelSVG renders a readable label on the longest edge segment.
 func EdgeLabelSVG(pts [][]float64, e model.Edge, ctx *geom.EdgeLabelContext) string {
-	label := strings.TrimSpace(e.Label)
-	if label == "" || len(pts) < 2 {
-		return ""
-	}
 	gpts := geom.SimplifyPath(geom.SlicesToPath(pts))
 	if len(gpts) < 2 {
 		return ""
 	}
-	lines := strings.Split(label, "\n")
-	fontSize := float64(theme.SubSize)
-	lineH := fontSize * 1.35
-	maxW := 0.0
-	for _, line := range lines {
-		w := measure.TextWidth(line, fontSize, fonts.WeightMedium)
-		if w > maxW {
-			maxW = w
-		}
+	layout := geom.LayoutEdgeLabel(gpts, e.Label, ctx)
+	if layout.BoxW <= 0 {
+		return ""
 	}
-	padX, padY := 6.0, 4.0
-	rx, ry, boxW, boxH, _ := geom.EdgeLabelBox(gpts, padX, padY, lineH, fontSize, lines, maxW, ctx)
+	x, y, boxW, boxH := layout.LabelRect()
 	var b strings.Builder
 	b.WriteString(fmt.Sprintf(`<rect x="%.1f" y="%.1f" width="%.1f" height="%.1f" rx="4" fill="%s" stroke="%s" stroke-width="1"/>`,
-		rx-boxW/2, ry-boxH/2, boxW, boxH, paint.BgCard, paint.Border))
-	textY := ry - boxH/2 + padY + fontSize*0.85
-	for i, line := range lines {
-		lineW := measure.TextWidth(line, fontSize, fonts.WeightMedium)
-		b.WriteString(textEl(line, rx-lineW/2, textY+float64(i)*lineH, fontSize, paint.FgMuted, "500"))
+		x, y, boxW, boxH, paint.BgCard, paint.Border))
+	for i, line := range layout.Lines {
+		lineW := measure.TextWidth(line, layout.FontSize, fonts.WeightMedium)
+		b.WriteString(textEl(line, layout.CenterX-lineW/2, layout.TextBaselineY(i), layout.FontSize, paint.FgMuted, "500"))
 	}
 	return b.String()
 }

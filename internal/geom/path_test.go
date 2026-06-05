@@ -1,6 +1,7 @@
 package geom
 
 import (
+	"math"
 	"testing"
 
 	"github.com/niklas-heer/sceno/internal/model"
@@ -8,18 +9,21 @@ import (
 
 func TestEdgeLabelBoxHorizontal(t *testing.T) {
 	pts := []Point{{X: 0, Y: 0}, {X: 100, Y: 0}}
-	rx, ry, boxW, boxH, horiz := EdgeLabelBox(pts, 6, 4, 14, 12, []string{"write"}, 40, nil)
-	if !horiz {
+	layout := LayoutEdgeLabel(pts, "write", nil)
+	if !layout.Horizontal {
 		t.Fatal("expected horizontal")
 	}
-	if ry >= 0 {
-		t.Fatalf("horizontal label should sit above segment, ry=%v", ry)
+	if math.Abs(layout.CenterY) > 1 {
+		t.Fatalf("horizontal label should sit on connector, ry=%v", layout.CenterY)
 	}
-	if boxW <= 0 || boxH <= 0 {
-		t.Fatalf("invalid box size %v x %v", boxW, boxH)
+	if layout.BoxW <= 0 || layout.BoxH <= 0 {
+		t.Fatalf("invalid box size %v x %v", layout.BoxW, layout.BoxH)
 	}
-	if rx != 50 {
-		t.Fatalf("expected center x=50, got %v", rx)
+	if layout.CenterX != 50 {
+		t.Fatalf("expected center x=50, got %v", layout.CenterX)
+	}
+	if layout.BoxH > 16 {
+		t.Fatalf("label box should be compact, got height %.1f", layout.BoxH)
 	}
 }
 
@@ -33,9 +37,12 @@ func TestEdgeLabelBoxClearsNodes(t *testing.T) {
 	if !horiz {
 		t.Fatal("expected horizontal")
 	}
+	if math.Abs(ry-156) > 2 {
+		t.Fatalf("label should sit on connector y, ry=%.1f", ry)
+	}
 	box := LabelBoxRect(rx, ry, boxW, boxH)
-	if box.Bottom() > ctx.From.Y-4 {
-		t.Fatalf("label should sit above nodes, box bottom=%.1f node top=%.1f", box.Bottom(), ctx.From.Y)
+	if box.Y < ctx.From.Y || box.Bottom() > ctx.From.Bottom() {
+		t.Fatalf("label should stay within connector band, box=%+v nodes=%+v", box, ctx.From)
 	}
 	gapCenter := (ctx.From.Right() + 6 + ctx.To.X - 6) / 2
 	if rx < gapCenter-2 || rx > gapCenter+2 {

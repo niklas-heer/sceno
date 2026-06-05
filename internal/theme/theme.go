@@ -44,7 +44,7 @@ const (
 const (
 	EdgeWidth       = 1.75
 	EdgeCorner      = 10.0
-	ArrowMarkerSize = 7.0
+	ArrowMarkerSize = 9.0
 )
 
 // CSSVars returns :root custom properties for HTML/slides (light default).

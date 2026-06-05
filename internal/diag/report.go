@@ -29,6 +29,10 @@ const (
 	CodeTooManyElements Code = "too_many_elements"
 	CodeSuggestAnnotation Code = "suggest_annotation"
 	CodeAnnotationBlocks Code = "annotation_blocks"
+	CodeArrowDetached    Code = "arrow_detached"
+	CodeArrowHidden      Code = "arrow_hidden"
+	CodeEdgeLabelChrome  Code = "edge_label_chrome_overlap"
+	CodeEdgeLabelOffAxis Code = "edge_label_off_axis"
 )
 
 // Issue is one actionable problem.

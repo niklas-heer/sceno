@@ -6,8 +6,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/niklas-heer/sceno/internal/diag"
 	"github.com/niklas-heer/sceno/internal/geom"
 	"github.com/niklas-heer/sceno/internal/model"
+	"github.com/niklas-heer/sceno/internal/scene"
 )
 
 func TestHowItWorksSingleRow(t *testing.T) {
@@ -89,6 +91,21 @@ func TestHowItWorksNodeSpacing(t *testing.T) {
 				a.Rect.Bottom()+minGap > b.Rect.Y && b.Rect.Bottom()+minGap > a.Rect.Y {
 				t.Fatalf("nodes %q and %q are too close (gap < %.0f)", a.ID, b.ID, minGap)
 			}
+		}
+	}
+}
+
+func TestHowItWorksEdgeRenderValidation(t *testing.T) {
+	path := filepath.Join("..", "..", "examples", "how-it-works.kdl")
+	d, _, err := Build(path, DefaultOptions())
+	if err != nil {
+		t.Fatal(err)
+	}
+	ev := scene.Evaluate(&d)
+	for _, f := range ev.Findings {
+		switch f.Code {
+		case string(diag.CodeArrowDetached), string(diag.CodeArrowHidden), string(diag.CodeEdgeLabelChrome), string(diag.CodeEdgeLabelOffAxis):
+			t.Fatalf("README diagram should pass edge render rules: %+v", f)
 		}
 	}
 }

@@ -95,12 +95,22 @@ func polishedSVGContent(d model.Diagram, vp Viewport, opt SVGOptions) string {
 	for _, re := range d.Routed {
 		lctx := LabelContext(d, re.Edge)
 		b.WriteString(polishedPath(re.Points, re.Edge, lctx))
-		b.WriteString(EdgeLabelSVG(re.Points, re.Edge, lctx))
 	}
 	for _, n := range d.Nodes {
 		if n.Kind != model.ShapeLane {
 			b.WriteString(polishedNodeSVG(n, opt.DropShadow))
 		}
+	}
+	for _, re := range d.Routed {
+		if strings.TrimSpace(re.Edge.Label) == "" {
+			continue
+		}
+		lctx := LabelContext(d, re.Edge)
+		b.WriteString(EdgeLabelSVG(re.Points, re.Edge, lctx))
+	}
+	// Arrowheads after nodes so tips meet borders visibly (not buried under fills).
+	for _, re := range d.Routed {
+		b.WriteString(ArrowHeadSVG(re.Points, re.Edge))
 	}
 	return b.String()
 }

@@ -72,7 +72,7 @@ func routeWithLane(start, end geom.Point, obstacles []model.Node, pad, laneOff f
 			[]geom.Point{start, {X: start.X, Y: start.Y + off}, {X: end.X, Y: start.Y + off}, end},
 		)
 	}
-	best := candidates[0]
+		best := candidates[0]
 	bestScore := 1e18
 	for _, c := range candidates {
 		if len(c) < 2 {
@@ -84,7 +84,18 @@ func routeWithLane(start, end geom.Point, obstacles []model.Node, pad, laneOff f
 			best = c
 		}
 	}
-	return best
+	return snapPathEnds(best, start, end)
+}
+
+// snapPathEnds forces endpoints onto shape border anchors (routing may bend nearby).
+func snapPathEnds(pts []geom.Point, start, end geom.Point) []geom.Point {
+	if len(pts) == 0 {
+		return []geom.Point{start, end}
+	}
+	out := append([]geom.Point(nil), pts...)
+	out[0] = start
+	out[len(out)-1] = end
+	return out
 }
 
 func elbowHV(a, b geom.Point) []geom.Point {

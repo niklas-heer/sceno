@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/niklas-heer/sceno/internal/diag"
-	"github.com/niklas-heer/sceno/internal/fonts"
 	"github.com/niklas-heer/sceno/internal/geom"
 	"github.com/niklas-heer/sceno/internal/layout"
 	"github.com/niklas-heer/sceno/internal/measure"
@@ -26,12 +25,13 @@ var VisualRulesCatalog = []VisualRule{
 	{ID: "hierarchy", Name: "Visual hierarchy", Source: "NN/g, IxDF", Description: "Titles and focal nodes should dominate; supporting detail recedes via size and spacing."},
 	{ID: "whitespace", Name: "Whitespace", Source: "Gestalt proximity", Description: "Use gap and padding so groups breathe; avoid overcrowded or empty canvases."},
 	{ID: "alignment", Name: "Alignment", Source: "PowerPoint grids", Description: "Same column/row nodes share center lines; icons and labels balance."},
-	{ID: "edge_clarity", Name: "Edge clarity", Source: "d2/Mermaid", Description: "Connectors attach at shape borders; arrowheads meet the edge; labels sit on the connector with clearance."},
+	{ID: "edge_clarity", Name: "Edge clarity", Source: "d2/Mermaid", Description: "Connectors attach at shape borders; filled arrowheads meet the target edge; labels sit on the connector (opaque box), never over title/subtitle chrome."},
 	{ID: "element_budget", Name: "Element budget", Source: "C4 / architecture", Description: "Prefer ≤15 primary nodes per view; split slides or add lanes for more."},
 	{ID: "slide_focus", Name: "One idea per slide", Source: "10/20/30, Visme", Description: "Each slide should communicate one core idea with a clear focal point."},
 	{ID: "annotations", Name: "Callouts & notes", Source: "PowerPoint", Description: "Use infobox/note/tip for context without blocking the main flow."},
 	{ID: "collision_2d", Name: "2D collision plane", Source: "Sceno stack", Description: "Node plane overlaps are checked on a reduced 2D projection."},
 	{ID: "routing_plane", Name: "Routing plane", Source: "Sceno stack", Description: "Edges are validated on the edge plane against node obstacles."},
+	{ID: "icons", Name: "Icon clarity", Source: "Sceno render", Description: "Use catalog icons only; iconPos must clear labels; pair icon with shape kind (database→cylinder)."},
 }
 
 // Finding is one rule outcome from the stack engine.
@@ -71,13 +71,16 @@ var engineRules = []struct {
 }{
 	{"collision_2d", ruleCollisionPlane},
 	{"routing_plane", ruleRoutingPlane},
+	{"text_fit", ruleTextOverflow},
 	{"whitespace", ruleWhitespace},
+	{"compact", ruleCompact},
 	{"hierarchy", ruleHierarchy},
 	{"element_budget", ruleElementBudget},
 	{"slide_focus", ruleSlideFocus},
 	{"annotations", ruleAnnotations},
 	{"alignment", ruleAlignment},
 	{"edge_clarity", ruleEdgeClarity},
+	{"icons", ruleIcons},
 }
 
 func ruleCollisionPlane(ctx ruleContext) []Finding {
@@ -118,6 +121,32 @@ func ruleRoutingPlane(ctx ruleContext) []Finding {
 			Message: layout.FormatEdgeCollision(ec),
 			Fix:     "Set fromSide/toSide, increase gap, or reorder layers so the connector routes around obstacles.",
 			Example: `edge api -> db fromSide=right toSide=left`,
+		})
+	}
+	return out
+}
+
+func ruleTextOverflow(ctx ruleContext) []Finding {
+	var out []Finding
+	for _, iss := range measure.FindTextOverflow(ctx.d.Nodes) {
+		out = append(out, Finding{
+			RuleID: "text_fit", Severity: "error", Plane: PlaneLabel,
+			Code: string(iss.Code), Message: iss.Message, Fix: iss.Fix, Items: iss.Nodes,
+		})
+	}
+	return out
+}
+
+func ruleCompact(ctx ruleContext) []Finding {
+	var out []Finding
+	for _, iss := range layout.CompactSuggestion(ctx.d) {
+		sev := "hint"
+		if iss.Code == diag.CodeEdgeCollision {
+			sev = "warning"
+		}
+		out = append(out, Finding{
+			RuleID: "compact", Severity: sev, Plane: PlaneBackground,
+			Code: string(iss.Code), Message: iss.Message, Fix: iss.Fix, Example: iss.Example,
 		})
 	}
 	return out
@@ -268,6 +297,7 @@ func ruleEdgeClarity(ctx ruleContext) []Finding {
 			})
 		}
 	}
+	out = append(out, edgeRenderFindings(ctx.d)...)
 	return out
 }
 
@@ -286,18 +316,9 @@ func edgeLabelHitsNode(d *model.Diagram, re model.RoutedEdge, label string) (boo
 			lctx = &geom.EdgeLabelContext{From: a.Rect, To: b.Rect}
 		}
 	}
-	lines := strings.Split(label, "\n")
-	fontSize := 12.0
-	lineH := fontSize * 1.35
-	maxW := 0.0
-	for _, line := range lines {
-		w := measure.TextWidth(line, fontSize, fonts.WeightMedium)
-		if w > maxW {
-			maxW = w
-		}
-	}
-	rx, ry, boxW, boxH, _ := geom.EdgeLabelBox(gpts, 6, 4, lineH, fontSize, lines, maxW, lctx)
-	lb := model.Rect{X: rx - boxW/2, Y: ry - boxH/2, W: boxW, H: boxH}
+	layout := geom.LayoutEdgeLabel(gpts, label, lctx)
+	lx, ly, lw, lh := layout.LabelRect()
+	lb := model.Rect{X: lx, Y: ly, W: lw, H: lh}
 	margin := math.Max(d.Gap*0.15, 4)
 	for _, n := range d.Nodes {
 		if model.IsContainer(n.Kind) {

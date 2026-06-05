@@ -88,6 +88,26 @@ shape box b "B" at=0,1`,
 		Fix:     "Set fromSide/toSide, increase gap, or use layout=auto with clearer layer columns.",
 		Example: `edge a -> b fromSide=right toSide=left`,
 	},
+	CodeArrowDetached: {
+		Meaning: "Connector does not end on the target border, or arrow tip is more than ~2px from the anchor — head looks disconnected.",
+		Fix:     "Route must reach shape borders (fromSide/toSide). Arrow tip lands on target border; stroke stops ArrowHeadDepth before it.",
+		Example: `diagram gap=48 layout=auto {
+  edge a -> b fromSide=right toSide=left label="ok?"
+}`,
+	},
+	CodeArrowHidden: {
+		Meaning: "Arrow tip sits inside a shape fill instead of on the border — may be invisible under the node.",
+		Fix:     "Ensure routing terminates on the border anchor; arrowheads render after nodes.",
+	},
+	CodeEdgeLabelChrome: {
+		Meaning: "Edge label overlaps the title/subtitle band or is wider than the node gap.",
+		Fix:     "Center labels on connectors between shapes; increase gap; shorten label text.",
+		Example: `edge write -> spec fromSide=right toSide=left label="write"`,
+	},
+	CodeEdgeLabelOffAxis: {
+		Meaning: "Edge label is not centered on the connector line.",
+		Fix:     "Labels render on the connector with an opaque box — avoid placing them above the header.",
+	},
 	CodeMisaligned: {
 		Meaning: "Nodes or labels are not visually aligned within a column or icon row.",
 		Fix:     "Use consistent layer/column, at=col,row, or shorten labels.",

@@ -10,7 +10,7 @@ import (
 	"github.com/niklas-heer/sceno/internal/theme"
 )
 
-const iconSize = 18
+const iconSize = measure.IconSize
 
 func polishedNodeSVG(n model.Node, dropShadow bool) string {
 	var b strings.Builder

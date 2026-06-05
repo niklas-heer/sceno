@@ -6,8 +6,8 @@ import (
 	"github.com/niklas-heer/sceno/internal/model"
 )
 
-// ArrowTipLength is how far to shorten the last segment for marker geometry.
-const ArrowTipLength = 11.0
+// ArrowTipLength is an alias for ArrowHeadDepth (legacy name).
+const ArrowTipLength = ArrowHeadDepth
 
 // ShortenEnd moves point b toward a by dist (for arrowhead clearance).
 func ShortenEnd(a, b Point, dist float64) Point {
@@ -49,15 +49,15 @@ func collinear(a, b, c Point) bool {
 	return false
 }
 
-// TrimArrowEnd shortens the path terminus so arrow markers sit on the border.
+// TrimArrowEnd shortens the path to the stroke end (tip remains at the original anchor).
 func TrimArrowEnd(pts []Point) []Point {
-	if len(pts) < 2 {
+	ag, ok := ArrowGeometryForPath(pts)
+	if !ok {
 		return pts
 	}
 	out := make([]Point, len(pts))
 	copy(out, pts)
-	last := len(out) - 1
-	out[last] = ShortenEnd(out[last-1], out[last], ArrowTipLength)
+	out[len(out)-1] = ag.StrokeEnd
 	return out
 }
 
@@ -108,39 +108,11 @@ type EdgeLabelContext struct {
 }
 
 // EdgeLabelBox returns the label center and size on the best edge segment.
-// When ctx is set, horizontal labels center in the node gap and sit above both shapes.
+// Prefer LayoutEdgeLabel — this wrapper keeps legacy call sites working.
 func EdgeLabelBox(pts []Point, padX, padY, lineH, fontSize float64, lines []string, maxTextW float64, ctx *EdgeLabelContext) (rx, ry, boxW, boxH float64, horizontal bool) {
-	if len(pts) < 2 || len(lines) == 0 {
-		return 0, 0, 0, 0, true
-	}
-	x, y, horiz := LabelPlacement(pts)
-	if maxTextW < 24 {
-		maxTextW = 24
-	}
-	boxW = maxTextW + padX*2
-	boxH = float64(len(lines))*lineH + padY*2 - (lineH - fontSize)
-	const gap = 12.0
-	if horiz {
-		rx = x
-		if ctx != nil {
-			gapLeft := ctx.From.Right() + 6
-			gapRight := ctx.To.X - 6
-			if gapRight > gapLeft {
-				rx = (gapLeft + gapRight) / 2
-			}
-			minTop := ctx.From.Y
-			if ctx.To.Y < minTop {
-				minTop = ctx.To.Y
-			}
-			ry = minTop - gap - boxH/2
-		} else {
-			ry = y - boxH/2 - gap
-		}
-		return rx, ry, boxW, boxH, true
-	}
-	rx = x + boxW/2 + gap
-	ry = y
-	return rx, ry, boxW, boxH, false
+	_ = padX
+	_ = padY
+	return edgeLabelBoxInner(pts, fontSize, lineH, lines, maxTextW, ctx)
 }
 
 // LabelBoxRect returns the axis-aligned bounds for a label box.
