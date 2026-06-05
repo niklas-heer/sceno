@@ -8,8 +8,8 @@ import (
 )
 
 const (
-	goImage   = "golang:1.23-bookworm"
-	goVersion = "1.23"
+	goImage   = "golang:1.25-bookworm"
+	goVersion = "1.25"
 )
 
 var buildPlatforms = []struct {
@@ -108,6 +108,12 @@ test -s /tmp/sceno-smoke.png
 test -s /tmp/sceno-smoke.pdf
 test -s /tmp/sceno-smoke.html
 test -s /tmp/sceno-smoke.slides.html
+./sceno docs goals --json | grep -q '"mission"'
+./sceno render -i examples/slides-demo.kdl -o /tmp/sceno-deck --all
+test -s /tmp/sceno-deck-1.svg
+test -s /tmp/sceno-deck-1.png
+test -s /tmp/sceno-deck-2.svg
+test -s /tmp/sceno-deck.slides.html
 echo "smoke ok"
 `
 }
