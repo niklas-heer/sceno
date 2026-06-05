@@ -1,0 +1,16 @@
+// Security lane — mixed shapes + policy callout
+diagram title="Zero Trust Lane" subtitle="Icons + shape kinds" layout=auto style=polished gap=32 padding=24 {
+
+  shape actor user "User" icon=user at=0,0
+  shape box gateway "Gateway" icon=api fill="#dbeafe" at=1,0
+  shape box auth "Auth" icon=key fill="#ede9fe" at=2,0
+  shape callout policy "Policy" subtitle="OPA checks" icon=policy accent="#e11d48" at=3,0
+  shape hexagon svc "Service" icon=shield fill="#d1fae5" at=4,0
+  shape cylinder secrets "Secrets" icon=lock fill="#ffedd5" at=5,0
+
+  edge user -> gateway fromSide=right toSide=left
+  edge gateway -> auth label="token"
+  edge auth -> policy dashed=true color="#e11d48"
+  edge policy -> svc fromSide=bottom toSide=top
+  edge svc -> secrets
+}

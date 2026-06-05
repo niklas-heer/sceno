@@ -11,12 +11,14 @@ Declarative architecture diagrams in **[KDL](https://kdl.dev/)** — one readabl
 1. **Write** a [KDL](https://kdl.dev/) spec (by hand or with an AI agent)
 2. **Validate** — `sceno validate --json` catches errors with fix hints
 3. **Advise** — stack validation, visual score, design recommendations
-4. **Describe** — layout feedback without opening images (ASCII map, edge routes)
+4. **Describe** — layout map and edge routes without opening images
 5. **Render** — export SVG, PNG, PDF, HTML, and slide decks
 
-The diagram above is defined in [`examples/how-it-works.kdl`](examples/how-it-works.kdl) and rendered by Sceno:
+The diagram above is defined in [`examples/how-it-works.kdl`](examples/how-it-works.kdl). It dogfoods the icon catalog (`actor`+`user`, `document`+`folder`, `cloud`+`cloud`, … — run `sceno docs icons`) and is checked before every export:
 
 ```bash
+sceno validate -i examples/how-it-works.kdl --json
+sceno advise -i examples/how-it-works.kdl --json   # visual score + arrow/label checks
 sceno render -i examples/how-it-works.kdl -o docs/how-it-works.png --format png
 ```
 
@@ -230,9 +232,9 @@ Open `.slides.html` in a browser — **← / → / Space** to navigate. Use `--a
 
 ## Shapes & icons
 
-Run `sceno docs shapes` and `sceno docs icons`, or see `examples/shapes-demo.kdl`.
+Run `sceno docs shapes` and `sceno docs icons` (categories, suggested pairings, `iconPos` options), or see `examples/shapes-demo.kdl` and the README diagram in `examples/how-it-works.kdl`.
 
-Highlights: `box`, `actor`, `cylinder`, `cloud`, `callout`, `lane`, `hexagon`, `note`, …
+Highlights: `box`, `actor`, `cylinder`, `cloud`, `document`, `callout`, `lane`, `hexagon`, `note`, …
 
 ## Export formats
 

@@ -17,8 +17,9 @@ sceno docs --json
 Key topics (all **generated from code** at runtime — no separate markdown to maintain):
 
 ```bash
-sceno docs stack --json       # stacked-plane validation model + visual rules
-sceno docs validation --json  # validate + advise commands, error codes
+sceno docs architecture --json  # geometry vs semantics SoT, pipeline.Result, paint order
+sceno docs stack --json         # stacked-plane validation model + visual rules
+sceno docs validation --json    # validate + advise commands, error codes
 sceno docs goals              # product goals + quality bar
 sceno docs practices --json   # workflow + best practices
 sceno docs spec               # full KDL specification
@@ -68,7 +69,7 @@ Collision and routing checks project onto reduced planes. Full details: `sceno d
 - `recommendations` — prioritized actionable hints
 - `ai_review` — when `--ai` and `SCENO_AI_CMD` are set
 
-`sceno validate --json` also warns on stack rules: `edge_hidden`, `occluded`, `misaligned`, `dense_layout`, `slide_crowded`, etc.
+`sceno validate --json` also warns on stack rules: `edge_hidden`, `arrow_detached`, `arrow_hidden`, `edge_label_chrome_overlap`, `occluded`, `misaligned`, `dense_layout`, `slide_crowded`, etc. **Arrow checks** (same math as render): path must end on target border, tip within 2px of anchor, stroke ≥18px before head. If validate passes, arrowheads should meet shapes in export.
 
 ## Rules
 

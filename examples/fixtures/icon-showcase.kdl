@@ -1,0 +1,19 @@
+// Icon catalog smoke test — horizontal flow by layer
+diagram title="Icon Showcase" subtitle="sceno docs icons — pair with suggested shapes" layout=auto style=polished gap=40 padding=28 {
+
+  shape actor people "People" icon=users layer=1
+  shape box integration "API" icon=api layer=2 w=100
+  shape box compute "Server" icon=server layer=3
+  shape cylinder data "Database" icon=database layer=4
+  shape box security "Shield" icon=shield layer=5
+  shape callout annotation "Info" icon=info accent="#2563eb" at=0,2 w=180
+  shape box dev "Terminal" icon=terminal layer=6
+  shape cloud network "Network" icon=network layer=7
+
+  edge people -> integration fromSide=right toSide=left
+  edge integration -> compute fromSide=right toSide=left label="call"
+  edge compute -> data fromSide=right toSide=left
+  edge data -> security fromSide=right toSide=left
+  edge security -> dev fromSide=right toSide=left
+  edge dev -> network fromSide=right toSide=left
+}

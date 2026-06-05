@@ -30,8 +30,8 @@ diagram title="Self-Service Infrastructure Platform" subtitle="Pulumi Components
   edge runner -> pulumi
   edge vpc -> eks
   edge eks -> database
-  edge database -> storage
+  edge database -> storage fromSide=right toSide=left
   edge pulumi -> res-eks fromSide=bottom toSide=top
-  edge policy -> runner fromSide=top toSide=bottom dashed=true color="#e11d48"
+  edge policy -> runner fromSide=left toSide=right dashed=true color="#e11d48"
   edge eks -> stacks dashed=true
 }

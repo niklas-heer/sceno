@@ -1,0 +1,10 @@
+// Horizontal labeled connectors — regression for arrow tips + label placement
+diagram title="Labeled Flow" layout=auto style=polished gap=40 padding=32 {
+
+  shape box a "Source" icon=git iconPos=top-left at=0,0
+  shape box b "Transform" icon=workflow iconPos=top-left at=1,0
+  shape box c "Sink" icon=folder iconPos=top-left at=2,0
+
+  edge a -> b label="push"
+  edge b -> c label="archive"
+}

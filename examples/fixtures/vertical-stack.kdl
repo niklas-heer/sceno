@@ -1,0 +1,14 @@
+// Vertical pipeline — iconPos=top on narrow cards
+diagram title="Event Pipeline" subtitle="Vertical stack with labeled edges" layout=auto style=polished gap=36 padding=28 {
+
+  shape box ingest "Ingest" icon=zap iconPos=top fill="#fef3c7" at=0,0
+  shape box queue "Queue" icon=queue iconPos=top fill="#ffedd5" at=0,1
+  shape box worker "Worker" icon=cpu iconPos=top fill="#d1fae5" at=0,2
+  shape cylinder store "Store" icon=storage iconPos=top fill="#ede9fe" at=0,3
+  shape box notify "Notify" icon=bell iconPos=top fill="#dbeafe" at=0,4
+
+  edge ingest -> queue label="events"
+  edge queue -> worker
+  edge worker -> store label="persist"
+  edge store -> notify fromSide=bottom toSide=top
+}

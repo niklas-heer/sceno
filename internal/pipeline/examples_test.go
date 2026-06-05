@@ -15,6 +15,13 @@ func TestBuildAllExamples(t *testing.T) {
 		"slides-dark.kdl",
 		"shapes-demo.kdl",
 	}
+	fixtures := []string{
+		"fixtures/icon-showcase.kdl",
+		"fixtures/vertical-stack.kdl",
+		"fixtures/labeled-flow.kdl",
+		"fixtures/security-lane.kdl",
+	}
+	examples = append(examples, fixtures...)
 	for _, name := range examples {
 		t.Run(name, func(t *testing.T) {
 			path := filepath.Join("..", "..", "examples", name)
