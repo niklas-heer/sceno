@@ -651,9 +651,6 @@ func sceneVisualProblems(sr scene.Report, minX, minY, maxX, maxY float64) []Visu
 			continue
 		}
 		sev := "warning"
-		if iss.Code == diag.CodeOccluded {
-			sev = "error"
-		}
 		out = append(out, VisualProblem{
 			Severity: sev,
 			Code:     string(iss.Code),
@@ -897,7 +894,7 @@ func (r Report) WriteHuman(w io.Writer) error {
 			if e.CrossesNode != "" {
 				line += fmt.Sprintf(" (crosses %s)", e.CrossesNode)
 			}
-			_, _ = fmt.Fprintf(w, line+"\n")
+			_, _ = io.WriteString(w, line+"\n")
 		}
 		if len(s.Relationships) > 0 {
 			_, _ = io.WriteString(w, "\nrelationships:\n")

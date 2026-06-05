@@ -99,6 +99,20 @@ func TestRunErrorsJSON(t *testing.T) {
 	}
 }
 
+func TestRunGoalsJSON(t *testing.T) {
+	var buf bytes.Buffer
+	if err := Run("goals", true, &buf); err != nil {
+		t.Fatal(err)
+	}
+	var doc GoalsDoc
+	if err := json.Unmarshal(buf.Bytes(), &doc); err != nil {
+		t.Fatal(err)
+	}
+	if doc.Mission == "" || len(doc.ProductGoals) < 5 || len(doc.Principles) < 2 {
+		t.Fatalf("goals doc incomplete: %+v", doc)
+	}
+}
+
 func TestRunShapesJSON(t *testing.T) {
 	var buf bytes.Buffer
 	if err := Run("shapes", true, &buf); err != nil {

@@ -137,6 +137,8 @@ func (r *Report) Enrich() {
 	if r.OK {
 		r.Agent.Summary = "Spec is valid; safe to render."
 		r.Agent.NextSteps = []string{
+			"sceno advise -i " + quote(r.Input) + " --json",
+			"sceno describe -i " + quote(r.Input) + " --json",
 			"sceno render -i " + quote(r.Input) + " -o output/sceno --all",
 		}
 		if r.Stats.Slides > 1 {

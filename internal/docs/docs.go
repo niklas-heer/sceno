@@ -162,6 +162,9 @@ func Run(topic string, jsonOut bool, w io.Writer) error {
 		_, err := io.WriteString(w, guide.RenderSpecMarkdown())
 		return err
 	case TopicGoals:
+		if jsonOut {
+			return writeGoalsJSON(w)
+		}
 		_, err := io.WriteString(w, guide.RenderGoalsMarkdown())
 		return err
 	case TopicPractices:
@@ -199,6 +202,41 @@ func Run(topic string, jsonOut bool, w io.Writer) error {
 	default:
 		return fmt.Errorf("unknown docs topic %q — run sceno docs for topics", topic)
 	}
+}
+
+// GoalsDoc is the product mission and quality bar (sceno docs goals --json).
+type GoalsDoc struct {
+	Tool           string              `json:"tool"`
+	Version        string              `json:"version"`
+	Mission        string              `json:"mission"`
+	ProductGoals   []string            `json:"product_goals"`
+	Ecosystem      []guide.EcosystemEntry `json:"ecosystem"`
+	LayoutRules    []string            `json:"layout_rules"`
+	AgentWorkflow  []string            `json:"agent_workflow"`
+	Conventions    []string            `json:"conventions"`
+	NonGoals       []string            `json:"non_goals"`
+	QualityBar     []guide.QualityEntry `json:"quality_bar"`
+	Principles     []string            `json:"principles"`
+}
+
+func writeGoalsJSON(w io.Writer) error {
+	g := guide.BuildGoals()
+	doc := GoalsDoc{
+		Tool:          "sceno",
+		Version:       version.Version,
+		Mission:       g.Mission,
+		ProductGoals:  g.ProductGoals,
+		Ecosystem:     g.Ecosystem,
+		LayoutRules:   g.LayoutRules,
+		AgentWorkflow: g.AgentWorkflow,
+		Conventions:   g.Conventions,
+		NonGoals:      g.NonGoals,
+		QualityBar:    g.QualityBar,
+		Principles:    g.Principles,
+	}
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "  ")
+	return enc.Encode(doc)
 }
 
 func writeSpecJSON(w io.Writer) error {
