@@ -140,7 +140,28 @@ if [[ "$VERIFY" -eq 1 ]]; then
 fi
 
 tar -xzf "${TMP}/${ARCHIVE}" -C "$TMP"
-mkdir -p "$INSTALL_DIR"
+
+DEFAULT_INSTALL_DIR="/usr/local/bin"
+install_dir_writable() {
+  local dir="$1"
+  mkdir -p "$dir" 2>/dev/null || return 1
+  [[ -w "$dir" ]]
+}
+
+if [[ "$INSTALL_DIR" == "$DEFAULT_INSTALL_DIR" ]] && ! install_dir_writable "$INSTALL_DIR"; then
+  FALLBACK="${HOME}/.local/bin"
+  echo "Cannot write to ${INSTALL_DIR} (permission denied)."
+  echo "Installing to ${FALLBACK} instead."
+  echo "Re-run with --dir PATH or sudo if you need ${DEFAULT_INSTALL_DIR}."
+  INSTALL_DIR="$FALLBACK"
+fi
+
+if ! install_dir_writable "$INSTALL_DIR"; then
+  echo "Cannot write to ${INSTALL_DIR} (permission denied)." >&2
+  echo "Try: curl -fsSL ... | bash -s -- --dir ~/.local/bin" >&2
+  exit 1
+fi
+
 install -m 755 "${TMP}/sceno" "${INSTALL_DIR}/sceno"
 
 echo ""
