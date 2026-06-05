@@ -4,6 +4,21 @@ Declarative architecture diagrams in **[KDL](https://kdl.dev/)** — one readabl
 
 **Local-first.** No browser editor, no cloud lock-in, no export surprises — just great diagrams from a single `.kdl` file.
 
+## How it works
+
+![How Sceno works — KDL spec, validate, describe, render, export](docs/how-it-works.png)
+
+1. **Write** a [KDL](https://kdl.dev/) spec (by hand or with an AI agent)
+2. **Validate** — `sceno validate --json` catches errors with fix hints
+3. **Describe** *(optional)* — layout feedback without opening images
+4. **Render** — export SVG, PNG, PDF, HTML, and slide decks
+
+The diagram above is defined in [`examples/how-it-works.kdl`](examples/how-it-works.kdl) and rendered by Sceno:
+
+```bash
+sceno render -i examples/how-it-works.kdl -o docs/how-it-works.png --format png
+```
+
 ## For AI agents
 
 **Start every session with:**
@@ -226,6 +241,7 @@ Highlights: `box`, `actor`, `cylinder`, `cloud`, `callout`, `lane`, `hexagon`, `
 
 | File | Description |
 |------|-------------|
+| [examples/how-it-works.kdl](examples/how-it-works.kdl) | README workflow diagram (dogfooded) |
 | [examples/self-service.kdl](examples/self-service.kdl) | Platform architecture |
 | [examples/slides-demo.kdl](examples/slides-demo.kdl) | Three-slide deck |
 | [examples/slides-dark.kdl](examples/slides-dark.kdl) | Dark theme + Go code slide |

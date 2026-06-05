@@ -72,6 +72,17 @@ go test ./...
 go test ./internal/pipeline/ -run Examples -count=1
 ```
 
+## docs-diagram
+
+> Regenerate the README "How it works" diagram from KDL
+
+```sh
+test -x ./sceno || mask build
+./sceno validate -i examples/how-it-works.kdl --json | grep -q '"ok": true'
+./sceno render -i examples/how-it-works.kdl -o docs/how-it-works.png --format png
+echo "updated docs/how-it-works.png"
+```
+
 ## verify
 
 > Quick local smoke test (build, validate, render)
