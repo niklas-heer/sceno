@@ -17,12 +17,13 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Run CI pipeline
-        uses: dagger/dagger-for-github@v8.4.1
+        uses: dagger/dagger-for-github@v8.4.0
         with:
           version: "0.20.8"
+          module: .
           dagger-flags: "--progress plain"
           call: >-
             ci
             --source=.
             --commit=${{ github.sha }}
-            --built-at=${{ github.event.head_commit.timestamp || 'unknown' }}
+            --built-at=${{ github.event.head_commit.timestamp || github.run_started_at }}

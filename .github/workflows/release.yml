@@ -15,17 +15,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build release artifacts
-        uses: dagger/dagger-for-github@v8.4.1
+      - name: Build and export release artifacts
+        uses: dagger/dagger-for-github@v8.4.0
         with:
           version: "0.20.8"
+          module: .
           dagger-flags: "--progress plain"
           call: >-
             release
             --source=.
             --tag=${{ github.ref_name }}
             --commit=${{ github.sha }}
-            --built-at=${{ github.event.head_commit.timestamp || 'unknown' }}
+            --built-at=${{ github.event.head_commit.timestamp || github.run_started_at }}
             export
             --path=dist
 
