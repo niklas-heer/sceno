@@ -117,25 +117,63 @@ func WriteAll(d model.Diagram, basePath string, opt Options) ([]string, error) {
 }
 
 // WriteAllDeck writes all export formats for a slide deck.
+// Single-slide decks write base.svg, base.png, base.pdf, base.html, base.slides.html.
+// Multi-slide decks write numbered base-N.svg/png per slide plus base.pdf/html (slide 1) and base.slides.html.
 func WriteAllDeck(deck model.Deck, basePath string, opt Options) ([]string, error) {
+	if len(deck.Slides) == 0 {
+		return nil, fmt.Errorf("empty deck")
+	}
 	base := strings.TrimSuffix(basePath, filepath.Ext(basePath))
 	var written []string
-	d := deck.Slides[0]
-	for _, f := range []struct {
-		ext string
-		fmt Format
-	}{
-		{".svg", FormatSVG},
-		{".png", FormatPNG},
-		{".pdf", FormatPDF},
-		{".html", FormatHTML},
-	} {
-		p := base + f.ext
-		if err := Write(d, p, f.fmt, opt); err != nil {
-			return written, fmt.Errorf("%s: %w", f.ext, err)
+
+	if len(deck.Slides) == 1 {
+		d := deck.Slides[0]
+		for _, f := range []struct {
+			ext string
+			fmt Format
+		}{
+			{".svg", FormatSVG},
+			{".png", FormatPNG},
+			{".pdf", FormatPDF},
+			{".html", FormatHTML},
+		} {
+			p := base + f.ext
+			if err := Write(d, p, f.fmt, opt); err != nil {
+				return written, fmt.Errorf("%s: %w", f.ext, err)
+			}
+			written = append(written, p)
 		}
-		written = append(written, p)
+	} else {
+		for i, d := range deck.Slides {
+			for _, f := range []struct {
+				ext string
+				fmt Format
+			}{
+				{".svg", FormatSVG},
+				{".png", FormatPNG},
+			} {
+				p := fmt.Sprintf("%s-%d%s", base, i+1, f.ext)
+				if err := Write(d, p, f.fmt, opt); err != nil {
+					return written, fmt.Errorf("%s: %w", f.ext, err)
+				}
+				written = append(written, p)
+			}
+		}
+		for _, f := range []struct {
+			ext string
+			fmt Format
+		}{
+			{".pdf", FormatPDF},
+			{".html", FormatHTML},
+		} {
+			p := base + f.ext
+			if err := Write(deck.Slides[0], p, f.fmt, opt); err != nil {
+				return written, fmt.Errorf("%s: %w", f.ext, err)
+			}
+			written = append(written, p)
+		}
 	}
+
 	p := base + ".slides.html"
 	if err := WriteDeck(deck, p, FormatSlides, opt); err != nil {
 		return written, fmt.Errorf("slides: %w", err)

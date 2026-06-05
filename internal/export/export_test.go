@@ -10,6 +10,7 @@ import (
 	"github.com/niklas-heer/sceno/internal/model"
 	"github.com/niklas-heer/sceno/internal/pipeline"
 	"github.com/niklas-heer/sceno/internal/render"
+	"github.com/niklas-heer/sceno/internal/spec"
 )
 
 func testDiagram(t *testing.T) model.Diagram {
@@ -81,6 +82,47 @@ func TestRenderPNG(t *testing.T) {
 	}
 	if len(png) < 500 {
 		t.Fatalf("png too small: %d bytes", len(png))
+	}
+}
+
+func TestWriteAllDeckMultiSlide(t *testing.T) {
+	path := filepath.Join("..", "..", "examples", "slides-demo.kdl")
+	s, err := spec.LoadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	deck, _, err := pipeline.BuildDeck(s, pipeline.DefaultOptions())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(deck.Slides) < 2 {
+		t.Fatalf("expected multi-slide deck, got %d slides", len(deck.Slides))
+	}
+	dir := t.TempDir()
+	base := filepath.Join(dir, "deck")
+	paths, err := WriteAllDeck(deck, base, Options{Style: StylePolished, Scale: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// 3 slides × (svg+png) + pdf + html + slides.html = 9
+	if len(paths) != 9 {
+		t.Fatalf("expected 9 files for 3-slide deck, got %d: %v", len(paths), paths)
+	}
+	for _, p := range paths {
+		st, err := os.Stat(p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if st.Size() < 100 {
+			t.Fatalf("%s too small", p)
+		}
+	}
+}
+
+func TestWriteAllDeckEmpty(t *testing.T) {
+	_, err := WriteAllDeck(model.Deck{}, "out", Options{})
+	if err == nil {
+		t.Fatal("expected error for empty deck")
 	}
 }
 

@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/niklas-heer/sceno/internal/diag"
+	"github.com/niklas-heer/sceno/internal/model"
 	"github.com/niklas-heer/sceno/internal/pipeline"
 	"github.com/niklas-heer/sceno/internal/scene"
 	"github.com/niklas-heer/sceno/internal/spec"
@@ -56,7 +57,7 @@ func Run(path string, opt Options) (Report, error) {
 		popt := pipeline.DefaultOptions()
 		popt.ResolveCollision = opt.FixCollisions
 		if deck, _, err := pipeline.BuildDeck(s, popt); err == nil && len(deck.Slides) > 0 {
-			engine = scene.RunEngine(&deck.Slides[0])
+			engine = mergeEngineReports(deck.Slides)
 		}
 	}
 	recs := diag.BuildRecommendations(vreport)
@@ -122,6 +123,42 @@ func buildNextSteps(path string, v diag.Report, e scene.EngineReport) []string {
 		}
 	}
 	return steps
+}
+
+// mergeEngineReports combines stack engine output across all slides (min score, merged findings).
+func mergeEngineReports(slides []model.Diagram) scene.EngineReport {
+	if len(slides) == 0 {
+		return scene.EngineReport{}
+	}
+	if len(slides) == 1 {
+		return scene.RunEngine(&slides[0])
+	}
+	var merged scene.EngineReport
+	merged.Score = 100
+	for i := range slides {
+		e := scene.RunEngine(&slides[i])
+		if e.Score < merged.Score {
+			merged.Score = e.Score
+			merged.Stack = e.Stack
+		}
+		merged.Findings = append(merged.Findings, e.Findings...)
+	}
+	merged.Findings = dedupeFindings(merged.Findings)
+	return merged
+}
+
+func dedupeFindings(in []scene.Finding) []scene.Finding {
+	seen := map[string]struct{}{}
+	var out []scene.Finding
+	for _, f := range in {
+		key := f.Code + "|" + f.Message
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		out = append(out, f)
+	}
+	return out
 }
 
 func dedupeRecs(in []diag.Recommendation) []diag.Recommendation {

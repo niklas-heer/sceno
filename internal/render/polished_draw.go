@@ -466,12 +466,7 @@ func drawEdgeLabelPDF(pdf *gofpdf.Fpdf, pts [][]float64, e model.Edge, minX, min
 	_ = boxW
 }
 
-var pdfFontsRegistered bool
-
 func registerPDFFonts(pdf *gofpdf.Fpdf) {
-	if pdfFontsRegistered {
-		return
-	}
 	family := fonts.Family()
 	for _, pair := range []struct {
 		style string
@@ -484,7 +479,6 @@ func registerPDFFonts(pdf *gofpdf.Fpdf) {
 	} {
 		pdf.AddUTF8FontFromBytes(family, pair.style, pair.data)
 	}
-	pdfFontsRegistered = true
 }
 
 func setPDFFont(pdf *gofpdf.Fpdf, style string, size float64) {

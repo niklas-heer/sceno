@@ -26,7 +26,8 @@ func overlayIcons(pngData []byte, d model.Diagram, scale float64) ([]byte, error
 		if n.Icon == "" || model.IsContainer(n.Kind) {
 			continue
 		}
-		x, y := vp.PX(n.Rect.X+12, n.Rect.Y+12, scale)
+		ix, iy := render.IconRect(n, measure.IconSize)
+		x, y := vp.PX(ix, iy, scale)
 		icons.Draw(dc, n.Icon, x, y, sz, theme.FgMuted)
 	}
 	var buf bytes.Buffer
