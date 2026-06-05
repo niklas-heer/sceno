@@ -276,13 +276,13 @@ mask release
 1. Suggest the next version (e.g. **0.2.0**) and show which commits drove the bump
 2. Ask for confirmation (skip with `-y`)
 3. Run full CI via Dagger
-4. Bump `internal/version/VERSION` and prepend `CHANGELOG.md`
-5. Commit, tag `vX.Y.Z`, and push — GitHub Actions publishes binaries
+4. Bump `internal/version/VERSION` and prepend `CHANGELOG.md` — grouped by conventional commit type (`feat`, `fix`, `refactor`, …) with scopes and commit links
+5. Commit, tag `vX.Y.Z`, and push — GitHub Actions publishes binaries and uses the CHANGELOG section as the GitHub Release body
 
 Preview without changing anything:
 
 ```bash
-mask release --dry-run
+mask release --dry-run   # includes full release notes preview
 mask next-version    # print suggested version only
 ```
 

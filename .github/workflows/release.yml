@@ -30,9 +30,18 @@ jobs:
             export
             --path=dist
 
+      - name: Generate release notes from CHANGELOG
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          chmod +x scripts/release-notes.sh
+          ./scripts/release-notes.sh extract "$VERSION" > release-notes.md
+          echo "--- release-notes.md ---"
+          cat release-notes.md
+
       - uses: softprops/action-gh-release@v2
         with:
-          generate_release_notes: true
+          generate_release_notes: false
+          body_path: release-notes.md
           files: |
             dist/*.tar.gz
             dist/SHA256SUMS

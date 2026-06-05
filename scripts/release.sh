@@ -34,7 +34,9 @@ repo_url() {
   url="$(git remote get-url origin 2>/dev/null || true)"
   url="${url%.git}"
   url="${url#git@github.com:}"
+  url="${url#ssh://git@github.com/}"
   url="${url#https://github.com/}"
+  url="${url#ssh://github.com/}"
   if [[ -n "$url" ]]; then
     echo "https://github.com/${url}"
   else
@@ -87,49 +89,7 @@ changelog_section() {
   local next="$1"
   local tag="$2"
   local base="$3"
-  local url date features fixes other
-
-  url="$(repo_url)"
-  date="$(date +%Y-%m-%d)"
-
-  features=""
-  fixes=""
-  other=""
-
-  while IFS= read -r subject; do
-    [[ -z "$subject" ]] && continue
-    case "$subject" in
-      feat*|feat!*)
-        features+=$'\n'"* $(printf '%s' "$subject" | sed -E 's/^feat(\([^)]*\))?!?: //')"
-        ;;
-      fix*)
-        fixes+=$'\n'"* $(printf '%s' "$subject" | sed -E 's/^fix(\([^)]*\))?!?: //')"
-        ;;
-      *)
-        other+=$'\n'"* ${subject}"
-        ;;
-    esac
-  done < <(git log "${base}..HEAD" --pretty=format:'%s' --no-merges 2>/dev/null || true)
-
-  {
-    echo "## [${next}](${url}/releases/tag/${tag}) (${date})"
-    echo
-    if [[ -n "${features//$'\n'/}" ]]; then
-      echo "### Features"
-      echo "$features" | sed '/^$/d'
-      echo
-    fi
-    if [[ -n "${fixes//$'\n'/}" ]]; then
-      echo "### Bug Fixes"
-      echo "$fixes" | sed '/^$/d'
-      echo
-    fi
-    if [[ -n "${other//$'\n'/}" ]]; then
-      echo "### Other"
-      echo "$other" | sed '/^$/d'
-      echo
-    fi
-  }
+  ./scripts/release-notes.sh section "$base" "$next" "$tag"
 }
 
 prepend_changelog() {
@@ -213,6 +173,11 @@ main() {
   if [[ -n "$DRY_RUN" ]]; then
     echo "Dry run — no changes made."
     echo "Would: bump VERSION → ${next}, update CHANGELOG, run CI, commit, tag v${next}, push."
+    echo
+    echo "Release notes preview:"
+    echo "---"
+    ./scripts/release-notes.sh github "$base" "$next" "v${next}"
+    echo "---"
     exit 0
   fi
 
