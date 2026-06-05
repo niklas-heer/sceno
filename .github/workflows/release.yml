@@ -9,104 +9,25 @@ permissions:
   contents: write
 
 jobs:
-  verify:
-    name: Verify tag matches VERSION
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Check VERSION file
-        run: |
-          TAG="${GITHUB_REF_NAME#v}"
-          FILE="$(tr -d '[:space:]' < internal/version/VERSION)"
-          if [ "$TAG" != "$FILE" ]; then
-            echo "Tag v$TAG does not match VERSION file ($FILE)"
-            exit 1
-          fi
-          echo "Release version: $TAG"
-
-  test:
-    needs: verify
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version: "1.23"
-          cache: true
-      - run: go test -race -count=1 ./...
-
   release:
-    name: Build (${{ matrix.archive }})
-    needs: test
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include:
-          - goos: darwin
-            goarch: arm64
-            archive: sceno_darwin_arm64.tar.gz
-          - goos: darwin
-            goarch: amd64
-            archive: sceno_darwin_amd64.tar.gz
-          - goos: linux
-            goarch: amd64
-            archive: sceno_linux_amd64.tar.gz
-          - goos: linux
-            goarch: arm64
-            archive: sceno_linux_arm64.tar.gz
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-go@v5
-        with:
-          go-version: "1.23"
-
-      - name: Build
-        env:
-          GOOS: ${{ matrix.goos }}
-          GOARCH: ${{ matrix.goarch }}
-          CGO_ENABLED: "0"
-          VERSION: ${{ github.ref_name }}
-          COMMIT: ${{ github.sha }}
-          DATE: ${{ github.event.head_commit.timestamp }}
-        run: |
-          VERSION="${VERSION#v}"
-          go build -ldflags="-s -w \
-            -X github.com/niklas-heer/sceno/internal/version.Version=${VERSION} \
-            -X github.com/niklas-heer/sceno/internal/version.Commit=${COMMIT::7} \
-            -X github.com/niklas-heer/sceno/internal/version.Date=${DATE:-unknown}" \
-            -o sceno ./cmd/sceno
-          sceno version
-          mkdir -p dist
-          cp scripts/install.sh install.sh
-          tar -czf "dist/${{ matrix.archive }}" sceno LICENSE README.md install.sh
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.archive }}
-          path: dist/${{ matrix.archive }}
-
-  github-release:
-    name: Create GitHub release
-    needs: release
+    name: Release (Dagger)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/download-artifact@v4
+      - name: Build release artifacts
+        uses: dagger/dagger-for-github@v8
         with:
-          path: dist
-          merge-multiple: true
-
-      - name: Generate checksums
-        run: |
-          cd dist
-          shasum -a 256 *.tar.gz > SHA256SUMS
-          cat SHA256SUMS
-
-      - name: Copy install script for standalone download
-        run: cp scripts/install.sh dist/install.sh
+          version: "0.20.8"
+          dagger-flags: "--progress plain"
+          call: >-
+            release
+            --source=.
+            --tag=${{ github.ref_name }}
+            --commit=${{ github.sha }}
+            --built-at=${{ github.event.head_commit.timestamp || 'unknown' }}
+            export
+            --path=dist
 
       - uses: softprops/action-gh-release@v2
         with:

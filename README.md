@@ -234,10 +234,26 @@ sceno goals
 ## Development
 
 ```bash
-make test      # unit tests
-make verify    # build + validate + render smoke test
+make test      # unit tests (local Go)
+make verify    # quick local build + render smoke test
+make ci        # full CI via Dagger (same as GitHub Actions)
 make build
 ```
+
+### CI with Dagger
+
+The CI pipeline lives in [`ci/`](ci/) as Go code. Run it locally before pushing:
+
+```bash
+# Requires Docker (or Colima) and the Dagger CLI: https://docs.dagger.io/install
+make ci                  # full pipeline: test, smoke, scripts, cross-build
+make ci-test             # tests only
+make ci-smoke            # build + integration smoke checks
+dagger functions         # list all pipeline commands
+dagger call ci --source=.
+```
+
+GitHub Actions is a thin wrapper that calls `dagger call ci` — no duplicated shell in YAML.
 
 ## Releasing
 
@@ -250,7 +266,7 @@ make release-tag         # creates annotated tag vX.Y.Z
 git push origin main && git push origin v$(cat internal/version/VERSION)
 ```
 
-CI on `main` runs tests, validates all examples, and smoke-renders exports. Pushing `v*.*.*` triggers [`.github/workflows/release.yml`](.github/workflows/release.yml): builds macOS/Linux binaries, publishes tarballs + `SHA256SUMS` + `install.sh` to GitHub Releases.
+CI on `main` runs `make ci` (Dagger). Pushing `v*.*.*` triggers [`.github/workflows/release.yml`](.github/workflows/release.yml) which calls `dagger call release` to build tarballs + `SHA256SUMS` + `install.sh`.
 
 ## License
 

@@ -1,4 +1,4 @@
-.PHONY: build test install clean lint examples dist release-tag bump-patch bump-minor bump-major verify
+.PHONY: build test install clean lint examples dist release-tag bump-patch bump-minor bump-major verify ci ci-test ci-smoke ci-release
 
 BINARY := sceno
 CMD := ./cmd/sceno
@@ -36,6 +36,19 @@ verify: build
 	./$(BINARY) render -i examples/self-service.kdl -o dist/smoke --all
 	@for f in dist/smoke.*; do test -s "$$f" || (echo "missing $$f" && exit 1); done
 	@echo "verify ok ($(VERSION))"
+
+# Dagger CI — same pipeline as GitHub Actions (requires Docker + dagger CLI)
+ci:
+	dagger call ci --source=. --commit=$(COMMIT) --built-at=$(DATE)
+
+ci-test:
+	dagger call test --source=.
+
+ci-smoke:
+	dagger call smoke --source=. --commit=$(COMMIT) --built-at=$(DATE)
+
+ci-release:
+	dagger call release --source=. --tag=v$(VERSION) --commit=$(COMMIT) --built-at=$(DATE) export --path=dist
 
 dist:
 	@mkdir -p dist

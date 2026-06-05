@@ -10,109 +10,19 @@ permissions:
   contents: read
 
 jobs:
-  test:
-    name: Test
+  ci:
+    name: CI (Dagger)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-go@v5
+      - name: Run CI pipeline
+        uses: dagger/dagger-for-github@v8
         with:
-          go-version: "1.23"
-          cache: true
-
-      - name: Verify module
-        run: go mod verify
-
-      - name: Read version
-        id: ver
-        run: echo "version=$(tr -d '[:space:]' < internal/version/VERSION)" >> "$GITHUB_OUTPUT"
-
-      - name: Test
-        run: go test -race -count=1 ./...
-
-      - name: Build CLI
-        env:
-          VERSION: ${{ steps.ver.outputs.version }}
-          COMMIT: ${{ github.sha }}
-          DATE: ${{ github.event.head_commit.timestamp }}
-        run: |
-          go build -ldflags="-s -w \
-            -X github.com/niklas-heer/sceno/internal/version.Version=${VERSION} \
-            -X github.com/niklas-heer/sceno/internal/version.Commit=${COMMIT::7} \
-            -X github.com/niklas-heer/sceno/internal/version.Date=${DATE:-unknown}" \
-            -o sceno ./cmd/sceno
-
-      - name: Smoke test CLI
-        run: |
-          ./sceno version
-          ./sceno version --json | grep -q '"version"'
-          ./sceno docs --json | grep -q '"start_here"'
-          ./sceno docs guide --json | grep -q '"tool": "sceno"'
-          ./sceno docs errors --json | grep -q 'missing_node'
-          ./sceno goals | head -n 5
-          for f in examples/*.kdl; do
-            ./sceno validate -i "$f" --json | grep -q '"ok": true' || (echo "validate failed: $f" && exit 1)
-          done
-          ./sceno render -i examples/self-service.kdl -o /tmp/sceno-smoke --all
-          test -s /tmp/sceno-smoke.svg
-          test -s /tmp/sceno-smoke.png
-          test -s /tmp/sceno-smoke.pdf
-          test -s /tmp/sceno-smoke.html
-          test -s /tmp/sceno-smoke.slides.html
-
-      - name: Lint install script
-        run: bash -n scripts/install.sh && bash -n scripts/bump-version.sh
-
-  build:
-    name: Build (${{ matrix.name }})
-    needs: test
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - goos: darwin
-            goarch: arm64
-            name: macos-apple-silicon
-          - goos: darwin
-            goarch: amd64
-            name: macos-intel
-          - goos: linux
-            goarch: amd64
-            name: linux-amd64
-          - goos: linux
-            goarch: arm64
-            name: linux-arm64
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-go@v5
-        with:
-          go-version: "1.23"
-          cache: true
-
-      - name: Read version
-        id: ver
-        run: echo "version=$(tr -d '[:space:]' < internal/version/VERSION)" >> "$GITHUB_OUTPUT"
-
-      - name: Build binary
-        env:
-          GOOS: ${{ matrix.goos }}
-          GOARCH: ${{ matrix.goarch }}
-          CGO_ENABLED: "0"
-          VERSION: ${{ steps.ver.outputs.version }}
-          COMMIT: ${{ github.sha }}
-        run: |
-          go build -ldflags="-s -w \
-            -X github.com/niklas-heer/sceno/internal/version.Version=${VERSION} \
-            -X github.com/niklas-heer/sceno/internal/version.Commit=${COMMIT::7}" \
-            -o dist/sceno-${{ matrix.goos }}-${{ matrix.goarch }} ./cmd/sceno
-          file dist/sceno-${{ matrix.goos }}-${{ matrix.goarch }}
-          dist/sceno-${{ matrix.goos }}-${{ matrix.goarch }} version
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: sceno-${{ matrix.name }}
-          path: dist/sceno-${{ matrix.goos }}-${{ matrix.goarch }}
+          version: "0.20.8"
+          dagger-flags: "--progress plain"
+          call: >-
+            ci
+            --source=.
+            --commit=${{ github.sha }}
+            --built-at=${{ github.event.head_commit.timestamp || 'unknown' }}
