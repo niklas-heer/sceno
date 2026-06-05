@@ -30,8 +30,8 @@ func TestVisualAuditExamplesAndFixtures(t *testing.T) {
 			files = append(files, filepath.Join(dir, e.Name()))
 		}
 	}
-	if len(files) < 5 {
-		t.Fatalf("expected examples + fixtures, got %d files", len(files))
+	if len(files) < 12 {
+		t.Fatalf("expected at least 12 example kdl files, got %d", len(files))
 	}
 
 	for _, path := range files {
@@ -47,6 +47,11 @@ func TestVisualAuditExamplesAndFixtures(t *testing.T) {
 			for _, iss := range report.Errors {
 				if hardVisualCodes[iss.Code] {
 					t.Fatalf("hard visual error %s: %s", iss.Code, iss.Message)
+				}
+			}
+			for _, iss := range report.Warnings {
+				if iss.Code == diag.CodeMisaligned && strings.Contains(iss.Message, "icon overlaps") {
+					t.Fatalf("icon/label overlap: %s", iss.Message)
 				}
 			}
 		})
