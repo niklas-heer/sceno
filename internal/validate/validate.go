@@ -128,6 +128,36 @@ func Run(path string, opt Options) (diag.Report, model.Diagram, error) {
 				report.Warnings = append(report.Warnings, iss)
 			}
 		}
+		er := scene.RunEngine(&slide)
+		for _, f := range er.Findings {
+			if f.Severity == "hint" {
+				continue
+			}
+			if f.Code == string(diag.CodeEdgeCollision) || f.Code == string(diag.CodeEdgeHidden) ||
+				f.Code == string(diag.CodeMisaligned) || f.Code == string(diag.CodeOccluded) {
+				continue // already covered above
+			}
+			iss := f.ToIssue()
+			if len(deck.Slides) > 1 {
+				iss.Message = fmt.Sprintf("slide %d: %s", si+1, iss.Message)
+			}
+			if f.Severity == "error" {
+				report.Errors = append(report.Errors, iss)
+				report.OK = false
+			} else {
+				report.Warnings = append(report.Warnings, iss)
+			}
+		}
+		for _, f := range er.Findings {
+			if f.Severity != "hint" {
+				continue
+			}
+			iss := f.ToIssue()
+			if len(deck.Slides) > 1 {
+				iss.Message = fmt.Sprintf("slide %d: %s", si+1, iss.Message)
+			}
+			report.Warnings = append(report.Warnings, iss)
+		}
 	}
 
 	finishReport(&report)

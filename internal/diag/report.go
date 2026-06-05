@@ -22,6 +22,13 @@ const (
 	CodeOccluded       Code = "occluded"
 	CodeEdgeHidden     Code = "edge_hidden"
 	CodeMisaligned     Code = "misaligned"
+	CodeDenseLayout    Code = "dense_layout"
+	CodeSparseLayout   Code = "sparse_layout"
+	CodeSlideCrowded   Code = "slide_crowded"
+	CodeWeakHierarchy  Code = "weak_hierarchy"
+	CodeTooManyElements Code = "too_many_elements"
+	CodeSuggestAnnotation Code = "suggest_annotation"
+	CodeAnnotationBlocks Code = "annotation_blocks"
 )
 
 // Issue is one actionable problem.

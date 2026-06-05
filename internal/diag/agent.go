@@ -94,6 +94,35 @@ shape box b "B" at=0,1`,
 		Example: `shape box api "API" icon=api at=1,0
 shape box db "DB" icon=database at=1,1`,
 	},
+	CodeDenseLayout: {
+		Meaning: "Diagram density is high — hard to scan (stack engine / whitespace rule).",
+		Fix:     "Increase gap and padding, split into slides, or group with lanes.",
+	},
+	CodeSparseLayout: {
+		Meaning: "Diagram uses very little of the canvas — optional polish hint.",
+		Fix:     "Reduce gap or tighten column spacing.",
+	},
+	CodeSlideCrowded: {
+		Meaning: "Slide has too many shapes for one-idea-per-slide clarity.",
+		Fix:     "Split content across slides; keep ≤9 primary shapes per slide.",
+	},
+	CodeWeakHierarchy: {
+		Meaning: "Many nodes but no title — missing visual anchor.",
+		Fix:     "Add diagram title=\"…\" and optional subtitle.",
+	},
+	CodeTooManyElements: {
+		Meaning: "More than ~15 primary nodes in one view (architecture readability).",
+		Fix:     "Split into slides or lanes; one focused view per diagram.",
+	},
+	CodeSuggestAnnotation: {
+		Meaning: "Complex diagram could use an infobox/note for context.",
+		Fix:     "Add shape infobox, info, tip, or note with icon and subtitle.",
+		Example: `shape info legend "Context" icon=info subtitle="Read left to right" at=0,2`,
+	},
+	CodeAnnotationBlocks: {
+		Meaning: "A callout/note sits on the main connector flow.",
+		Fix:     "Move annotation to top/bottom row or side margin column.",
+	},
 }
 
 // Enrich fills summary, next_steps, render_ready, and per-issue examples.

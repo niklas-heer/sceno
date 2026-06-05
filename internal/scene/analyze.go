@@ -30,6 +30,7 @@ type Report struct {
 	EdgeVis      []EdgeVis      `json:"edge_visibility"`
 	Alignment    []AlignIssue   `json:"alignment"`
 	Aesthetics   AestheticScore `json:"aesthetics"`
+	Stack        StackSummary   `json:"stack"`
 	Issues       []diag.Issue   `json:"issues"`
 }
 
@@ -79,6 +80,10 @@ type AestheticScore struct {
 
 // Analyze inspects a laid-out diagram in 2D (layers, visibility, aesthetics).
 func Analyze(d *model.Diagram) Report {
+	return analyzeCore(d)
+}
+
+func analyzeCore(d *model.Diagram) Report {
 	if d == nil {
 		return Report{}
 	}
@@ -95,6 +100,7 @@ func Analyze(d *model.Diagram) Report {
 	r.EdgeVis = edgeVisibility(d)
 	r.Alignment = alignmentIssues(d)
 	r.Aesthetics = scoreAesthetics(d, r)
+	r.Stack = BuildStack(d).Summary()
 	r.Issues = buildIssues(d, r)
 	return r
 }

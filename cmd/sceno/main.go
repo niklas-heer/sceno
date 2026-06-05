@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/niklas-heer/sceno/internal/advise"
 	"github.com/niklas-heer/sceno/internal/diag"
 	"github.com/niklas-heer/sceno/internal/docs"
 	"github.com/niklas-heer/sceno/internal/export"
@@ -34,6 +35,8 @@ func main() {
 		cmdValidate(os.Args[2:])
 	case "suggest":
 		cmdSuggest(os.Args[2:])
+	case "advise":
+		cmdAdvise(os.Args[2:])
 	case "guide", "agent":
 		cmdGuide(os.Args[2:])
 	case "docs":
@@ -207,6 +210,34 @@ func cmdSuggest(args []string) {
 	}
 }
 
+func cmdAdvise(args []string) {
+	fs := flag.NewFlagSet("advise", flag.ExitOnError)
+	in := fs.String("i", "", "input .kdl spec")
+	jsonOut := fs.Bool("json", false, "JSON output with stack engine + recommendations")
+	useAI := fs.Bool("ai", false, "invoke external AI CLI for intelligent review")
+	aiCmd := fs.String("ai-cmd", "", "AI command (default: SCENO_AI_CMD env)")
+	noFix := fs.Bool("no-fix", false, "skip collision resolution before analysis")
+	_ = fs.Parse(args)
+	if *in == "" {
+		fmt.Fprintln(os.Stderr, "advise: -i required (.kdl)")
+		os.Exit(2)
+	}
+	report, err := advise.Run(*in, advise.Options{
+		FixCollisions: !*noFix,
+		UseAI:         *useAI,
+		AICmd:         *aiCmd,
+	})
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(2)
+	}
+	if *jsonOut {
+		_ = report.WriteJSON(os.Stdout)
+		return
+	}
+	_ = report.WriteHuman(os.Stdout)
+}
+
 func cmdDescribe(args []string) {
 	fs := flag.NewFlagSet("describe", flag.ExitOnError)
 	in := fs.String("i", "", "input .kdl spec")
@@ -342,6 +373,7 @@ func usage() {
   sceno init [-o sceno.kdl]   starter spec
   sceno validate|check -i f --json   validate + repair hints (use every edit)
   sceno suggest -i f --json     prioritized layout recommendations
+  sceno advise -i f --json      stack validation + visual rules (+ --ai for external CLI)
   sceno render -i f -o out [--all]
   sceno render -i f -o deck.slides.html -format slides
   sceno describe|feedback -i f --json   how it looks (no image needed)

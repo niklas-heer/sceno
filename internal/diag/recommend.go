@@ -69,8 +69,10 @@ func categoryForCode(code Code) string {
 	switch code {
 	case CodeEdgeCollision, CodeEdgeHidden:
 		return "edges"
-	case CodeMisaligned, CodeSuggestCompact, CodeCollision, CodeOccluded:
+	case CodeMisaligned, CodeSuggestCompact, CodeCollision, CodeOccluded, CodeDenseLayout, CodeSlideCrowded, CodeTooManyElements, CodeAnnotationBlocks:
 		return "layout"
+	case CodeSuggestAnnotation, CodeWeakHierarchy, CodeSparseLayout:
+		return "visual"
 	case CodeTextOverflow:
 		return "labels"
 	default:
@@ -82,9 +84,9 @@ func priorityForCode(code Code) int {
 	switch code {
 	case CodeEdgeCollision:
 		return 2
-	case CodeEdgeHidden, CodeMisaligned, CodeOccluded:
+	case CodeEdgeHidden, CodeMisaligned, CodeOccluded, CodeDenseLayout, CodeSlideCrowded, CodeAnnotationBlocks:
 		return 2
-	case CodeSuggestCompact:
+	case CodeSuggestCompact, CodeSuggestAnnotation, CodeWeakHierarchy, CodeSparseLayout, CodeTooManyElements:
 		return 3
 	default:
 		return 2

@@ -58,8 +58,9 @@ type SlideView struct {
 	Nodes           []NodeView       `json:"nodes"`
 	Edges           []EdgeView       `json:"edges"`
 	Relationships   []string         `json:"relationships"`
-	Scene           scene.Report     `json:"scene"`
-	VisualProblems  []VisualProblem  `json:"visual_problems"`
+	Scene           scene.Report       `json:"scene"`
+	Engine          scene.EngineReport `json:"engine"`
+	VisualProblems  []VisualProblem    `json:"visual_problems"`
 	ASCIIMap        string           `json:"ascii_map"`
 	Stats           ViewStats        `json:"stats"`
 }
@@ -210,6 +211,7 @@ func describeSlide(d model.Diagram, index int, issues []diag.Issue, colls []mode
 	}
 
 	sv.Scene = scene.Analyze(&d)
+	sv.Engine = scene.RunEngine(&d)
 
 	edgeHitsNode := map[string]string{}
 	var edgeHitsEdge []model.EdgeCollision
