@@ -28,4 +28,4 @@ esac
 NEXT="${MAJOR}.${MINOR}.${PATCH}"
 echo "$NEXT" > "$VERSION_FILE"
 echo "Bumped version: ${CURRENT} → ${NEXT}"
-echo "Next: git commit -am \"chore: release v${NEXT}\" && git tag v${NEXT} && git push origin main && git push origin v${NEXT}"
+echo "Prefer: mask release (automated semver + CI + tag + push)"
