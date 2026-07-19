@@ -67,7 +67,7 @@ func BuildGoals() GoalsDocument {
 			"Quote strings with spaces: title=\"My Platform\"",
 			"Use \\n in labels for line breaks",
 			"Define shapes before edges in the same block",
-			"Prefer layout=auto with layer/row/at; layout=free + x/y for free placement",
+			"Prefer layout=auto with layer/row/at and dx/dy; use hybrid + x/y for breakout elements",
 			"Use semantic callouts: shape info, tip, warning, infobox, note",
 		},
 		NonGoals: []string{
@@ -79,7 +79,7 @@ func BuildGoals() GoalsDocument {
 		},
 		QualityBar: []QualityEntry{
 			{Area: "Typography", Target: "Embedded Inter (OFL), measured widths"},
-			{Area: "Icons", Target: "Crisp SVG/PNG; iconPos placement"},
+			{Area: "Icons", Target: "Embedded vector catalog; parity across SVG/PNG/PDF/HTML/slides"},
 			{Area: "Arrows", Target: "Orthogonal (polished); labels on H/V segments"},
 			{Area: "Scene", Target: "Stack planes; describe + advise + validate"},
 			{Area: "Slides", Target: "slide blocks; ≤9 shapes per slide (hint)"},

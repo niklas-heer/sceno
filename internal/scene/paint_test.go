@@ -20,7 +20,7 @@ func TestBuildPaintOrderContainersFirst(t *testing.T) {
 	if len(order) < 3 {
 		t.Fatalf("order: %+v", order)
 	}
-	if order[0].Kind != "frame" || order[0].Z != ZBackground {
+	if order[0].Kind != "frame" || order[0].Z != ZStructure {
 		t.Fatalf("frame first: %+v", order[0])
 	}
 	edgeIdx, nodeIdx := -1, -1
@@ -34,5 +34,16 @@ func TestBuildPaintOrderContainersFirst(t *testing.T) {
 	}
 	if edgeIdx < 0 || nodeIdx < 0 || edgeIdx > nodeIdx {
 		t.Fatalf("edge before node: %+v", order)
+	}
+}
+
+func TestBuildPaintOrderUsesSemanticPlanesBeforeSourceOrder(t *testing.T) {
+	d := &model.Diagram{Nodes: []model.Node{
+		{ID: "primary", Kind: model.ShapeBox},
+		{ID: "note", Kind: model.ShapeNote},
+	}}
+	order := BuildPaintOrder(d)
+	if len(order) != 2 || order[0].ID != "note" || order[0].Z != ZAnnotation || order[1].ID != "primary" {
+		t.Fatalf("semantic paint order = %+v", order)
 	}
 }

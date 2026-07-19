@@ -23,17 +23,17 @@ type Options struct {
 
 // Report combines validation, stack engine, scene analysis, and recommendations.
 type Report struct {
-	Input           string                  `json:"input"`
-	Tool            string                  `json:"tool"`
-	Version         string                  `json:"version"`
-	ValidationOK    bool                    `json:"validation_ok"`
-	VisualScore     int                     `json:"visual_score"`
-	Stack           scene.StackSummary      `json:"stack"`
-	Engine          scene.EngineReport      `json:"engine"`
-	VisualRules     []scene.VisualRule      `json:"visual_rules"`
-	Recommendations []diag.Recommendation   `json:"recommendations"`
-	Agent           AdviseMeta              `json:"agent"`
-	AIReview        string                  `json:"ai_review,omitempty"`
+	Input           string                `json:"input"`
+	Tool            string                `json:"tool"`
+	Version         string                `json:"version"`
+	ValidationOK    bool                  `json:"validation_ok"`
+	VisualScore     int                   `json:"visual_score"`
+	Stack           scene.StackSummary    `json:"stack"`
+	Engine          scene.EngineReport    `json:"engine"`
+	VisualRules     []scene.VisualRule    `json:"visual_rules"`
+	Recommendations []diag.Recommendation `json:"recommendations"`
+	Agent           AdviseMeta            `json:"agent"`
+	AIReview        string                `json:"ai_review,omitempty"`
 }
 
 type AdviseMeta struct {
@@ -66,7 +66,7 @@ func Run(path string, opt Options) (Report, error) {
 		Recommendations: recs,
 		Agent: AdviseMeta{
 			Summary:   buildSummary(vreport, engine),
-			Hint:      "Stack validation uses layered 2D planes (lanes→edges→annotations→nodes→labels). Run sceno docs guide --json for shape catalog.",
+			Hint:      "Stack validation uses layered 2D planes (lanes→structure→edges→annotations→nodes→labels). Run sceno docs guide --json for shape catalog.",
 			NextSteps: buildNextSteps(path, vreport, engine),
 		},
 	}

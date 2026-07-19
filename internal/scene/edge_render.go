@@ -58,7 +58,7 @@ func checkEdgeAnchorSides(d *model.Diagram, re model.RoutedEdge) []Finding {
 	key := re.Edge.From + "→" + re.Edge.To
 	return []Finding{{
 		RuleID: "edge_clarity", Severity: sev, Plane: PlaneEdge,
-		Code: string(diag.CodeEdgeSideMismatch),
+		Code:    string(diag.CodeEdgeSideMismatch),
 		Message: fmt.Sprintf("edge %s is vertical but uses side anchors (%s→%s); prefer top/bottom", key, fs, ts),
 		Fix:     "Omit fromSide/toSide for auto top/bottom, or set fromSide=bottom toSide=top when stacked.",
 		Example: `edge gate -> blocked fromSide=bottom toSide=top`,
@@ -84,11 +84,20 @@ func checkEdgeArrow(d *model.Diagram, re model.RoutedEdge) []Finding {
 	key := re.Edge.From + "→" + re.Edge.To
 	pathStart := gpts[0]
 	pathEnd := gpts[len(gpts)-1]
+	if !exitsSide(pathStart, gpts[1], re.Edge.FromSide) || !entersSide(gpts[len(gpts)-2], pathEnd, re.Edge.ToSide) {
+		out = append(out, Finding{
+			RuleID: "edge_clarity", Severity: "warning", Plane: PlaneEdge,
+			Code:    string(diag.CodeEdgeSideMismatch),
+			Message: fmt.Sprintf("edge %s route direction does not match its %s→%s side anchors", key, re.Edge.FromSide, re.Edge.ToSide),
+			Fix:     "Use side anchors matching the relative positions, or omit fromSide/toSide so the router chooses them.",
+			Items:   []string{re.Edge.From, re.Edge.To},
+		})
+	}
 
 	if geom.TipGap(pathStart, srcAnchor) > anchorEps {
 		out = append(out, Finding{
 			RuleID: "edge_clarity", Severity: "error", Plane: PlaneEdge,
-			Code: string(diag.CodeArrowDetached),
+			Code:    string(diag.CodeArrowDetached),
 			Message: fmt.Sprintf("edge %s starts %.0fpx from %q border (should attach at anchor)", key, geom.TipGap(pathStart, srcAnchor), re.Edge.From),
 			Fix:     "Set fromSide/toSide so routing ends on shape borders.",
 			Items:   []string{re.Edge.From, re.Edge.To},
@@ -97,7 +106,7 @@ func checkEdgeArrow(d *model.Diagram, re model.RoutedEdge) []Finding {
 	if geom.TipGap(pathEnd, dstAnchor) > anchorEps {
 		out = append(out, Finding{
 			RuleID: "edge_clarity", Severity: "error", Plane: PlaneEdge,
-			Code: string(diag.CodeArrowDetached),
+			Code:    string(diag.CodeArrowDetached),
 			Message: fmt.Sprintf("edge %s ends %.0fpx from %q border — arrow cannot meet the shape", key, geom.TipGap(pathEnd, dstAnchor), re.Edge.To),
 			Fix:     "Route must terminate on the target border; increase gap or fix fromSide/toSide.",
 			Items:   []string{re.Edge.From, re.Edge.To},
@@ -111,7 +120,7 @@ func checkEdgeArrow(d *model.Diagram, re model.RoutedEdge) []Finding {
 	if geom.TipGap(ag.Tip, dstAnchor) > geom.MaxArrowTipGap {
 		out = append(out, Finding{
 			RuleID: "edge_clarity", Severity: "error", Plane: PlaneEdge,
-			Code: string(diag.CodeArrowDetached),
+			Code:    string(diag.CodeArrowDetached),
 			Message: fmt.Sprintf("edge %s arrow tip is %.0fpx from %q border", key, geom.TipGap(ag.Tip, dstAnchor), re.Edge.To),
 			Fix:     "Arrow tip must land on the target border (render draws heads after nodes).",
 			Items:   []string{re.Edge.From, re.Edge.To},
@@ -122,7 +131,7 @@ func checkEdgeArrow(d *model.Diagram, re model.RoutedEdge) []Finding {
 	if strokeLen < minVisibleArrowStroke {
 		out = append(out, Finding{
 			RuleID: "edge_clarity", Severity: "warning", Plane: PlaneEdge,
-			Code: string(diag.CodeArrowDetached),
+			Code:    string(diag.CodeArrowDetached),
 			Message: fmt.Sprintf("edge %s has only %.0fpx of stroke before arrowhead — head may look floating", key, strokeLen),
 			Fix:     "Increase gap between nodes or shorten edge labels.",
 			Items:   []string{re.Edge.From, re.Edge.To},
@@ -133,7 +142,7 @@ func checkEdgeArrow(d *model.Diagram, re model.RoutedEdge) []Finding {
 		if dst, ok := byID[re.Edge.To]; ok && arrowTipBuried(ag.Tip, dst) {
 			out = append(out, Finding{
 				RuleID: "edge_clarity", Severity: "warning", Plane: PlaneEdge,
-				Code: string(diag.CodeArrowHidden),
+				Code:    string(diag.CodeArrowHidden),
 				Message: fmt.Sprintf("edge %s arrow tip on %q sits inside the shape (%.0fpx off border)", key, re.Edge.To, geom.TipGap(ag.Tip, dstAnchor)),
 				Fix:     "Routing must end on the target border anchor; check fromSide/toSide and re-run validate.",
 				Items:   []string{re.Edge.From, re.Edge.To},
@@ -142,6 +151,27 @@ func checkEdgeArrow(d *model.Diagram, re model.RoutedEdge) []Finding {
 	}
 
 	return out
+}
+
+func exitsSide(a, b geom.Point, side model.Side) bool {
+	dx, dy := b.X-a.X, b.Y-a.Y
+	switch side {
+	case model.SideLeft:
+		return dx < 0 && math.Abs(dx) >= math.Abs(dy)
+	case model.SideRight:
+		return dx > 0 && math.Abs(dx) >= math.Abs(dy)
+	case model.SideTop:
+		return dy < 0 && math.Abs(dy) >= math.Abs(dx)
+	case model.SideBottom:
+		return dy > 0 && math.Abs(dy) >= math.Abs(dx)
+	default:
+		return true
+	}
+}
+
+func entersSide(a, b geom.Point, side model.Side) bool {
+	// Entering a side is the inverse of exiting it from the same anchor.
+	return exitsSide(b, a, side)
 }
 
 func edgeAnchors(e model.Edge, byID map[string]model.Node) (src, dst geom.Point, ok bool) {
@@ -157,7 +187,8 @@ func edgeAnchors(e model.Edge, byID map[string]model.Node) (src, dst geom.Point,
 	if ts == "" || ts == model.SideAuto {
 		_, ts = geom.BestSides(a, b)
 	}
-	return geom.Anchor(a, fs), geom.Anchor(b, ts), true
+	src, dst = geom.EdgeAnchors(a, b, fs, ts)
+	return src, dst, true
 }
 
 // arrowTipBuried is true when the tip sits more than 2px inside the node interior (not on border).
@@ -192,7 +223,7 @@ func checkEdgeLabel(d *model.Diagram, re model.RoutedEdge) []Finding {
 	if horiz && math.Abs(layout.CenterY-pathY) > maxLabelAxisDrift {
 		out = append(out, Finding{
 			RuleID: "edge_clarity", Severity: "warning", Plane: PlaneLabel,
-			Code: string(diag.CodeEdgeLabelOffAxis),
+			Code:    string(diag.CodeEdgeLabelOffAxis),
 			Message: fmt.Sprintf("edge label %q on %s sits %.0fpx off the connector — use on-line placement", label, key, math.Abs(layout.CenterY-pathY)),
 			Fix:     "Labels should center on the connector in the node gap (opaque box over the stroke).",
 			Items:   []string{re.Edge.From, re.Edge.To},
@@ -202,19 +233,25 @@ func checkEdgeLabel(d *model.Diagram, re model.RoutedEdge) []Finding {
 	if chrome, ok := diagramChromeBand(d); ok && rectsOverlap(lb, chrome, 2) {
 		out = append(out, Finding{
 			RuleID: "edge_clarity", Severity: "warning", Plane: PlaneChrome,
-			Code: string(diag.CodeEdgeLabelChrome),
+			Code:    string(diag.CodeEdgeLabelChrome),
 			Message: fmt.Sprintf("edge label %q on %s overlaps title/subtitle chrome", label, key),
 			Fix:     "Move labels onto connectors between nodes, not above the diagram header band.",
 			Items:   []string{re.Edge.From, re.Edge.To},
 		})
 	}
 
-	if lctx != nil {
-		gap := lctx.To.X - lctx.From.Right()
+	if lctx != nil && len(gpts) == 2 && math.Abs(gpts[0].Y-gpts[1].Y) < 1 {
+		gap := 0.0
+		switch {
+		case lctx.From.Right() <= lctx.To.X:
+			gap = lctx.To.X - lctx.From.Right()
+		case lctx.To.Right() <= lctx.From.X:
+			gap = lctx.From.X - lctx.To.Right()
+		}
 		if layout.BoxW > gap-8 {
 			out = append(out, Finding{
 				RuleID: "edge_clarity", Severity: "warning", Plane: PlaneLabel,
-				Code: string(diag.CodeEdgeLabelChrome),
+				Code:    string(diag.CodeEdgeLabelChrome),
 				Message: fmt.Sprintf("edge label %q on %s is wider (%.0fpx) than the node gap (%.0fpx)", label, key, layout.BoxW, gap),
 				Fix:     "Shorten the label, increase diagram gap, or remove the label from tight pipelines.",
 				Items:   []string{re.Edge.From, re.Edge.To},

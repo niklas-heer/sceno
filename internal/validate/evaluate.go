@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/niklas-heer/sceno/internal/diag"
+	"github.com/niklas-heer/sceno/internal/model"
 	"github.com/niklas-heer/sceno/internal/pipeline"
 	"github.com/niklas-heer/sceno/internal/scene"
 	"github.com/niklas-heer/sceno/internal/spec"
@@ -62,12 +63,15 @@ func ApplyResult(report *diag.Report, result pipeline.Result) {
 	report.Stats.Collisions = len(result.Collisions)
 
 	for _, c := range result.Collisions {
+		node := findResultNode(result, c)
 		report.OK = false
 		report.Errors = append(report.Errors, diag.Issue{
-			Code:    diag.CodeCollision,
-			Message: fmt.Sprintf("nodes %q and %q overlap", c.A, c.B),
-			Fix:     "Increase diagram gap (e.g. gap=40), set different at=col,row on each shape, or separate layer values.",
-			Nodes:   []string{c.A, c.B},
+			Code:     diag.CodeCollision,
+			Message:  fmt.Sprintf("nodes %q and %q overlap or violate minimum clearance", c.A, c.B),
+			Fix:      "Apply one candidate repair below, then re-run validate. Use overlap=allow only when the overlap is intentional.",
+			Nodes:    []string{c.A, c.B},
+			Geometry: diag.CollisionGeometry(c),
+			Repairs:  diag.CollisionRepairs(c, node),
 			Example: fmt.Sprintf(`diagram gap=40 layout=auto {
   shape box %s "%s" at=0,0
   shape box %s "%s" at=0,1
@@ -96,6 +100,17 @@ func ApplyResult(report *diag.Report, result pipeline.Result) {
 			}
 		}
 	}
+}
+
+func findResultNode(result pipeline.Result, collision model.Collision) model.Node {
+	for _, slide := range result.Slides {
+		for _, n := range slide.Diagram.Nodes {
+			if n.ID == collision.B && n.Rect == collision.BBounds {
+				return n
+			}
+		}
+	}
+	return model.Node{ID: collision.B}
 }
 
 // DeckMergedEngine returns deck-level engine report for advise.

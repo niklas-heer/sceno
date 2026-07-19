@@ -42,13 +42,13 @@ shape box db "Database" layer=2
 edge api -> db`,
 	},
 	CodeMissingPos: {
-		Meaning: "layout=free requires explicit x and y on every shape.",
-		Fix:     "Add x= and y= props, or switch to layout=auto and use layer/row/at.",
+		Meaning: "Fixed placement requires x and y together; layout=free requires both on every shape.",
+		Fix:     "Add x= and y=, use layout=hybrid for mixed placement, or use auto layer/row/at with dx/dy.",
 		Example: `shape box n "Node" x=100 y=80`,
 	},
 	CodeCollision: {
-		Meaning: "Two nodes overlap after layout (even after auto nudge).",
-		Fix:     "Increase diagram gap (e.g. gap=40), separate layer/row, or set at=col,row for each shape.",
+		Meaning: "Two nodes overlap or violate minimum clearance after auto layout and explicit nudges.",
+		Fix:     "Read geometry and repairs in JSON; try one dx/dy, x/y, or at edit. Use overlap=allow only when intentional.",
 		Example: `diagram gap=40 padding=28 layout=auto {
   shape box a "A" at=0,0
   shape box b "B" at=0,1

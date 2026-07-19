@@ -2,50 +2,105 @@ package diag
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
+	"strconv"
 	"strings"
+
+	"github.com/niklas-heer/sceno/internal/model"
 )
 
 // Code identifies machine-readable error kinds for AI repair loops.
 type Code string
 
 const (
-	CodeParse          Code = "parse_error"
-	CodeMissingNode    Code = "missing_node"
-	CodeMissingPos     Code = "missing_position"
-	CodeCollision      Code = "collision"
-	CodeEdgeCollision  Code = "edge_collision"
-	CodeLayout         Code = "layout_error"
-	CodeSuggestCompact Code = "suggest_compact"
-	CodeUnknownIcon    Code = "unknown_icon"
-	CodeTextOverflow   Code = "text_overflow"
-	CodeOccluded       Code = "occluded"
-	CodeEdgeHidden     Code = "edge_hidden"
-	CodeMisaligned     Code = "misaligned"
-	CodeDenseLayout    Code = "dense_layout"
-	CodeSparseLayout   Code = "sparse_layout"
-	CodeSlideCrowded   Code = "slide_crowded"
-	CodeWeakHierarchy  Code = "weak_hierarchy"
-	CodeTooManyElements Code = "too_many_elements"
+	CodeParse             Code = "parse_error"
+	CodeMissingNode       Code = "missing_node"
+	CodeMissingPos        Code = "missing_position"
+	CodeCollision         Code = "collision"
+	CodeEdgeCollision     Code = "edge_collision"
+	CodeLayout            Code = "layout_error"
+	CodeSuggestCompact    Code = "suggest_compact"
+	CodeUnknownIcon       Code = "unknown_icon"
+	CodeTextOverflow      Code = "text_overflow"
+	CodeOccluded          Code = "occluded"
+	CodeEdgeHidden        Code = "edge_hidden"
+	CodeMisaligned        Code = "misaligned"
+	CodeDenseLayout       Code = "dense_layout"
+	CodeSparseLayout      Code = "sparse_layout"
+	CodeSlideCrowded      Code = "slide_crowded"
+	CodeWeakHierarchy     Code = "weak_hierarchy"
+	CodeTooManyElements   Code = "too_many_elements"
 	CodeSuggestAnnotation Code = "suggest_annotation"
-	CodeAnnotationBlocks Code = "annotation_blocks"
-	CodeArrowDetached    Code = "arrow_detached"
-	CodeArrowHidden      Code = "arrow_hidden"
-	CodeEdgeLabelChrome  Code = "edge_label_chrome_overlap"
-	CodeEdgeLabelOffAxis Code = "edge_label_off_axis"
-	CodeEdgeSideMismatch Code = "edge_side_mismatch"
+	CodeAnnotationBlocks  Code = "annotation_blocks"
+	CodeArrowDetached     Code = "arrow_detached"
+	CodeArrowHidden       Code = "arrow_hidden"
+	CodeEdgeLabelChrome   Code = "edge_label_chrome_overlap"
+	CodeEdgeLabelOffAxis  Code = "edge_label_off_axis"
+	CodeEdgeSideMismatch  Code = "edge_side_mismatch"
 )
 
 // Issue is one actionable problem.
 type Issue struct {
-	Code    Code     `json:"code"`
-	Message string   `json:"message"`
-	Fix     string   `json:"fix,omitempty"`
-	Example string   `json:"example,omitempty"`
-	Path    string   `json:"path,omitempty"`
-	Nodes   []string `json:"nodes,omitempty"`
-	Edge    []string `json:"edge,omitempty"`
-	Line    int      `json:"line,omitempty"`
+	Code     Code           `json:"code"`
+	Message  string         `json:"message"`
+	Fix      string         `json:"fix,omitempty"`
+	Example  string         `json:"example,omitempty"`
+	Path     string         `json:"path,omitempty"`
+	Nodes    []string       `json:"nodes,omitempty"`
+	Edge     []string       `json:"edge,omitempty"`
+	Line     int            `json:"line,omitempty"`
+	Geometry *Geometry      `json:"geometry,omitempty"`
+	Repairs  []RepairOption `json:"repairs,omitempty"`
+}
+
+// Geometry makes a visual problem inspectable without opening an image.
+type Geometry struct {
+	Bounds  map[string]model.Rect `json:"bounds,omitempty"`
+	Overlap model.Rect            `json:"overlap,omitempty"`
+}
+
+// RepairOption is a candidate declarative edit. Agents should apply one and
+// re-run validation because a local repair can interact with other elements.
+type RepairOption struct {
+	Action     string            `json:"action"`
+	Target     string            `json:"target"`
+	Properties map[string]string `json:"properties"`
+	Reason     string            `json:"reason"`
+}
+
+func CollisionGeometry(c model.Collision) *Geometry {
+	return &Geometry{
+		Bounds:  map[string]model.Rect{c.A: c.ABounds, c.B: c.BBounds},
+		Overlap: c.Overlap,
+	}
+}
+
+func CollisionRepairs(c model.Collision, b model.Node) []RepairOption {
+	propertyX, propertyY := "dx", "dy"
+	valueX, valueY := b.DX+c.MoveBX, b.DY+c.MoveBY
+	if b.Fixed {
+		propertyX, propertyY = "x", "y"
+		valueX, valueY = b.Rect.X-b.DX+c.MoveBX, b.Rect.Y-b.DY+c.MoveBY
+	}
+	format := func(v float64) string { return strconv.FormatFloat(v, 'f', 0, 64) }
+	return []RepairOption{
+		{
+			Action: "set_property", Target: c.B,
+			Properties: map[string]string{propertyX: format(valueX)},
+			Reason:     fmt.Sprintf("move %q horizontally by %.0fpx, the minimum clearance on that axis", c.B, c.MoveBX),
+		},
+		{
+			Action: "set_property", Target: c.B,
+			Properties: map[string]string{propertyY: format(valueY)},
+			Reason:     fmt.Sprintf("move %q vertically by %.0fpx, the minimum clearance on that axis", c.B, c.MoveBY),
+		},
+		{
+			Action: "set_property", Target: c.B,
+			Properties: map[string]string{"overlap": "allow"},
+			Reason:     "declare that this overlap is intentional; source order controls which item is in front within its semantic plane",
+		},
+	}
 }
 
 // Report is the full validation result (stdout with --json).
@@ -123,4 +178,3 @@ func writeIssueHuman(w io.Writer, kind string, e Issue) {
 		}
 	}
 }
-

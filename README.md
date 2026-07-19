@@ -166,6 +166,20 @@ sceno describe -i examples/self-service.kdl --json
 - `slides[0].visual_problems` — overlaps, hidden edges, misalignment
 - `slides[0].edges[].route` — step-by-step connector path
 
+The full `scene_stack` includes every semantic plane, outer bounds, source order, parent containment, and nested icon/title/subtitle boxes.
+
+Collision problems include exact `bounds`, the `overlap` rectangle, and candidate `repairs` such as `{ "dx": "48" }`. Apply one candidate to the KDL and run the loop again; candidates are local suggestions, not a substitute for revalidation.
+
+### Layout control
+
+- `layout=auto` keeps ordinary shapes collision-safe with `layer`, `row`, and `at=col,row`.
+- `dx` / `dy` nudges one element after auto-layout while preserving its logical slot.
+- `layout=hybrid` mixes the auto-grid with independently placed `x` / `y` callouts, text, or decorative elements.
+- `layout=free` requires `x` and `y` on every shape for slide-like composition.
+- `overlap=allow` marks deliberate overlap; the semantic plane and source order remain explicit in `scene_stack`.
+
+Sceno intentionally keeps KDL declarative rather than embedding a scripting runtime. Deterministic constraints make the resulting scene explainable to agents and identical across exports.
+
 Stack model details: `sceno docs stack --json`.
 
 ## Validation (AI-ready)

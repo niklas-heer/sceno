@@ -58,7 +58,10 @@ func RenderSpecMarkdown() string {
 
 	b.WriteString("## Layout\n\n")
 	b.WriteString("- `layout auto` — grid by `layer` / `row` / `at=col,row` (default)\n")
+	b.WriteString("- `layout hybrid` — auto-grid flow nodes while selected shapes use exact `x` and `y`\n")
 	b.WriteString("- `layout free` — every shape needs `x` and `y`\n")
+	b.WriteString("- `dx` / `dy` — nudge a grid or fixed shape after layout without losing its logical slot\n")
+	b.WriteString("- `overlap=allow` — intentional overlap; source order sets order within the fixed semantic plane\n")
 	b.WriteString("- Single-row diagrams vertically center nodes for straight horizontal connectors\n\n")
 
 	b.WriteString("## Stack validation\n\n")

@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/niklas-heer/sceno/internal/diag"
+	"github.com/niklas-heer/sceno/internal/fonts"
 	"github.com/niklas-heer/sceno/internal/icons"
 	"github.com/niklas-heer/sceno/internal/measure"
 	"github.com/niklas-heer/sceno/internal/model"
@@ -19,30 +20,27 @@ func ruleIcons(ctx ruleContext) []Finding {
 		if !icons.Has(n.Icon) {
 			out = append(out, Finding{
 				RuleID: "icons", Severity: "error", Plane: PlaneLabel,
-				Code: string(diag.CodeUnknownIcon),
+				Code:    string(diag.CodeUnknownIcon),
 				Message: fmt.Sprintf("node %q uses unknown icon %q", n.ID, n.Icon),
 				Fix:     "Run sceno docs icons --json for allowed names and suggested shapes.",
 				Items:   []string{n.ID},
 			})
 			continue
 		}
-		if n.Rect.W < measure.IconColumn+measure.PadX+24 {
+		pos := measure.EffectiveIconPos(n)
+		if pos == model.IconTopLeft && n.Rect.W < measure.IconColumn+measure.PadX+24 {
 			out = append(out, Finding{
 				RuleID: "icons", Severity: "warning", Plane: PlaneLabel,
-				Code: string(diag.CodeTextOverflow),
+				Code:    string(diag.CodeTextOverflow),
 				Message: fmt.Sprintf("node %q is narrow (%.0fpx) for icon + label — icon may crowd text", n.ID, n.Rect.W),
 				Fix:     "Widen with w=, shorten label, or use iconPos=top on tall cards.",
 				Items:   []string{n.ID},
 			})
 		}
-		pos := n.IconPos
-		if pos == "" {
-			pos = model.IconTopLeft
-		}
 		if pos == model.IconTopLeft && len(strings.Split(n.Label, "\n")) > 2 && n.Rect.H < 72 {
 			out = append(out, Finding{
 				RuleID: "icons", Severity: "hint", Plane: PlaneLabel,
-				Code: string(diag.CodeSuggestAnnotation),
+				Code:    string(diag.CodeSuggestAnnotation),
 				Message: fmt.Sprintf("node %q has multi-line label with iconPos=top-left — try iconPos=top", n.ID),
 				Fix:     "iconPos=top stacks icon above centered label on narrow cards.",
 				Items:   []string{n.ID},
@@ -53,7 +51,7 @@ func ruleIcons(ctx ruleContext) []Finding {
 		if overlapsLabel(iconBox, n) {
 			out = append(out, Finding{
 				RuleID: "icons", Severity: "warning", Plane: PlaneLabel,
-				Code: string(diag.CodeMisaligned),
+				Code:    string(diag.CodeMisaligned),
 				Message: fmt.Sprintf("node %q icon overlaps label region", n.ID),
 				Fix:     "Increase node size, shorten label, or set iconPos=top.",
 				Items:   []string{n.ID},
@@ -64,17 +62,31 @@ func ruleIcons(ctx ruleContext) []Finding {
 }
 
 func overlapsLabel(icon model.Rect, n model.Node) bool {
-		cl := measure.LayoutFor(n)
-		labelTop := n.Rect.Y + cl.TitleStartY
-		contentW := n.Rect.W - measure.PadX
-		if n.Icon != "" && !cl.TopAlign {
-			contentW -= measure.IconColumn
+	cl := measure.LayoutFor(n)
+	fs := n.FontSize
+	if fs <= 0 {
+		fs = 14
+	}
+	for i, line := range strings.Split(n.Label, "\n") {
+		w := measure.TextWidth(line, fs, fonts.WeightMedium)
+		x := n.Rect.X + (n.Rect.W-w)/2
+		if cl.InlineIcon {
+			x = n.Rect.X + cl.TitleX + (n.Rect.W-cl.TitleX-w)/2
 		}
-		labelBox := model.Rect{
-			X: n.Rect.X + cl.TitleX,
-			Y: labelTop,
-			W: contentW,
-			H: n.Rect.Bottom() - labelTop,
+		baseline := n.Rect.Y + cl.TitleStartY + float64(i)*cl.TitleLineH
+		if rectsOverlap(icon, model.Rect{X: x, Y: baseline - fs*0.8, W: w, H: fs}, 2) {
+			return true
 		}
-	return rectsOverlap(icon, labelBox, 2)
+	}
+	if cl.HasSubtitle {
+		subSize := fs * 0.85
+		w := measure.TextWidth(n.Subtitle, subSize, fonts.WeightRegular)
+		x := n.Rect.X + (n.Rect.W-w)/2
+		if cl.InlineIcon {
+			x = n.Rect.X + cl.TitleX + (n.Rect.W-cl.TitleX-w)/2
+		}
+		baseline := n.Rect.Y + cl.SubtitleY
+		return rectsOverlap(icon, model.Rect{X: x, Y: baseline - subSize*0.8, W: w, H: subSize}, 2)
+	}
+	return false
 }

@@ -50,3 +50,13 @@ func TestNarrativeSummary(t *testing.T) {
 		t.Fatal("empty summary")
 	}
 }
+
+func TestContainerContainmentIsNotOcclusion(t *testing.T) {
+	d := &model.Diagram{Nodes: []model.Node{
+		{ID: "frame", Kind: model.ShapeFrame, Rect: model.Rect{W: 300, H: 200}},
+		{ID: "child", Kind: model.ShapeBox, Parent: "frame", Rect: model.Rect{X: 40, Y: 50, W: 80, H: 40}},
+	}}
+	if got := Analyze(d).Occlusions; len(got) != 0 {
+		t.Fatalf("legitimate containment reported as occlusion: %+v", got)
+	}
+}

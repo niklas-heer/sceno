@@ -17,29 +17,29 @@ import (
 
 // Document is the full machine-readable guide (sceno docs guide --json).
 type Document struct {
-	Tool           string                 `json:"tool"`
-	Version        string                 `json:"version"`
-	Description    string                 `json:"description"`
-	Workflow       []string               `json:"workflow"`
-	IterateLoop    []string               `json:"iterate_loop"`
-	Commands       map[string]string      `json:"commands"`
+	Tool           string                  `json:"tool"`
+	Version        string                  `json:"version"`
+	Description    string                  `json:"description"`
+	Workflow       []string                `json:"workflow"`
+	IterateLoop    []string                `json:"iterate_loop"`
+	Commands       map[string]string       `json:"commands"`
 	ErrorCodes     map[string]diag.CodeDoc `json:"error_codes"`
-	Shapes         []string               `json:"shapes"`
-	Icons          []string               `json:"icons"`
-	IconCatalog    []icons.Entry          `json:"icon_catalog"`
-	IconCategories []string               `json:"icon_categories"`
-	IconTips       []string               `json:"icon_tips"`
-	DiagramProps   map[string]string      `json:"diagram_properties"`
-	ShapeProps     map[string]string      `json:"shape_properties"`
-	EdgeProps      map[string]string      `json:"edge_properties"`
-	SpecMinimal    string                 `json:"spec_minimal"`
-	SpecSlides     string                 `json:"spec_slides"`
-	CommonMistakes []string               `json:"common_mistakes"`
-	BestPractices  []string               `json:"best_practices"`
-	RenderFormats  []string               `json:"render_formats"`
-	GoalsSummary   string                 `json:"goals_summary"`
-	VisualRules    []scene.VisualRule     `json:"visual_rules"`
-	StackModel     string                 `json:"stack_model"`
+	Shapes         []string                `json:"shapes"`
+	Icons          []string                `json:"icons"`
+	IconCatalog    []icons.Entry           `json:"icon_catalog"`
+	IconCategories []string                `json:"icon_categories"`
+	IconTips       []string                `json:"icon_tips"`
+	DiagramProps   map[string]string       `json:"diagram_properties"`
+	ShapeProps     map[string]string       `json:"shape_properties"`
+	EdgeProps      map[string]string       `json:"edge_properties"`
+	SpecMinimal    string                  `json:"spec_minimal"`
+	SpecSlides     string                  `json:"spec_slides"`
+	CommonMistakes []string                `json:"common_mistakes"`
+	BestPractices  []string                `json:"best_practices"`
+	RenderFormats  []string                `json:"render_formats"`
+	GoalsSummary   string                  `json:"goals_summary"`
+	VisualRules    []scene.VisualRule      `json:"visual_rules"`
+	StackModel     string                  `json:"stack_model"`
 }
 
 // JSON writes the agent guide.
@@ -153,7 +153,8 @@ func Build() Document {
 			"Read agent.next_steps and agent.summary in the JSON response",
 			"Run advise --json for visual design rules (whitespace, hierarchy, slide focus)",
 			"Never invent shape kinds or icon names — use lists in this guide",
-			"Use layout=auto with layer, row, or at=col,row unless you need exact x/y (layout=free)",
+			"Use layout=auto with layer/row/at and dx/dy nudges; use layout=hybrid for grid flow plus fixed x/y callouts",
+			"For collisions, inspect geometry.bounds/overlap and try one repairs[] property edit before validating again",
 			"Quote labels with spaces: title=\"My Platform\" not title=My Platform",
 			"Use \\n inside quotes for line breaks: \"API\\nGateway\"",
 			"Use info/tip/warning/infobox for callouts; iconPos=top-left for icons",
@@ -161,49 +162,49 @@ func Build() Document {
 			"Use sceno describe --json to see spatial layout; sceno docs stack for plane model",
 		},
 		Commands: map[string]string{
-			"sceno init [-o file.kdl]":       "Create a starter spec",
-			"sceno validate -i f --json":     "Check spec + layout; returns ok, errors, next_steps",
-			"sceno advise -i f --json":       "Stack engine + visual design rules + recommendations (--ai for external CLI)",
-			"sceno describe -i f --json":     "2D scene (layers, occlusion, edge visibility, engine) + ascii_map",
-			"sceno render -i f -o out":              "Export PNG by default; -format svg,pdf for more; --all for every format",
-			"sceno render -format slides":           "HTML presentation (16:9)",
-			"sceno docs [--json]":            "Self-doc hub — guide, spec, goals, shapes, icons, errors, …",
-			"sceno docs guide --json":        "Agent handbook — start here",
-			"sceno docs spec":               "Full KDL specification",
-			"sceno docs goals --json":       "Product mission and quality bar",
-			"sceno docs shapes":             "Shape kinds and aliases",
-			"sceno docs icons":              "Icon catalog",
-			"sceno docs stack --json":       "Stack validation model + visual rules",
-			"sceno docs validation --json":  "validate + advise reference",
-			"sceno docs errors --json":      "Error code repair catalog",
-			"sceno version [--json]":        "Tool version and build metadata",
+			"sceno init [-o file.kdl]":     "Create a starter spec",
+			"sceno validate -i f --json":   "Check spec + layout; returns ok, errors, next_steps",
+			"sceno advise -i f --json":     "Stack engine + visual design rules + recommendations (--ai for external CLI)",
+			"sceno describe -i f --json":   "2D scene (layers, occlusion, edge visibility, engine) + ascii_map",
+			"sceno render -i f -o out":     "Export PNG by default; -format svg,pdf for more; --all for every format",
+			"sceno render -format slides":  "HTML presentation (16:9)",
+			"sceno docs [--json]":          "Self-doc hub — guide, spec, goals, shapes, icons, errors, …",
+			"sceno docs guide --json":      "Agent handbook — start here",
+			"sceno docs spec":              "Full KDL specification",
+			"sceno docs goals --json":      "Product mission and quality bar",
+			"sceno docs shapes":            "Shape kinds and aliases",
+			"sceno docs icons":             "Icon catalog",
+			"sceno docs stack --json":      "Stack validation model + visual rules",
+			"sceno docs validation --json": "validate + advise reference",
+			"sceno docs errors --json":     "Error code repair catalog",
+			"sceno version [--json]":       "Tool version and build metadata",
 		},
-		ErrorCodes:  codes,
-		Shapes:      append(shapeList, "code (lang=, source=) — syntax-highlighted block for slides"),
+		ErrorCodes:     codes,
+		Shapes:         append(shapeList, "code (lang=, source=) — syntax-highlighted block for slides"),
 		Icons:          iconList,
 		IconCatalog:    icons.Catalog(),
 		IconCategories: icons.Categories(),
 		IconTips:       icons.DocTips(),
 		DiagramProps: map[string]string{
-			"title":    "Diagram title (quoted if spaces)",
-			"subtitle": "Subtitle under title",
-			"layout":   "auto (default) | free (requires x,y on every shape)",
-			"style":    "polished (default) | sketch",
-			"gap":      "Spacing between nodes (default 28)",
-			"padding":  "Canvas padding (default 20)",
-			"slide":    "16x9 or 4x3 — frame exports as presentation slides",
-			"theme":    "light or dark — colors for slides/SVG/HTML",
+			"title":      "Diagram title (quoted if spaces)",
+			"subtitle":   "Subtitle under title",
+			"layout":     "auto (default) | hybrid (grid plus fixed x,y) | free (x,y on every shape)",
+			"style":      "polished (default) | sketch",
+			"gap":        "Spacing between nodes (default 28)",
+			"padding":    "Canvas padding (default 20)",
+			"slide":      "16x9 or 4x3 — frame exports as presentation slides",
+			"theme":      "light or dark — colors for slides/SVG/HTML",
 			"background": "transparent — no canvas fill (PNG/SVG overlays)",
 			"foreground": "Override text color (#hex)",
 			"card":       "Override card/surface color",
 			"border":     "Override border color",
 			"muted":      "Override muted surface color",
 			"accent":     "Override accent color",
-			"var.NAME": "custom theme variable (e.g. var.card=#18181b)",
+			"var.NAME":   "custom theme variable (e.g. var.card=#18181b)",
 		},
 		ShapeProps: map[string]string{
 			"icon":     "Catalog icon name",
-			"iconPos":  "Icon placement: top-left (default) | top | top-right | center | bottom-left | bottom | bottom-right",
+			"iconPos":  "Icon placement: top-left | top (default) | top-right | center | bottom-left | bottom | bottom-right",
 			"fill":     "Background #hex",
 			"stroke":   "Border #hex",
 			"accent":   "Callout stripe #hex",
@@ -212,7 +213,9 @@ func Build() Document {
 			"row":      "Row within column",
 			"at":       "Shorthand layer,row e.g. at=1,2",
 			"w, h":     "Minimum width/height (auto-expands for text)",
-			"x, y":     "Fixed position (layout free)",
+			"x, y":     "Absolute position; set both (hybrid/free placement)",
+			"dx, dy":   "Post-layout nudge in pixels; keeps the auto-layout slot",
+			"overlap":  "allow for intentional overlap; source order controls front/back within a semantic plane",
 			"parent":   "Parent lane/container id",
 			"lang":     "Code language (go, json, yaml, bash, kdl)",
 			"source":   "Code body for shape code (use \\n)",
@@ -256,12 +259,15 @@ func Build() Document {
 			"Use infobox, info, tip, warning, or note for callouts — accent stripe + subtitle",
 			"Pair icons with shape kind: database→cylinder, cloud→cloud; sceno docs icons for pairings",
 			"Run sceno advise --json for stack-plane validation and visual design recommendations",
+			"Prefer dx/dy for small feedback-driven adjustments; switch only breakout elements to x/y with layout=hybrid",
+			"Use overlap=allow sparingly and only when the overlap is part of the composition",
 		},
 		CommonMistakes: []string{
 			"Using YAML/JSON — only .kdl is accepted",
 			"title=My Platform without quotes — use title=\"My Platform\"",
 			"edge to missing node — define shape before edge in the same block",
 			"layout=free without x= and y= on every shape",
+			"setting only x or only y — fixed placement always requires both coordinates",
 			"icon=unknown — run sceno docs icons --json (catalog has categories + suggested shapes)",
 			"icon on every node in a dense slide — pick one icon per focal component",
 			"Shapes only in slide { } but edges reference ids from another slide",

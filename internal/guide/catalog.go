@@ -36,8 +36,8 @@ func ShapeCatalog() []ShapeEntry {
 // IconPosOptions documents iconPos values.
 func IconPosOptions() []string {
 	return []string{
-		"top-left (default)",
-		"top",
+		"top-left",
+		"top (default)",
 		"top-right",
 		"center",
 		"bottom-left",
@@ -52,31 +52,31 @@ func TopicDescriptions() map[string]string {
 		"guide":        "Agent handbook — workflow, commands, examples, properties, stack_model, visual_rules",
 		"architecture": "Source-of-truth chain — geometry vs semantics, pipeline.Result, paint order contract",
 		"spec":         "Full KDL specification (generated from code — diagram, shapes, edges, layout, theme)",
-		"goals":      "Product mission, quality bar, ecosystem best practices",
-		"practices":  "Authoring workflow, iterate loop, best practices, common mistakes, visual rules",
-		"stack":      "Stacked 2D plane validation model — lanes, edges, annotations, nodes, labels",
-		"validation": "validate + advise commands, error codes, visual rules, stack model summary",
-		"shapes":     "Allowed shape kinds including info, tip, warning callouts",
-		"icons":      "Allowed icon names",
-		"errors":     "Error and warning codes with fix and example for every validation issue",
+		"goals":        "Product mission, quality bar, ecosystem best practices",
+		"practices":    "Authoring workflow, iterate loop, best practices, common mistakes, visual rules",
+		"stack":        "Stacked 2D plane validation model — lanes, edges, annotations, nodes, labels",
+		"validation":   "validate + advise commands, error codes, visual rules, stack model summary",
+		"shapes":       "Allowed shape kinds including info, tip, warning callouts",
+		"icons":        "Allowed icon names",
+		"errors":       "Error and warning codes with fix and example for every validation issue",
 	}
 }
 
 // DocsCatalogCommands returns CLI commands shown in sceno docs --json.
 func DocsCatalogCommands() map[string]string {
 	return map[string]string{
-		"sceno docs":                   "List topics (add --json for catalog)",
-		"sceno docs guide --json":           "Full agent handbook",
-		"sceno docs architecture --json":    "Geometry + semantics SoT, pipeline entry point",
-		"sceno docs spec":                   "KDL specification (generated from code)",
-		"sceno docs stack [--json]":    "Stack validation model + visual rules",
-		"sceno docs validation --json": "Validation + advise reference",
-		"sceno docs practices --json":  "Best practices + common mistakes + visual rules",
-		"sceno docs errors --json":     "Error code repair catalog",
-		"sceno docs goals --json":      "Product mission, quality bar, ecosystem practices",
-		"sceno validate -i f --json":   "Validate spec after every edit",
-		"sceno advise -i f --json":     "Stack engine + visual score + recommendations",
-		"sceno describe -i f --json":   "Layout feedback without viewing images",
+		"sceno docs":                     "List topics (add --json for catalog)",
+		"sceno docs guide --json":        "Full agent handbook",
+		"sceno docs architecture --json": "Geometry + semantics SoT, pipeline entry point",
+		"sceno docs spec":                "KDL specification (generated from code)",
+		"sceno docs stack [--json]":      "Stack validation model + visual rules",
+		"sceno docs validation --json":   "Validation + advise reference",
+		"sceno docs practices --json":    "Best practices + common mistakes + visual rules",
+		"sceno docs errors --json":       "Error code repair catalog",
+		"sceno docs goals --json":        "Product mission, quality bar, ecosystem practices",
+		"sceno validate -i f --json":     "Validate spec after every edit",
+		"sceno advise -i f --json":       "Stack engine + visual score + recommendations",
+		"sceno describe -i f --json":     "Layout feedback without viewing images",
 	}
 }
 
@@ -84,7 +84,7 @@ func DocsCatalogCommands() map[string]string {
 func ShapeNotes() []string {
 	return []string{
 		"info, warning, tip are semantic infobox variants with default accent colors",
-		"iconPos controls icon placement (top-left default)",
+		"iconPos controls icon placement (top default)",
 	}
 }
 

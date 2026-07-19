@@ -13,6 +13,7 @@ import (
 type Evaluation struct {
 	Scene       Report       `json:"scene"`
 	Stack       StackSummary `json:"stack"`
+	SceneStack  Stack        `json:"scene_stack"`
 	PaintOrder  []PaintItem  `json:"paint_order"`
 	Findings    []Finding    `json:"findings"`
 	Score       int          `json:"visual_score"`
@@ -71,6 +72,7 @@ func Evaluate(d *model.Diagram) Evaluation {
 	return Evaluation{
 		Scene:       sceneReport,
 		Stack:       stack.Summary(),
+		SceneStack:  stack,
 		PaintOrder:  sceneReport.PaintOrder,
 		Findings:    findings,
 		Score:       score,
@@ -91,6 +93,7 @@ func (ev Evaluation) EngineReport() EngineReport {
 	}
 	return EngineReport{
 		Stack:       ev.Stack,
+		SceneStack:  ev.SceneStack,
 		RulesRun:    ev.RulesRun,
 		Findings:    ev.Findings,
 		Issues:      issues,
@@ -117,6 +120,7 @@ func MergeEvaluations(evals []Evaluation) Evaluation {
 		if ev.Score < merged.Score {
 			merged.Score = ev.Score
 			merged.Stack = ev.Stack
+			merged.SceneStack = ev.SceneStack
 			merged.Summary = ev.Summary
 		}
 		merged.Findings = append(merged.Findings, ev.Findings...)
@@ -149,9 +153,9 @@ func PaintOrderDescription() string {
 	return strings.Join([]string{
 		"Paint order (back → front) is fixed and shared by render and engine:",
 		"1. canvas background",
-		"2. lanes, frames, groups (container backgrounds)",
+		"2. lanes, then frames/groups (container backgrounds)",
 		"3. edges (connector strokes)",
-		"4. nodes (shapes)",
+		"4. annotations, then primary nodes",
 		"5. edge labels",
 		"6. arrowheads",
 		"scene.PaintsBeforeEdges / scene.BuildPaintOrder are the source of truth; render delegates to them.",

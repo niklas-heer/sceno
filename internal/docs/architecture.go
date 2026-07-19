@@ -12,18 +12,18 @@ import (
 
 // ArchitectureDoc documents the source-of-truth chain for agents.
 type ArchitectureDoc struct {
-	Tool           string            `json:"tool"`
-	Version        string            `json:"version"`
-	Summary        string            `json:"summary"`
-	Pipeline       []string          `json:"pipeline"`
-	GeometrySoT    string            `json:"geometry_source_of_truth"`
-	SemanticsSoT   string            `json:"semantics_source_of_truth"`
-	EntryPoint     string            `json:"entry_point"`
-	Consumers      map[string]string `json:"consumers"`
-	PaintOrder     string            `json:"paint_order"`
-	StackModel     string            `json:"stack_model"`
-	Principles     []string          `json:"principles"`
-	AntiPatterns   []string          `json:"anti_patterns"`
+	Tool         string            `json:"tool"`
+	Version      string            `json:"version"`
+	Summary      string            `json:"summary"`
+	Pipeline     []string          `json:"pipeline"`
+	GeometrySoT  string            `json:"geometry_source_of_truth"`
+	SemanticsSoT string            `json:"semantics_source_of_truth"`
+	EntryPoint   string            `json:"entry_point"`
+	Consumers    map[string]string `json:"consumers"`
+	PaintOrder   string            `json:"paint_order"`
+	StackModel   string            `json:"stack_model"`
+	Principles   []string          `json:"principles"`
+	AntiPatterns []string          `json:"anti_patterns"`
 }
 
 func buildArchitectureDoc() ArchitectureDoc {
@@ -48,16 +48,18 @@ func buildArchitectureDoc() ArchitectureDoc {
 			"sceno render":   "pipeline.Result.Deck — pixels; paint order follows Evaluation.PaintOrder",
 		},
 		PaintOrder: scene.PaintOrderDescription(),
-		StackModel: "background → lanes → edges → structure → annotations → nodes → labels → chrome",
+		StackModel: "background → lanes → structure → edges → annotations → nodes → labels → chrome",
 		Principles: []string{
 			"Build once per command — no double pipeline.BuildDeck in validate then render",
 			"Render projects geometry; it must not re-derive validation rules",
 			"Visual rules live in scene.engineRules — single catalog for validate, advise, docs",
 			"Paint order and container backgrounds: scene.PaintsBeforeEdges / scene.BuildPaintOrder",
 			"Interior shape layout: measure.ApplyInteriors → model.Node.Interior (4px grid, icon+label bands)",
+			"Agent visibility: scene_stack items include outer bounds plus exact nested icon/title/subtitle content boxes",
 			"Edge anchors: geom.BestSides / geom.StackedVertically — top/bottom when stacked",
 			"Grid placement: at=col,row sets AtSet so layer 0 columns are not overridden by edge ranks",
-			"Hybrid layout: layout=hybrid|auto grid-snaps flow nodes; x/y or layer=0 callouts float free",
+			"Hybrid layout: auto grid-snaps flow nodes; dx/dy nudges preserve slots; hybrid x/y shapes float independently",
+			"Intentional overlap: overlap=allow suppresses collision findings while semantic plane + source order remain visible in scene_stack",
 			"Backward compat: scene.RunEngine and scene.Analyze wrap scene.Evaluate",
 		},
 		AntiPatterns: []string{

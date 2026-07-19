@@ -5,6 +5,7 @@ import (
 	"math"
 	"strings"
 
+	"github.com/niklas-heer/sceno/internal/collision"
 	"github.com/niklas-heer/sceno/internal/diag"
 	"github.com/niklas-heer/sceno/internal/geom"
 	"github.com/niklas-heer/sceno/internal/layout"
@@ -38,31 +39,35 @@ var VisualRulesCatalog = []VisualRule{
 
 // Finding is one rule outcome from the stack engine.
 type Finding struct {
-	RuleID    string    `json:"rule_id"`
-	Severity  string    `json:"severity"` // error, warning, hint
-	Plane     PlaneKind `json:"plane,omitempty"`
-	Projected bool      `json:"projected_2d,omitempty"`
-	Code      string    `json:"code"`
-	Message   string    `json:"message"`
-	Fix       string    `json:"fix,omitempty"`
-	Example   string    `json:"example,omitempty"`
-	Items     []string  `json:"items,omitempty"`
+	RuleID    string              `json:"rule_id"`
+	Severity  string              `json:"severity"` // error, warning, hint
+	Plane     PlaneKind           `json:"plane,omitempty"`
+	Projected bool                `json:"projected_2d,omitempty"`
+	Code      string              `json:"code"`
+	Message   string              `json:"message"`
+	Fix       string              `json:"fix,omitempty"`
+	Example   string              `json:"example,omitempty"`
+	Items     []string            `json:"items,omitempty"`
+	Geometry  *diag.Geometry      `json:"geometry,omitempty"`
+	Repairs   []diag.RepairOption `json:"repairs,omitempty"`
 }
 
 func (f Finding) ToIssue() diag.Issue {
 	return diag.Issue{
-		Code:    diag.Code(f.Code),
-		Message: f.Message,
-		Fix:     f.Fix,
-		Example: f.Example,
-		Nodes:   f.Items,
+		Code:     diag.Code(f.Code),
+		Message:  f.Message,
+		Fix:      f.Fix,
+		Example:  f.Example,
+		Nodes:    f.Items,
+		Geometry: f.Geometry,
+		Repairs:  f.Repairs,
 	}
 }
 
 type ruleContext struct {
-	d      *model.Diagram
-	stack  Stack
-	scene  Report
+	d     *model.Diagram
+	stack Stack
+	scene Report
 }
 
 type ruleFunc func(ruleContext) []Finding
@@ -88,22 +93,29 @@ var engineRules = []struct {
 }
 
 func ruleCollisionPlane(ctx ruleContext) []Finding {
-	margin := ctx.d.Gap / 2
-	if margin < 8 {
-		margin = 8
-	}
 	items := ctx.stack.Project(PlaneNode, PlaneAnnotation)
+	byID := map[string]model.Node{}
+	for _, n := range ctx.d.Nodes {
+		byID[n.ID] = n
+	}
 	var findings []Finding
 	for i := 0; i < len(items); i++ {
 		for j := i + 1; j < len(items); j++ {
 			a, b := items[i], items[j]
-			if rectsOverlap(a.Bounds, b.Bounds, margin) {
+			if a.AllowOverlap || b.AllowOverlap {
+				continue
+			}
+			if rectsOverlap(a.Bounds, b.Bounds, 0) {
+				ca, cb := byID[a.Ref], byID[b.Ref]
+				c := collision.Describe(ca, cb, 0)
 				findings = append(findings, Finding{
 					RuleID: "collision_2d", Severity: "warning", Plane: PlaneNode, Projected: true,
-					Code: string(diag.CodeOccluded),
-					Message: fmt.Sprintf("plane overlap: %q covers %q on node/annotation plane", a.Ref, b.Ref),
-					Fix:     "Separate with at=col,row, increase gap, or move annotations to margins.",
-					Items:   []string{a.Ref, b.Ref},
+					Code:     string(diag.CodeOccluded),
+					Message:  fmt.Sprintf("plane overlap: %q covers %q on node/annotation plane", a.Ref, b.Ref),
+					Fix:      "Apply one candidate repair and re-run advise; use overlap=allow only for intentional composition.",
+					Items:    []string{a.Ref, b.Ref},
+					Geometry: diag.CollisionGeometry(c),
+					Repairs:  diag.CollisionRepairs(c, cb),
 				})
 			}
 		}
@@ -162,7 +174,7 @@ func ruleWhitespace(ctx ruleContext) []Finding {
 	if density > 0.82 {
 		out = append(out, Finding{
 			RuleID: "whitespace", Severity: "warning", Plane: PlaneBackground,
-			Code: string(diag.CodeDenseLayout),
+			Code:    string(diag.CodeDenseLayout),
 			Message: fmt.Sprintf("layout is crowded (density %.2f) — hard to scan", density),
 			Fix:     "Increase gap/padding, split into slides, or group nodes in lanes.",
 		})
@@ -170,7 +182,7 @@ func ruleWhitespace(ctx ruleContext) []Finding {
 	if density > 0 && density < 0.06 && len(ctx.d.Nodes) > 3 {
 		out = append(out, Finding{
 			RuleID: "whitespace", Severity: "hint", Plane: PlaneBackground,
-			Code: string(diag.CodeSparseLayout),
+			Code:    string(diag.CodeSparseLayout),
 			Message: fmt.Sprintf("layout is very sparse (density %.2f)", density),
 			Fix:     "Reduce gap, tighten columns, or use a smaller canvas/slide frame.",
 		})
@@ -183,7 +195,7 @@ func ruleHierarchy(ctx ruleContext) []Finding {
 	if n >= 6 && ctx.d.Title == "" {
 		return []Finding{{
 			RuleID: "hierarchy", Severity: "hint", Plane: PlaneChrome,
-			Code: string(diag.CodeWeakHierarchy),
+			Code:    string(diag.CodeWeakHierarchy),
 			Message: fmt.Sprintf("%d nodes without a diagram title — viewers lack a focal anchor", n),
 			Fix:     "Add title=\"…\" and optional subtitle=\"…\" on the diagram block.",
 			Example: `diagram title="Platform Overview" subtitle="Production path" gap=32 {`,
@@ -197,7 +209,7 @@ func ruleElementBudget(ctx ruleContext) []Finding {
 	if n > 15 {
 		return []Finding{{
 			RuleID: "element_budget", Severity: "warning", Plane: PlaneNode,
-			Code: string(diag.CodeTooManyElements),
+			Code:    string(diag.CodeTooManyElements),
 			Message: fmt.Sprintf("%d primary nodes — architecture views read best with ≤15 elements", n),
 			Fix:     "Split into multiple slides, add lanes to group detail, or extract a focused view.",
 			Example: `slide "Overview" { /* ≤8 nodes */ }
@@ -215,7 +227,7 @@ func ruleSlideFocus(ctx ruleContext) []Finding {
 	if n > 9 {
 		return []Finding{{
 			RuleID: "slide_focus", Severity: "warning", Plane: PlaneChrome,
-			Code: string(diag.CodeSlideCrowded),
+			Code:    string(diag.CodeSlideCrowded),
 			Message: fmt.Sprintf("slide has %d nodes — one idea per slide works best with ≤9 shapes", n),
 			Fix:     "Move supporting detail to another slide or use infobox for a single callout.",
 		}}
@@ -238,7 +250,7 @@ func ruleAnnotations(ctx ruleContext) []Finding {
 	if flow >= 8 && ann == 0 {
 		out = append(out, Finding{
 			RuleID: "annotations", Severity: "hint", Plane: PlaneAnnotation,
-			Code: string(diag.CodeSuggestAnnotation),
+			Code:    string(diag.CodeSuggestAnnotation),
 			Message: "complex diagram has no infobox/note — consider a callout for context",
 			Fix:     "Add shape infobox key \"Note\" icon=info subtitle=\"…\" at=col,row or shape tip …",
 			Example: `shape infobox legend "Legend" icon=info accent="#3b82f6" at=0,2`,
@@ -248,7 +260,7 @@ func ruleAnnotations(ctx ruleContext) []Finding {
 		if blocksMainFlow(ctx, it) {
 			out = append(out, Finding{
 				RuleID: "annotations", Severity: "warning", Plane: PlaneAnnotation, Projected: true,
-				Code: string(diag.CodeAnnotationBlocks),
+				Code:    string(diag.CodeAnnotationBlocks),
 				Message: fmt.Sprintf("annotation %q sits on the main left→right flow", it.Ref),
 				Fix:     "Move infobox/note to top or bottom row (at=col,lastRow) or a margin column.",
 				Items:   []string{it.Ref},
@@ -270,7 +282,7 @@ func ruleContentGrid(ctx ruleContext) []Finding {
 		if slackW > 48 || slackH > 40 {
 			out = append(out, Finding{
 				RuleID: "content_grid", Severity: "hint", Plane: PlaneLabel,
-				Code: string(diag.CodeSparseLayout),
+				Code:    string(diag.CodeSparseLayout),
 				Message: fmt.Sprintf("node %q has %.0f×%.0fpx unused interior — tight grid fits %.0f×%.0fpx", n.ID, slackW, slackH, cl.MinW, cl.MinH),
 				Fix:     "Remove fixed w/h or shorten labels so auto sizing packs content on the 4px grid.",
 				Items:   []string{n.ID},
@@ -293,7 +305,7 @@ func ruleAlignment(ctx ruleContext) []Finding {
 	for _, a := range ctx.scene.Alignment {
 		out = append(out, Finding{
 			RuleID: "alignment", Severity: "warning", Plane: PlaneNode,
-			Code: string(diag.CodeMisaligned),
+			Code:    string(diag.CodeMisaligned),
 			Message: a.Message,
 			Fix:     "Use consistent at=col,row within columns; single-row pipelines center automatically.",
 			Items:   a.Nodes,
@@ -310,7 +322,7 @@ func ruleEdgeClarity(ctx ruleContext) []Finding {
 		}
 		out = append(out, Finding{
 			RuleID: "edge_clarity", Severity: "warning", Plane: PlaneEdge,
-			Code: string(diag.CodeEdgeHidden),
+			Code:    string(diag.CodeEdgeHidden),
 			Message: fmt.Sprintf("edge %s→%s is ~%.0f%% visible", ev.From, ev.To, ev.Visible*100),
 			Fix:     "Set fromSide/toSide, increase gap, or reroute around obstacles.",
 			Items:   []string{ev.From, ev.To},
@@ -324,7 +336,7 @@ func ruleEdgeClarity(ctx ruleContext) []Finding {
 		if hit, nodeID := edgeLabelHitsNode(ctx.d, re, label); hit {
 			out = append(out, Finding{
 				RuleID: "edge_clarity", Severity: "warning", Plane: PlaneEdge,
-				Code: string(diag.CodeEdgeCollision),
+				Code:    string(diag.CodeEdgeCollision),
 				Message: fmt.Sprintf("edge label %q on %s→%s overlaps node %q", label, re.Edge.From, re.Edge.To, nodeID),
 				Fix:     "Increase gap, shorten the label, or move nodes so the label sits on a clear connector segment.",
 				Items:   []string{re.Edge.From, re.Edge.To, nodeID},

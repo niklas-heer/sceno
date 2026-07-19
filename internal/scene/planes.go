@@ -12,8 +12,8 @@ func PlaneCatalog() []PlaneDoc {
 	return []PlaneDoc{
 		{Name: PlaneBackground.String(), Contents: "Canvas bounds", Purpose: "Whitespace and density rules"},
 		{Name: PlaneLane.String(), Contents: "lane, container swimlanes", Purpose: "Grouping backdrop"},
-		{Name: PlaneEdge.String(), Contents: "Connector paths", Purpose: "Routing plane checks"},
 		{Name: PlaneStructure.String(), Contents: "frame, group", Purpose: "Structural grouping"},
+		{Name: PlaneEdge.String(), Contents: "Connector paths", Purpose: "Routing plane checks"},
 		{Name: PlaneAnnotation.String(), Contents: "infobox, info, tip, warning, note, textbox", Purpose: "Callouts without blocking flow"},
 		{Name: PlaneNode.String(), Contents: "Primary flow shapes (box, cloud, …)", Purpose: "Main diagram content"},
 		{Name: PlaneLabel.String(), Contents: "Edge label boxes", Purpose: "Horizontal / vertical label placement"},

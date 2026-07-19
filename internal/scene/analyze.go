@@ -15,15 +15,15 @@ import (
 
 // Report is a full 2D scene analysis for one laid-out diagram.
 type Report struct {
-	Style        string         `json:"style"`
-	PaintOrder   []PaintItem    `json:"paint_order"`
-	Groups       []Group        `json:"groups"`
-	Occlusions   []Occlusion    `json:"occlusions"`
-	EdgeVis      []EdgeVis      `json:"edge_visibility"`
-	Alignment    []AlignIssue   `json:"alignment"`
-	Aesthetics   AestheticScore `json:"aesthetics"`
-	Stack        StackSummary   `json:"stack"`
-	Issues       []diag.Issue   `json:"issues"`
+	Style      string         `json:"style"`
+	PaintOrder []PaintItem    `json:"paint_order"`
+	Groups     []Group        `json:"groups"`
+	Occlusions []Occlusion    `json:"occlusions"`
+	EdgeVis    []EdgeVis      `json:"edge_visibility"`
+	Alignment  []AlignIssue   `json:"alignment"`
+	Aesthetics AestheticScore `json:"aesthetics"`
+	Stack      StackSummary   `json:"stack"`
+	Issues     []diag.Issue   `json:"issues"`
 }
 
 type PaintItem struct {
@@ -48,12 +48,12 @@ type Occlusion struct {
 }
 
 type EdgeVis struct {
-	Key       string  `json:"key"`
-	From      string  `json:"from"`
-	To        string  `json:"to"`
-	Visible   float64 `json:"visible_fraction"`
-	Organic   bool    `json:"organic_route"`
-	HiddenPx  float64 `json:"hidden_estimate_px,omitempty"`
+	Key      string  `json:"key"`
+	From     string  `json:"from"`
+	To       string  `json:"to"`
+	Visible  float64 `json:"visible_fraction"`
+	Organic  bool    `json:"organic_route"`
+	HiddenPx float64 `json:"hidden_estimate_px,omitempty"`
 }
 
 type AlignIssue struct {
@@ -100,7 +100,7 @@ func analyzeCore(d *model.Diagram) Report {
 func findGroups(d *model.Diagram) []Group {
 	byCol := map[int][]model.Node{}
 	for _, n := range d.Nodes {
-		if model.IsContainer(n.Kind) {
+		if n.Fixed || model.IsContainer(n.Kind) {
 			continue
 		}
 		col := n.Column
@@ -169,15 +169,17 @@ func findGroups(d *model.Diagram) []Group {
 
 func findOcclusions(d *model.Diagram) []Occlusion {
 	var out []Occlusion
-	nodes := nonLaneNodes(d)
-	for i := 0; i < len(nodes); i++ {
-		for j := 0; j < len(nodes); j++ {
-			if i == j {
-				continue
+	var nodes []model.Node
+	for _, plane := range []PlaneKind{PlaneAnnotation, PlaneNode} {
+		for _, n := range d.Nodes {
+			if PlaneForNode(n) == plane {
+				nodes = append(nodes, n)
 			}
-			// Later in paint order (higher index in Nodes slice) covers earlier when overlapping.
-			ni, nj := nodeIndex(d, nodes[i].ID), nodeIndex(d, nodes[j].ID)
-			if ni <= nj {
+		}
+	}
+	for i := 0; i < len(nodes); i++ {
+		for j := 0; j < i; j++ {
+			if nodes[i].AllowOverlap || nodes[j].AllowOverlap {
 				continue
 			}
 			area := geom.RectOverlapArea(nodes[i].Rect, nodes[j].Rect)
@@ -193,6 +195,22 @@ func findOcclusions(d *model.Diagram) []Occlusion {
 		}
 	}
 	return out
+}
+
+func PlaneForNode(n model.Node) PlaneKind {
+	switch model.NormalizeShape(n.Kind) {
+	case model.ShapeLane:
+		return PlaneLane
+	case model.ShapeFrame:
+		return PlaneStructure
+	case model.ShapeInfobox, model.ShapeNote, model.ShapeTextbox:
+		return PlaneAnnotation
+	default:
+		if model.IsContainer(n.Kind) {
+			return PlaneStructure
+		}
+		return PlaneNode
+	}
 }
 
 func nodeIndex(d *model.Diagram, id string) int {
@@ -241,7 +259,7 @@ func alignmentIssues(d *model.Diagram) []AlignIssue {
 
 	byCol := map[int][]model.Node{}
 	for _, n := range d.Nodes {
-		if model.IsContainer(n.Kind) {
+		if n.Fixed || model.IsContainer(n.Kind) {
 			continue
 		}
 		col := n.Column
@@ -278,7 +296,7 @@ func alignmentIssues(d *model.Diagram) []AlignIssue {
 			continue
 		}
 		// Icon sits left; label should not be centered on full box when icon present.
-		centerOff := math.Abs(n.Rect.CX() - (n.Rect.X+n.Rect.W*0.58))
+		centerOff := math.Abs(n.Rect.CX() - (n.Rect.X + n.Rect.W*0.58))
 		if centerOff > n.Rect.W*0.22 {
 			out = append(out, AlignIssue{
 				Code:    "label_icon_balance",
@@ -448,7 +466,7 @@ func pathLen(pts []geom.Point) float64 {
 // NarrativeSummary is a short agent-readable scene description.
 func NarrativeSummary(r Report) string {
 	var parts []string
-	parts = append(parts, fmt.Sprintf("2D scene (%s): paint order lanes→edges→nodes", r.Style))
+	parts = append(parts, fmt.Sprintf("2D scene (%s): paint order lanes→structure→edges→annotations→nodes", r.Style))
 	if len(r.Groups) > 0 {
 		parts = append(parts, fmt.Sprintf("%d logical group(s)", len(r.Groups)))
 	}

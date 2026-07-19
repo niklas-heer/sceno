@@ -19,16 +19,16 @@ import (
 type Topic string
 
 const (
-	TopicGuide      Topic = "guide"
-	TopicSpec       Topic = "spec"
-	TopicGoals      Topic = "goals"
-	TopicPractices  Topic = "practices"
-	TopicStack      Topic = "stack"
-	TopicValidation Topic = "validation"
-	TopicShapes     Topic = "shapes"
-	TopicIcons      Topic = "icons"
-	TopicErrors        Topic = "errors"
-	TopicArchitecture  Topic = "architecture"
+	TopicGuide        Topic = "guide"
+	TopicSpec         Topic = "spec"
+	TopicGoals        Topic = "goals"
+	TopicPractices    Topic = "practices"
+	TopicStack        Topic = "stack"
+	TopicValidation   Topic = "validation"
+	TopicShapes       Topic = "shapes"
+	TopicIcons        Topic = "icons"
+	TopicErrors       Topic = "errors"
+	TopicArchitecture Topic = "architecture"
 )
 
 // AllTopics lists available doc topics in display order.
@@ -93,15 +93,15 @@ type ShapesDoc struct {
 
 // IconsDoc is the full icon catalog for authoring and CLI discovery.
 type IconsDoc struct {
-	Tool         string              `json:"tool"`
-	Version      string              `json:"version"`
-	Usage        string              `json:"usage"`
-	IconPos      []string            `json:"icon_pos"`
-	Tips         []string            `json:"tips"`
-	Categories   []string            `json:"categories"`
-	Icons        []icons.Entry       `json:"icons"`
-	ByCategory   map[string][]icons.Entry `json:"by_category"`
-	Names        []string            `json:"names"`
+	Tool       string                   `json:"tool"`
+	Version    string                   `json:"version"`
+	Usage      string                   `json:"usage"`
+	IconPos    []string                 `json:"icon_pos"`
+	Tips       []string                 `json:"tips"`
+	Categories []string                 `json:"categories"`
+	Icons      []icons.Entry            `json:"icons"`
+	ByCategory map[string][]icons.Entry `json:"by_category"`
+	Names      []string                 `json:"names"`
 }
 
 // ErrorsDoc is the full error catalog for repair loops.
@@ -217,17 +217,17 @@ func Run(topic string, jsonOut bool, w io.Writer) error {
 
 // GoalsDoc is the product mission and quality bar (sceno docs goals --json).
 type GoalsDoc struct {
-	Tool           string              `json:"tool"`
-	Version        string              `json:"version"`
-	Mission        string              `json:"mission"`
-	ProductGoals   []string            `json:"product_goals"`
-	Ecosystem      []guide.EcosystemEntry `json:"ecosystem"`
-	LayoutRules    []string            `json:"layout_rules"`
-	AgentWorkflow  []string            `json:"agent_workflow"`
-	Conventions    []string            `json:"conventions"`
-	NonGoals       []string            `json:"non_goals"`
-	QualityBar     []guide.QualityEntry `json:"quality_bar"`
-	Principles     []string            `json:"principles"`
+	Tool          string                 `json:"tool"`
+	Version       string                 `json:"version"`
+	Mission       string                 `json:"mission"`
+	ProductGoals  []string               `json:"product_goals"`
+	Ecosystem     []guide.EcosystemEntry `json:"ecosystem"`
+	LayoutRules   []string               `json:"layout_rules"`
+	AgentWorkflow []string               `json:"agent_workflow"`
+	Conventions   []string               `json:"conventions"`
+	NonGoals      []string               `json:"non_goals"`
+	QualityBar    []guide.QualityEntry   `json:"quality_bar"`
+	Principles    []string               `json:"principles"`
 }
 
 func writeGoalsJSON(w io.Writer) error {
@@ -423,7 +423,7 @@ func writeIconsHuman(w io.Writer) error {
 	fmt.Fprintln(w, "Sceno icon catalog — use icon=<id> on shape lines")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "Placement (iconPos=):")
-	for _, p := range []string{"top-left (default)", "top", "top-right", "center", "bottom-left", "bottom", "bottom-right"} {
+	for _, p := range []string{"top-left", "top (default)", "top-right", "center", "bottom-left", "bottom", "bottom-right"} {
 		fmt.Fprintln(w, " ", p)
 	}
 	fmt.Fprintln(w)

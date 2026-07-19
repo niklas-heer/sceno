@@ -78,3 +78,25 @@ func TestValidateJSONHasAgent(t *testing.T) {
 		t.Fatal("missing agent field")
 	}
 }
+
+func TestCollisionJSONIncludesGeometryAndRepairOptions(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "overlap.kdl")
+	data := []byte(`diagram layout=hybrid gap=24 {
+  shape box a "A" x=40 y=40
+  shape note b "B" x=80 y=60
+}`)
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	report, _, _ := Run(path, Options{FixCollisions: true})
+	if report.OK || len(report.Errors) == 0 {
+		t.Fatalf("expected collision report: %+v", report)
+	}
+	issue := report.Errors[0]
+	if issue.Geometry == nil || len(issue.Geometry.Bounds) != 2 || issue.Geometry.Overlap.W <= 0 {
+		t.Fatalf("missing collision geometry: %+v", issue)
+	}
+	if len(issue.Repairs) < 3 || issue.Repairs[0].Properties["x"] == "" || issue.Repairs[2].Properties["overlap"] != "allow" {
+		t.Fatalf("missing machine-actionable repairs: %+v", issue.Repairs)
+	}
+}

@@ -2,10 +2,13 @@ package scene
 
 import (
 	"fmt"
-	"math"
+	"strings"
 
+	"github.com/niklas-heer/sceno/internal/fonts"
 	"github.com/niklas-heer/sceno/internal/geom"
+	"github.com/niklas-heer/sceno/internal/measure"
 	"github.com/niklas-heer/sceno/internal/model"
+	"github.com/niklas-heer/sceno/internal/theme"
 )
 
 // PlaneKind is a stacked 2D layer (back → front). Validation treats the diagram
@@ -15,8 +18,8 @@ type PlaneKind int
 const (
 	PlaneBackground PlaneKind = iota
 	PlaneLane
-	PlaneEdge
 	PlaneStructure
+	PlaneEdge
 	PlaneAnnotation
 	PlaneNode
 	PlaneLabel
@@ -48,25 +51,37 @@ func (p PlaneKind) String() string {
 
 // StackItem is one drawable on a plane.
 type StackItem struct {
-	ID     string      `json:"id"`
-	Kind   string      `json:"kind"` // lane, edge, node, label, title
-	Ref    string      `json:"ref,omitempty"`
-	Plane  PlaneKind   `json:"plane"`
-	Z      int         `json:"z"`
-	Bounds model.Rect  `json:"bounds"`
+	ID           string        `json:"id"`
+	Kind         string        `json:"kind"` // lane, edge, node, label, title
+	Ref          string        `json:"ref,omitempty"`
+	Parent       string        `json:"parent,omitempty"`
+	Plane        PlaneKind     `json:"plane"`
+	Z            int           `json:"z"`
+	Order        int           `json:"order"`
+	AllowOverlap bool          `json:"allow_overlap,omitempty"`
+	Bounds       model.Rect    `json:"bounds"`
+	Content      []ContentItem `json:"content,omitempty"`
+}
+
+// ContentItem exposes internal visual geometry so agents can reason about
+// icons and text without reconstructing renderer measurements.
+type ContentItem struct {
+	Kind   string     `json:"kind"`
+	Value  string     `json:"value,omitempty"`
+	Bounds model.Rect `json:"bounds"`
 }
 
 // Stack is the multi-plane scene model for one laid-out diagram.
 type Stack struct {
-	Canvas model.Rect           `json:"canvas"`
+	Canvas model.Rect             `json:"canvas"`
 	Planes map[string][]StackItem `json:"planes"`
 }
 
 // StackSummary is a compact view for agents.
 type StackSummary struct {
-	PlaneOrder []string         `json:"plane_order"`
-	Counts     map[string]int   `json:"counts"`
-	Canvas     string           `json:"canvas,omitempty"`
+	PlaneOrder []string       `json:"plane_order"`
+	Counts     map[string]int `json:"counts"`
+	Canvas     string         `json:"canvas,omitempty"`
 }
 
 // BuildStack assigns every layout element to a plane (paint order).
@@ -87,27 +102,23 @@ func BuildStack(d *model.Diagram) Stack {
 
 	add(PlaneBackground, StackItem{ID: "canvas", Kind: "background", Bounds: stack.Canvas, Z: int(PlaneBackground)})
 
-	for _, n := range d.Nodes {
+	for order, n := range d.Nodes {
 		kind := string(n.Kind)
-		switch model.NormalizeShape(n.Kind) {
-		case model.ShapeLane:
-			add(PlaneLane, StackItem{ID: n.ID, Kind: "lane", Ref: n.ID, Bounds: n.Rect, Z: int(PlaneLane)})
-		case model.ShapeFrame:
-			add(PlaneStructure, StackItem{ID: n.ID, Kind: "frame", Ref: n.ID, Bounds: n.Rect, Z: int(PlaneStructure)})
-		case model.ShapeInfobox, model.ShapeNote, model.ShapeTextbox:
-			add(PlaneAnnotation, StackItem{ID: n.ID, Kind: kind, Ref: n.ID, Bounds: n.Rect, Z: int(PlaneAnnotation)})
-		default:
-			if model.IsContainer(n.Kind) {
-				add(PlaneStructure, StackItem{ID: n.ID, Kind: kind, Ref: n.ID, Bounds: n.Rect, Z: int(PlaneStructure)})
-			} else {
-				add(PlaneNode, StackItem{ID: n.ID, Kind: kind, Ref: n.ID, Bounds: n.Rect, Z: int(PlaneNode)})
-			}
-		}
+		plane := PlaneForNode(n)
+		add(plane, StackItem{
+			ID: n.ID, Kind: kind, Ref: n.ID, Parent: n.Parent, Bounds: n.Rect,
+			Z: int(plane), Order: order, AllowOverlap: n.AllowOverlap,
+			Content: nodeContent(n),
+		})
 	}
 
 	pad := d.Gap * 0.35
 	if pad < 6 {
 		pad = 6
+	}
+	byID := map[string]model.Node{}
+	for _, n := range d.Nodes {
+		byID[n.ID] = n
 	}
 	for _, re := range d.Routed {
 		pts := pathToGeom(re.Points)
@@ -120,7 +131,7 @@ func BuildStack(d *model.Diagram) Stack {
 			Z:      int(PlaneEdge),
 		})
 		if re.Edge.Label != "" {
-			lb := edgeLabelBounds(pts, re.Edge.Label, d.Gap)
+			lb := edgeLabelBounds(pts, re.Edge, byID)
 			add(PlaneLabel, StackItem{
 				ID:     re.Key + ":label",
 				Kind:   "edge_label",
@@ -138,10 +149,63 @@ func BuildStack(d *model.Diagram) Stack {
 	return stack
 }
 
+func nodeContent(n model.Node) []ContentItem {
+	if model.IsContainer(n.Kind) {
+		if n.Label == "" {
+			return nil
+		}
+		return []ContentItem{{
+			Kind: "container_label", Value: n.Label,
+			Bounds: model.Rect{X: n.Rect.X + 14, Y: n.Rect.Y + 2, W: measure.TextWidth(n.Label, theme.LaneLabelSize, fonts.WeightSemiBold), H: 16},
+		}}
+	}
+	if model.NormalizeShape(n.Kind) == model.ShapeCode {
+		return []ContentItem{{
+			Kind: "code", Value: n.Code,
+			Bounds: model.Rect{X: n.Rect.X + 12, Y: n.Rect.Y + 12, W: n.Rect.W - 24, H: n.Rect.H - 24},
+		}}
+	}
+
+	var out []ContentItem
+	if n.Icon != "" {
+		x, y := measure.IconRect(n, measure.IconSize)
+		out = append(out, ContentItem{Kind: "icon", Value: n.Icon, Bounds: model.Rect{X: x, Y: y, W: measure.IconSize, H: measure.IconSize}})
+	}
+	cl := measure.LayoutFor(n)
+	fs := n.FontSize
+	if fs <= 0 {
+		fs = theme.NodeSize
+	}
+	for i, line := range strings.Split(n.Label, "\n") {
+		if line == "" {
+			continue
+		}
+		w := measure.TextWidth(line, fs, fonts.WeightMedium)
+		x := n.Rect.X + (n.Rect.W-w)/2
+		if cl.InlineIcon {
+			x = n.Rect.X + cl.TitleX + (n.Rect.W-cl.TitleX-w)/2
+		}
+		baseline := n.Rect.Y + cl.TitleStartY + float64(i)*cl.TitleLineH
+		out = append(out, ContentItem{Kind: "title", Value: line, Bounds: model.Rect{X: x, Y: baseline - fs, W: w, H: cl.TitleLineH}})
+	}
+	if cl.HasSubtitle {
+		w := measure.TextWidth(n.Subtitle, theme.SubSize, fonts.WeightRegular)
+		x := n.Rect.X + (n.Rect.W-w)/2
+		if cl.InlineIcon {
+			x = n.Rect.X + cl.TitleX + (n.Rect.W-cl.TitleX-w)/2
+		}
+		out = append(out, ContentItem{
+			Kind: "subtitle", Value: n.Subtitle,
+			Bounds: model.Rect{X: x, Y: n.Rect.Y + cl.SubtitleY - theme.SubSize, W: w, H: theme.SubSize * 1.25},
+		})
+	}
+	return out
+}
+
 func (s Stack) Summary() StackSummary {
 	order := []string{
-		PlaneBackground.String(), PlaneLane.String(), PlaneEdge.String(),
-		PlaneStructure.String(), PlaneAnnotation.String(), PlaneNode.String(),
+		PlaneBackground.String(), PlaneLane.String(), PlaneStructure.String(),
+		PlaneEdge.String(), PlaneAnnotation.String(), PlaneNode.String(),
 		PlaneLabel.String(), PlaneChrome.String(),
 	}
 	counts := map[string]int{}
@@ -195,20 +259,19 @@ func pathBounds(pts []geom.Point, pad float64) model.Rect {
 	return model.Rect{X: minX - pad, Y: minY - pad, W: maxX - minX + pad*2, H: maxY - minY + pad*2}
 }
 
-func edgeLabelBounds(pts []geom.Point, label string, gap float64) model.Rect {
-	if len(pts) < 2 || label == "" {
+func edgeLabelBounds(pts []geom.Point, edge model.Edge, byID map[string]model.Node) model.Rect {
+	if len(pts) < 2 || edge.Label == "" {
 		return model.Rect{}
 	}
-	w := float64(len(label))*7 + 16
-	h := 18.0
-	mid := len(pts) / 2
-	a, b := pts[mid-1], pts[mid]
-	cx := (a.X + b.X) / 2
-	cy := (a.Y + b.Y) / 2
-	if math.Abs(a.Y-b.Y) < 1 {
-		return model.Rect{X: cx - w/2, Y: cy - h - gap*0.3, W: w, H: h}
+	var ctx *geom.EdgeLabelContext
+	if from, ok := byID[edge.From]; ok {
+		if to, ok := byID[edge.To]; ok {
+			ctx = &geom.EdgeLabelContext{From: from.Rect, To: to.Rect}
+		}
 	}
-	return model.Rect{X: cx + gap*0.3, Y: cy - h/2, W: w, H: h}
+	layout := geom.LayoutEdgeLabel(pts, edge.Label, ctx)
+	x, y, w, h := layout.LabelRect()
+	return model.Rect{X: x, Y: y, W: w, H: h}
 }
 
 func titleChromeBounds(d *model.Diagram, canvas model.Rect) model.Rect {

@@ -40,28 +40,28 @@ type Report struct {
 
 // DescribeMeta explains how to use this output.
 type DescribeMeta struct {
-	Summary  string   `json:"summary"`
+	Summary   string   `json:"summary"`
 	ReadFirst []string `json:"read_first"`
-	Hint     string   `json:"hint"`
+	Hint      string   `json:"hint"`
 }
 
 // SlideView describes one laid-out slide or diagram.
 type SlideView struct {
-	Index           int              `json:"index"`
-	Title           string           `json:"title,omitempty"`
-	Subtitle        string           `json:"subtitle,omitempty"`
-	Narrative       string           `json:"narrative"`
-	Canvas          CanvasInfo       `json:"canvas"`
-	Header          string           `json:"header,omitempty"`
-	Columns         []ColumnSummary  `json:"columns,omitempty"`
-	Nodes           []NodeView       `json:"nodes"`
-	Edges           []EdgeView       `json:"edges"`
-	Relationships   []string         `json:"relationships"`
-	Scene           scene.Report       `json:"scene"`
-	Engine          scene.EngineReport `json:"engine"`
-	VisualProblems  []VisualProblem    `json:"visual_problems"`
-	ASCIIMap        string           `json:"ascii_map"`
-	Stats           ViewStats        `json:"stats"`
+	Index          int                `json:"index"`
+	Title          string             `json:"title,omitempty"`
+	Subtitle       string             `json:"subtitle,omitempty"`
+	Narrative      string             `json:"narrative"`
+	Canvas         CanvasInfo         `json:"canvas"`
+	Header         string             `json:"header,omitempty"`
+	Columns        []ColumnSummary    `json:"columns,omitempty"`
+	Nodes          []NodeView         `json:"nodes"`
+	Edges          []EdgeView         `json:"edges"`
+	Relationships  []string           `json:"relationships"`
+	Scene          scene.Report       `json:"scene"`
+	Engine         scene.EngineReport `json:"engine"`
+	VisualProblems []VisualProblem    `json:"visual_problems"`
+	ASCIIMap       string             `json:"ascii_map"`
+	Stats          ViewStats          `json:"stats"`
 }
 
 type CanvasInfo struct {
@@ -72,11 +72,11 @@ type CanvasInfo struct {
 }
 
 type ViewStats struct {
-	Nodes      int `json:"nodes"`
-	Edges      int `json:"edges"`
-	Columns    int `json:"columns"`
-	Overlaps   int `json:"overlaps"`
-	Crossings  int `json:"edge_node_crossings"`
+	Nodes     int `json:"nodes"`
+	Edges     int `json:"edges"`
+	Columns   int `json:"columns"`
+	Overlaps  int `json:"overlaps"`
+	Crossings int `json:"edge_node_crossings"`
 }
 
 type ColumnSummary struct {
@@ -86,18 +86,22 @@ type ColumnSummary struct {
 }
 
 type NodeView struct {
-	ID          string  `json:"id"`
-	Label       string  `json:"label"`
-	Kind        string  `json:"kind"`
-	Icon        string  `json:"icon,omitempty"`
-	Subtitle    string  `json:"subtitle,omitempty"`
-	Column      int     `json:"column,omitempty"`
-	Row         int     `json:"row,omitempty"`
-	Region      string  `json:"region"`
-	Position    string  `json:"position"`
-	Bounds      RectView `json:"bounds"`
-	Size        string  `json:"size"`
-	Fill        string  `json:"fill,omitempty"`
+	ID           string   `json:"id"`
+	Label        string   `json:"label"`
+	Kind         string   `json:"kind"`
+	Icon         string   `json:"icon,omitempty"`
+	Subtitle     string   `json:"subtitle,omitempty"`
+	Column       int      `json:"column,omitempty"`
+	Row          int      `json:"row,omitempty"`
+	Region       string   `json:"region"`
+	Position     string   `json:"position"`
+	Bounds       RectView `json:"bounds"`
+	Size         string   `json:"size"`
+	Fill         string   `json:"fill,omitempty"`
+	Fixed        bool     `json:"fixed,omitempty"`
+	DX           float64  `json:"dx,omitempty"`
+	DY           float64  `json:"dy,omitempty"`
+	AllowOverlap bool     `json:"allow_overlap,omitempty"`
 }
 
 type RectView struct {
@@ -122,12 +126,14 @@ type EdgeView struct {
 }
 
 type VisualProblem struct {
-	Severity    string   `json:"severity"` // error | warning
-	Code        string   `json:"code"`
-	Message     string   `json:"message"`
-	Fix         string   `json:"fix,omitempty"`
-	Where       string   `json:"where"`
-	Involves    []string `json:"involves,omitempty"`
+	Severity string              `json:"severity"` // error | warning
+	Code     string              `json:"code"`
+	Message  string              `json:"message"`
+	Fix      string              `json:"fix,omitempty"`
+	Where    string              `json:"where"`
+	Involves []string            `json:"involves,omitempty"`
+	Geometry *diag.Geometry      `json:"geometry,omitempty"`
+	Repairs  []diag.RepairOption `json:"repairs,omitempty"`
 }
 
 // Run builds layout and returns a describe report.
@@ -185,11 +191,11 @@ func describeSlide(slide pipeline.SlideResult, index int, issues []diag.Issue, c
 	cw, ch := maxX-minX, maxY-minY
 
 	sv := SlideView{
-		Index:     index + 1,
-		Title:     d.Title,
-		Subtitle:  d.Subtitle,
-		Canvas:    CanvasInfo{MinX: minX, MinY: minY, Width: cw, Height: ch},
-		Stats:     ViewStats{Nodes: len(d.Nodes), Edges: len(d.Edges)},
+		Index:    index + 1,
+		Title:    d.Title,
+		Subtitle: d.Subtitle,
+		Canvas:   CanvasInfo{MinX: minX, MinY: minY, Width: cw, Height: ch},
+		Stats:    ViewStats{Nodes: len(d.Nodes), Edges: len(d.Edges)},
 	}
 
 	if d.Title != "" {
@@ -262,12 +268,18 @@ func describeNode(n model.Node, minX, minY, maxX, maxY float64) NodeView {
 			X: n.Rect.X, Y: n.Rect.Y, W: n.Rect.W, H: n.Rect.H,
 			Center: fmt.Sprintf("(%.0f, %.0f)", n.Rect.CX(), n.Rect.CY()),
 		},
-		Size: fmt.Sprintf("%.0f×%.0f px", n.Rect.W, n.Rect.H),
-		Fill: n.Fill,
+		Size:         fmt.Sprintf("%.0f×%.0f px", n.Rect.W, n.Rect.H),
+		Fill:         n.Fill,
+		Fixed:        n.Fixed,
+		DX:           n.DX,
+		DY:           n.DY,
+		AllowOverlap: n.AllowOverlap,
 	}
 	nv.Position = fmt.Sprintf("column %d row %d; %s; center %s",
 		n.Column, n.Row, nv.Region, nv.Bounds.Center)
-	if n.Layer > 0 && n.Column != n.Layer {
+	if n.Fixed {
+		nv.Position = fmt.Sprintf("fixed x/y; %s; center %s", nv.Region, nv.Bounds.Center)
+	} else if n.Layer > 0 && n.Column != n.Layer {
 		nv.Position = fmt.Sprintf("layer %d %s; center %s", n.Layer, nv.Region, nv.Bounds.Center)
 	}
 	return nv
@@ -455,9 +467,11 @@ func visualProblems(d model.Diagram, issues []diag.Issue, colls []model.Collisio
 			Severity: "error",
 			Code:     string(diag.CodeCollision),
 			Message:  fmt.Sprintf("nodes %q and %q overlap on canvas", c.A, c.B),
-			Fix:      "Increase gap or separate at=col,row positions.",
+			Fix:      "Apply one candidate repair and re-run describe; use overlap=allow only for intentional composition.",
 			Where:    where,
 			Involves: []string{c.A, c.B},
+			Geometry: diag.CollisionGeometry(c),
+			Repairs:  diag.CollisionRepairs(c, b),
 		})
 	}
 
@@ -652,6 +666,8 @@ func findingsToVisualProblems(findings []scene.Finding, minX, minY, maxX, maxY f
 			Fix:      iss.Fix,
 			Where:    issueWhere(iss, nil, minX, minY, maxX, maxY),
 			Involves: iss.Nodes,
+			Geometry: iss.Geometry,
+			Repairs:  iss.Repairs,
 		})
 	}
 	return out
@@ -898,6 +914,6 @@ func (r Report) WriteHuman(w io.Writer) error {
 		}
 		_, _ = io.WriteString(w, "\n")
 	}
-	_, _ = io.WriteString(w, r.Agent.Hint + "\n")
+	_, _ = io.WriteString(w, r.Agent.Hint+"\n")
 	return nil
 }

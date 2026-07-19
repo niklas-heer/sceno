@@ -46,7 +46,7 @@ sceno render -i your.kdl -o output/sceno
 
 Diagrams are validated as **stacked 2D planes** (back → front):
 
-`background → lanes → edges → structure → annotations → nodes → labels → chrome`
+`background → lanes → structure → edges → annotations → nodes → labels → chrome`
 
 Collision and routing checks project onto reduced planes. Full details: `sceno docs stack --json`.
 
@@ -58,14 +58,16 @@ Collision and routing checks project onto reduced planes. Full details: `sceno d
 - `slides[n].scene` — 2D analysis (paint order, occlusion, edge visibility, `stack`)
 - `slides[n].engine` — stack engine findings, visual score, rules run
 - `slides[n].ascii_map` — coarse spatial grid
-- `slides[n].visual_problems` — overlaps, hidden edges, misalignment
+- `slides[n].visual_problems` — overlaps, hidden edges, misalignment, exact geometry, repair candidates
 - `slides[n].edges[].route` — step-by-step connector path
+
+`scene_stack.planes.*[].content` contains exact icon/title/subtitle boxes inside shapes; `order` is source order within a semantic plane.
 
 `sceno advise --json` returns:
 
 - `visual_score` — 0–100 quality score
 - `stack` — plane counts
-- `engine.findings` — visual design rule outcomes with `fix` hints
+- `engine.findings` — visual design rule outcomes with `fix`, geometry, and repair candidates
 - `recommendations` — prioritized actionable hints
 - `ai_review` — when `--ai` and `SCENO_AI_CMD` are set
 
@@ -76,10 +78,10 @@ Collision and routing checks project onto reduced planes. Full details: `sceno d
 1. **KDL only** — `.kdl` files; root block is `diagram { }` in the spec language.
 2. **Validate after every edit** — `sceno validate -i file.kdl --json`.
 3. **Advise for polish** — `sceno advise -i file.kdl --json` after validate passes.
-4. **Read `agent.next_steps`** when `ok` is false; apply `errors[].fix` and `errors[].example`.
+4. **Read `agent.next_steps`** when `ok` is false; for collisions inspect `geometry` and try one `repairs[]` edit.
 5. **Define shapes before edges** in the same `diagram { }` or `slide "Title" { }` block.
 6. **Do not invent** shape kinds or icon names — use lists from `sceno docs guide --json`.
-7. **Prefer `layout=auto`** with `layer`, `row`, or `at=col,row`; use `layout=free` + `x`/`y` for free placement.
+7. **Prefer `layout=auto`** with `layer`, `row`, or `at=col,row`; use `dx`/`dy` for small nudges, `layout=hybrid` + `x`/`y` for breakout elements, and `overlap=allow` only intentionally.
 8. **Quote labels with spaces** — `title="My Platform"`.
 9. **Use `\n` in quoted strings** for line breaks inside labels.
 10. **Callouts** — `shape info`, `tip`, `warning`, `infobox`, `note` for annotations; `iconPos=top-left` for icons.
