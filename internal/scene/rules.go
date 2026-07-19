@@ -26,7 +26,7 @@ var VisualRulesCatalog = []VisualRule{
 	{ID: "hierarchy", Name: "Visual hierarchy", Source: "NN/g, IxDF", Description: "Titles and focal nodes should dominate; supporting detail recedes via size and spacing."},
 	{ID: "whitespace", Name: "Whitespace", Source: "Gestalt proximity", Description: "Reserve at least 36px between subtitle baseline and content; keep side/bottom insets balanced and avoid stranded canvas."},
 	{ID: "alignment", Name: "Alignment", Source: "PowerPoint grids", Description: "Same column/row nodes share center lines; icons and labels balance on a 4px interior grid."},
-	{ID: "content_grid", Name: "Interior content grid", Source: "Sceno measure", Description: "Icon, title, and subtitle snap to 4px; inline icon + text groups center together with a 12px gap; FitSize uses tight bounds."},
+	{ID: "content_grid", Name: "Silhouette-aware content grid", Source: "Sceno geom + measure", Description: "Shape outlines, centered border strokes, and internal seams define writable_bounds; icon and text placement plus effective_font_size consume that same geometry."},
 	{ID: "anchor_sides", Name: "Anchor sides", Source: "Sceno geom", Description: "Stacked nodes connect top/bottom; horizontal pipelines use left/right."},
 	{ID: "edge_clarity", Name: "Edge clarity", Source: "d2/Mermaid", Description: "Use direct obstacle-free orthogonal routes; reserve 18px of visible shaft around labels and a 27px straight target approach including the arrowhead."},
 	{ID: "element_budget", Name: "Element budget", Source: "C4 / architecture", Description: "Prefer ≤15 primary nodes per view; split slides or add lanes for more."},
@@ -148,6 +148,7 @@ func ruleTextOverflow(ctx ruleContext) []Finding {
 		out = append(out, Finding{
 			RuleID: "text_fit", Severity: "error", Plane: PlaneLabel,
 			Code: string(iss.Code), Message: iss.Message, Fix: iss.Fix, Items: iss.Nodes,
+			Geometry: iss.Geometry, Repairs: iss.Repairs,
 		})
 	}
 	return out

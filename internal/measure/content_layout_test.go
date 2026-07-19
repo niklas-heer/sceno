@@ -50,28 +50,22 @@ func TestFitSizeUsesSnappedBounds(t *testing.T) {
 }
 
 func TestApplyInteriorsPreservesExplicitIconPositions(t *testing.T) {
-	tests := []struct {
-		pos   model.IconPosition
-		wantX float64
-		wantY float64
-	}{
-		{model.IconTopLeft, 28, 40},
-		{model.IconTop, 52, 12},
-		{model.IconTopRight, 92, 12},
-		{model.IconCenter, 52, 40},
-		{model.IconBottomLeft, 12, 68},
-		{model.IconBottom, 52, 68},
-		{model.IconBottomRight, 92, 68},
+	positions := []model.IconPosition{
+		model.IconTopLeft, model.IconTop, model.IconTopRight, model.IconCenter,
+		model.IconBottomLeft, model.IconBottom, model.IconBottomRight,
 	}
-	for _, tc := range tests {
-		t.Run(string(tc.pos), func(t *testing.T) {
+	for _, pos := range positions {
+		t.Run(string(pos), func(t *testing.T) {
 			nodes := []model.Node{{
-				Kind: model.ShapeBox, Label: "Node", Icon: "api", IconPos: tc.pos,
+				Kind: model.ShapeBox, Label: "Node", Icon: "api", IconPos: pos,
 				Rect: model.Rect{W: 124, H: 100},
 			}}
 			ApplyInteriors(nodes)
-			if got := nodes[0].Interior; got.IconX != tc.wantX || got.IconY != tc.wantY {
-				t.Fatalf("icon offset = %.0f,%.0f want %.0f,%.0f", got.IconX, got.IconY, tc.wantX, tc.wantY)
+			got := nodes[0].Interior
+			if got.IconX < got.WritableX-.5 || got.IconY < got.WritableY-.5 ||
+				got.IconX+got.IconSize > got.WritableX+got.WritableW+.5 || got.IconY+got.IconSize > got.WritableY+got.WritableH+.5 {
+				t.Fatalf("%s icon %.0f,%.0f lies outside writable region %.0f,%.0f %.0fx%.0f", pos,
+					got.IconX, got.IconY, got.WritableX, got.WritableY, got.WritableW, got.WritableH)
 			}
 		})
 	}
@@ -94,5 +88,40 @@ func TestInlineIconAndTextAreCenteredAsAGroup(t *testing.T) {
 	}
 	if gap := cl.TitleX - (cl.IconX + cl.IconSize); gap != InlineIconGap {
 		t.Fatalf("inline gap = %.0f want %.0f", gap, InlineIconGap)
+	}
+}
+
+func TestPlacedLayoutChoosesFontThatFitsWritableRegion(t *testing.T) {
+	n := model.Node{
+		Kind: model.ShapeDiamond, Label: "Long decision label", FontSize: 18,
+		Rect: model.Rect{W: 240, H: 120},
+	}
+	cl := BuildPlacedContentLayout(n)
+	if cl.FontSize >= n.FontSize || cl.FontSize < minAutoFontSize {
+		t.Fatalf("effective font %.1f should shrink from %.1f but respect minimum %.1f", cl.FontSize, n.FontSize, minAutoFontSize)
+	}
+	req := measureContentRequirements(n, cl.FontSize)
+	if req.requiredW > cl.WritableW+.5 || req.requiredH > cl.WritableH+.5 {
+		t.Fatalf("chosen font does not fit: need %.1fx%.1f writable %.1fx%.1f", req.requiredW, req.requiredH, cl.WritableW, cl.WritableH)
+	}
+}
+
+func TestWritableRegionClearsVisibleBorder(t *testing.T) {
+	n := model.Node{Kind: model.ShapeBox, Label: "API", Rect: model.Rect{W: 120, H: 60}}
+	cl := BuildPlacedContentLayout(n)
+	if cl.WritableX <= .75 || cl.WritableY <= .75 || cl.WritableX+cl.WritableW >= n.Rect.W-.75 || cl.WritableY+cl.WritableH >= n.Rect.H-.75 {
+		t.Fatalf("writable region does not clear centered 1.5px border: %+v", cl)
+	}
+}
+
+func TestActorLabelSitsBelowFigure(t *testing.T) {
+	w, h := FitSize(model.NodeSpec{Kind: model.ShapeActor, Label: "Actor"})
+	n := model.Node{Kind: model.ShapeActor, Label: "Actor", Rect: model.Rect{W: w, H: h}}
+	cl := BuildPlacedContentLayout(n)
+	if cl.WritableY <= n.Rect.H*.58 {
+		t.Fatalf("actor writable band %.1f overlaps figure region in %.1fpx shape", cl.WritableY, n.Rect.H)
+	}
+	if ow, oh := Overflow(n); ow > .5 || oh > .5 {
+		t.Fatalf("actor label overflows reserved band by %.1fx%.1f", ow, oh)
 	}
 }

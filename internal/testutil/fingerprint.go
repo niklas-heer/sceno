@@ -31,7 +31,8 @@ func DiagramFingerprint(d model.Diagram) string {
 			id, n.Rect.X, n.Rect.Y, n.Rect.W, n.Rect.H, n.Column, n.Row, n.Interior.Ready)
 		if n.Interior.Ready {
 			in := n.Interior
-			fmt.Fprintf(h, "  interior icon=%.0f,%.0f title=%.0f\n", in.IconX, in.IconY, in.TitleStartY)
+			fmt.Fprintf(h, "  interior icon=%.0f,%.0f title=%.0f font=%.1f writable=%.1f,%.1f %.1fx%.1f\n",
+				in.IconX, in.IconY, in.TitleStartY, in.FontSize, in.WritableX, in.WritableY, in.WritableW, in.WritableH)
 		}
 	}
 	edgeKeys := make([]string, 0, len(d.Routed))
@@ -73,6 +74,9 @@ func InteriorInBounds(n model.Node) bool {
 		return false
 	}
 	if in.HasSubtitle && (in.SubtitleY < 0 || in.SubtitleY > r.H) {
+		return false
+	}
+	if in.WritableX < 0 || in.WritableY < 0 || in.WritableX+in.WritableW > r.W+.5 || in.WritableY+in.WritableH > r.H+.5 {
 		return false
 	}
 	return true

@@ -5,6 +5,7 @@ import (
 	"math"
 	"strings"
 
+	"github.com/niklas-heer/sceno/internal/geom"
 	"github.com/niklas-heer/sceno/internal/model"
 	"github.com/niklas-heer/sceno/internal/theme"
 )
@@ -27,7 +28,7 @@ func shapeSVG(n model.Node, dropShadow bool) string {
 		if n.Icon != "" {
 			return actorIconBackdropSVG(n, dropShadow)
 		}
-		return actorSVG(r, fill, stroke)
+		return actorSVG(n, fill, stroke)
 	case model.ShapeEllipse, model.ShapeCircle:
 		return fmt.Sprintf(`<ellipse cx="%.1f" cy="%.1f" rx="%.1f" ry="%.1f" fill="%s" stroke="%s" stroke-width="1.5"/>`,
 			r.CX(), r.CY(), r.W/2, r.H/2, fill, stroke)
@@ -134,7 +135,7 @@ func parallelogramPoints(r model.Rect) string {
 // CylinderRimRY is the rim ellipse radius for a cylinder of the given size.
 // Shared by all backends so the silhouette matches across formats.
 func CylinderRimRY(w, h float64) float64 {
-	return math.Min(math.Min(w*0.1, h*0.15), 12.0)
+	return geom.CylinderRimRY(w, h)
 }
 
 func cylinderSVG(r model.Rect, fill, stroke string) string {
@@ -168,27 +169,12 @@ func cloudSVG(r model.Rect, fill, stroke string) string {
 // land on visible paint, while the alternating lobes keep a cloud silhouette
 // without overlapping interior strokes.
 func cloudPath(r model.Rect) ([2]float64, [][6]float64) {
-	point := func(x, y float64) [2]float64 {
-		return [2]float64{r.X + x*r.W, r.Y + y*r.H}
+	start, segments := geom.CloudPath(r)
+	curves := make([][6]float64, len(segments))
+	for i, segment := range segments {
+		curves[i] = [6]float64{segment.Control1.X, segment.Control1.Y, segment.Control2.X, segment.Control2.Y, segment.End.X, segment.End.Y}
 	}
-	curve := func(c1x, c1y, c2x, c2y, x, y float64) [6]float64 {
-		c1, c2, end := point(c1x, c1y), point(c2x, c2y), point(x, y)
-		return [6]float64{c1[0], c1[1], c2[0], c2[1], end[0], end[1]}
-	}
-	return point(0, .5), [][6]float64{
-		curve(0, .38, .04, .30, .14, .28),
-		curve(.14, .14, .26, .08, .38, .15),
-		curve(.40, .06, .44, 0, .50, 0),
-		curve(.57, 0, .62, .06, .64, .14),
-		curve(.77, .07, .91, .17, .90, .32),
-		curve(.97, .35, 1, .42, 1, .50),
-		curve(1, .62, .92, .72, .80, .72),
-		curve(.76, .86, .64, .88, .56, .82),
-		curve(.55, .92, .53, 1, .50, 1),
-		curve(.45, 1, .41, .91, .38, .84),
-		curve(.25, .90, .10, .82, .12, .68),
-		curve(.05, .64, 0, .58, 0, .50),
-	}
+	return [2]float64{start.X, start.Y}, curves
 }
 
 func documentSVG(r model.Rect, fill, stroke string) string {
@@ -220,17 +206,8 @@ func actorIconBackdropSVG(n model.Node, dropShadow bool) string {
 }
 
 // actorSVG draws a UML-style stick figure inside the node bounds.
-func actorSVG(r model.Rect, fill, stroke string) string {
-	cx := r.CX()
-	headR := math.Min(r.W*0.16, r.H*0.14)
-	if headR < 8 {
-		headR = 8
-	}
-	headCY := r.Y + headR + 6
-	shoulderY := headCY + headR + 4
-	footY := r.Bottom() - 6
-	arm := r.W * 0.32
-	leg := r.W * 0.22
+func actorSVG(n model.Node, fill, stroke string) string {
+	g := geom.ActorFigure(n.Rect, n.Label != "" || n.Subtitle != "", 1)
 	sw := 1.5
 	body := fmt.Sprintf(
 		`<circle cx="%.1f" cy="%.1f" r="%.1f" fill="%s" stroke="%s" stroke-width="%.1f"/>`+
@@ -238,11 +215,11 @@ func actorSVG(r model.Rect, fill, stroke string) string {
 			`<line x1="%.1f" y1="%.1f" x2="%.1f" y2="%.1f" stroke="%s" stroke-width="%.1f" stroke-linecap="round"/>`+
 			`<line x1="%.1f" y1="%.1f" x2="%.1f" y2="%.1f" stroke="%s" stroke-width="%.1f" stroke-linecap="round"/>`+
 			`<line x1="%.1f" y1="%.1f" x2="%.1f" y2="%.1f" stroke="%s" stroke-width="%.1f" stroke-linecap="round"/>`,
-		cx, headCY, headR, fill, stroke, sw,
-		cx, shoulderY, cx, footY, stroke, sw,
-		cx-arm, shoulderY+4, cx+arm, shoulderY+4, stroke, sw,
-		cx, footY, cx-leg, footY, stroke, sw,
-		cx, footY, cx+leg, footY, stroke, sw,
+		g.CenterX, g.HeadY, g.HeadRadius, fill, stroke, sw,
+		g.CenterX, g.ShoulderY, g.CenterX, g.FootY, stroke, sw,
+		g.ArmLeft, g.ArmY, g.ArmRight, g.ArmY, stroke, sw,
+		g.CenterX, g.FootY, g.LegLeft, g.FootY, stroke, sw,
+		g.CenterX, g.FootY, g.LegRight, g.FootY, stroke, sw,
 	)
 	return body
 }

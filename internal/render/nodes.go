@@ -42,36 +42,34 @@ func polishedLabel(n model.Node) string {
 	if n.Label == "" && n.Subtitle == "" {
 		return ""
 	}
-	fs := n.FontSize
+	cl := measure.LayoutFor(n)
+	fs := cl.FontSize
 	if fs <= 0 {
 		fs = theme.NodeSize
 	}
-	cl := measure.LayoutFor(n)
 	lines := strings.Split(n.Label, "\n")
 	lh := cl.TitleLineH
 	var b strings.Builder
 	for i, line := range lines {
 		tw := measure.TextWidth(line, fs, fonts.WeightMedium)
-		tx := n.Rect.X + cl.TitleX
-		if cl.TopAlign || cl.InlineIcon {
-			if cl.TopAlign {
-				tx = n.Rect.X + (n.Rect.W-tw)/2
-			} else if cl.InlineIcon {
-				tx = n.Rect.X + cl.TitleX
-			}
-		} else {
-			tx = n.Rect.X + (n.Rect.W-tw)/2
+		tx := n.Rect.X + cl.WritableX + (cl.WritableW-tw)/2
+		if cl.InlineIcon {
+			tx = n.Rect.X + cl.TitleX
 		}
 		y := n.Rect.Y + cl.TitleStartY + float64(i)*lh
 		b.WriteString(textEl(line, tx, y, fs, paint.FgPrimary, "500"))
 	}
 	if cl.HasSubtitle {
-		sw := measure.TextWidth(n.Subtitle, theme.SubSize, fonts.WeightRegular)
-		sx := n.Rect.X + (n.Rect.W-sw)/2
+		subSize := cl.SubtitleSize
+		if subSize <= 0 {
+			subSize = theme.SubSize
+		}
+		sw := measure.TextWidth(n.Subtitle, subSize, fonts.WeightRegular)
+		sx := n.Rect.X + cl.WritableX + (cl.WritableW-sw)/2
 		if cl.InlineIcon {
 			sx = n.Rect.X + cl.TitleX
 		}
-		b.WriteString(textEl(n.Subtitle, sx, n.Rect.Y+cl.SubtitleY, theme.SubSize, paint.FgMuted, ""))
+		b.WriteString(textEl(n.Subtitle, sx, n.Rect.Y+cl.SubtitleY, subSize, paint.FgMuted, ""))
 	}
 	return b.String()
 }

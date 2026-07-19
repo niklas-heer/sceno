@@ -136,7 +136,7 @@ func drawPolishedNodeGG(dc *gg.Context, n model.Node, vp Viewport, ox, oy, scale
 			dc.SetRGB(sr, sg, sb)
 			dc.Stroke()
 		} else {
-			drawActorGG(dc, x, y, w, h, scale, sr, sg, sb)
+			drawActorGG(dc, n, x, y, w, h, scale, sr, sg, sb)
 		}
 	case model.ShapeEllipse, model.ShapeCircle:
 		dc.DrawEllipse(x+w/2, y+h/2, w/2, h/2)
@@ -298,32 +298,32 @@ func drawPolishedLabelGG(dc *gg.Context, n model.Node, x, y, w, h, scale float64
 	if n.Label == "" && n.Subtitle == "" {
 		return
 	}
-	fs := n.FontSize
+	cl := measure.LayoutFor(n)
+	fs := cl.FontSize
 	if fs <= 0 {
 		fs = theme.NodeSize
 	}
-	cl := measure.LayoutFor(n)
 	setGGFont(dc, fonts.WeightMedium, fs*scale)
 	setGGColor(dc, paint.FgPrimary)
 	lines := strings.Split(n.Label, "\n")
 	lh := cl.TitleLineH * scale
 	for i, line := range lines {
 		tw, _ := dc.MeasureString(line)
-		tx := x + cl.TitleX*scale
-		if cl.TopAlign {
-			tx = x + (w-tw)/2
-		} else if cl.InlineIcon {
+		tx := x + cl.WritableX*scale + (cl.WritableW*scale-tw)/2
+		if cl.InlineIcon {
 			tx = x + cl.TitleX*scale
-		} else {
-			tx = x + (w-tw)/2
 		}
 		dc.DrawString(line, tx, y+cl.TitleStartY*scale+float64(i)*lh)
 	}
 	if cl.HasSubtitle {
-		setGGFont(dc, fonts.WeightRegular, theme.SubSize*scale)
+		subSize := cl.SubtitleSize
+		if subSize <= 0 {
+			subSize = theme.SubSize
+		}
+		setGGFont(dc, fonts.WeightRegular, subSize*scale)
 		setGGColor(dc, paint.FgMuted)
 		sw, _ := dc.MeasureString(n.Subtitle)
-		sx := x + (w-sw)/2
+		sx := x + cl.WritableX*scale + (cl.WritableW*scale-sw)/2
 		if cl.InlineIcon {
 			sx = x + cl.TitleX*scale
 		}
@@ -411,7 +411,7 @@ func drawPolishedNodePDF(pdf *gofpdf.Fpdf, n model.Node, minX, minY float64) {
 		if n.Icon != "" {
 			pdf.RoundedRect(x, y, w, h, 7, "1234", "FD")
 		} else {
-			drawActorPDF(pdf, x, y, w, h, sr, sg, sb)
+			drawActorPDF(pdf, n, x, y, w, h, sr, sg, sb)
 		}
 	case model.ShapeEllipse, model.ShapeCircle:
 		pdf.Ellipse(x+w/2, y+h/2, w/2, h/2, 0, "FD")
@@ -513,46 +513,46 @@ func regularPolygonPDF(cx, cy, rx, ry float64, sides int, offset float64) []gofp
 	return points
 }
 
-func drawActorPDF(pdf *gofpdf.Fpdf, x, y, w, h float64, sr, sg, sb int) {
-	cx := x + w/2
-	headR := math.Max(4, math.Min(w*0.16, h*0.14))
-	headCY := y + headR + 3
-	shoulderY := headCY + headR + 2
-	footY := y + h - 3
+func drawActorPDF(pdf *gofpdf.Fpdf, n model.Node, x, y, w, h float64, sr, sg, sb int) {
+	g := geom.ActorFigure(model.Rect{X: x, Y: y, W: w, H: h}, n.Label != "" || n.Subtitle != "", 1)
 	pdf.SetDrawColor(sr, sg, sb)
-	pdf.Ellipse(cx, headCY, headR, headR, 0, "D")
-	pdf.Line(cx, shoulderY, cx, footY)
-	pdf.Line(cx-w*0.32, shoulderY+2, cx+w*0.32, shoulderY+2)
-	pdf.Line(cx, footY, cx-w*0.22, footY)
-	pdf.Line(cx, footY, cx+w*0.22, footY)
+	pdf.Ellipse(g.CenterX, g.HeadY, g.HeadRadius, g.HeadRadius, 0, "D")
+	pdf.Line(g.CenterX, g.ShoulderY, g.CenterX, g.FootY)
+	pdf.Line(g.ArmLeft, g.ArmY, g.ArmRight, g.ArmY)
+	pdf.Line(g.CenterX, g.FootY, g.LegLeft, g.FootY)
+	pdf.Line(g.CenterX, g.FootY, g.LegRight, g.FootY)
 }
 
 func drawPolishedLabelPDF(pdf *gofpdf.Fpdf, n model.Node, x, y, w, h float64) {
 	if n.Label == "" && n.Subtitle == "" {
 		return
 	}
-	fs := n.FontSize
+	cl := measure.LayoutFor(n)
+	fs := cl.FontSize
 	if fs <= 0 {
 		fs = theme.NodeSize
 	}
 	setPDFFont(pdf, "M", fs)
 	setPDFTextColor(pdf, paint.FgPrimary)
 	lines := strings.Split(n.Label, "\n")
-	cl := measure.LayoutFor(n)
 	lineH := cl.TitleLineH
 	for i, line := range lines {
 		tw := pdf.GetStringWidth(line)
-		tx := x + (w-tw)/2
+		tx := x + cl.WritableX + (cl.WritableW-tw)/2
 		if cl.InlineIcon {
 			tx = x + cl.TitleX
 		}
 		pdf.Text(tx, y+cl.TitleStartY+float64(i)*lineH, line)
 	}
 	if cl.HasSubtitle {
-		setPDFFont(pdf, "", theme.SubSize)
+		subSize := cl.SubtitleSize
+		if subSize <= 0 {
+			subSize = theme.SubSize
+		}
+		setPDFFont(pdf, "", subSize)
 		setPDFTextColor(pdf, paint.FgMuted)
 		tw := pdf.GetStringWidth(n.Subtitle)
-		tx := x + (w-tw)/2
+		tx := x + cl.WritableX + (cl.WritableW-tw)/2
 		if cl.InlineIcon {
 			tx = x + cl.TitleX
 		}
@@ -760,27 +760,18 @@ func hexRGB(hex string, dr, dg, db float64) (float64, float64, float64) {
 	return float64(ri) / 255, float64(gi) / 255, float64(bi) / 255
 }
 
-func drawActorGG(dc *gg.Context, x, y, w, h, scale, sr, sg, sb float64) {
-	cx := x + w/2
-	headR := math.Min(w*0.16, h*0.14)
-	if headR < 8*scale {
-		headR = 8 * scale
-	}
-	headCY := y + headR + 6*scale
-	shoulderY := headCY + headR + 4*scale
-	footY := y + h - 6*scale
-	arm := w * 0.32
-	leg := w * 0.22
+func drawActorGG(dc *gg.Context, n model.Node, x, y, w, h, scale, sr, sg, sb float64) {
+	g := geom.ActorFigure(model.Rect{X: x, Y: y, W: w, H: h}, n.Label != "" || n.Subtitle != "", scale)
 	dc.SetRGB(sr, sg, sb)
-	dc.DrawCircle(cx, headCY, headR)
+	dc.DrawCircle(g.CenterX, g.HeadY, g.HeadRadius)
 	dc.Stroke()
-	dc.DrawLine(cx, shoulderY, cx, footY)
+	dc.DrawLine(g.CenterX, g.ShoulderY, g.CenterX, g.FootY)
 	dc.Stroke()
-	dc.DrawLine(cx-arm, shoulderY+4*scale, cx+arm, shoulderY+4*scale)
+	dc.DrawLine(g.ArmLeft, g.ArmY, g.ArmRight, g.ArmY)
 	dc.Stroke()
-	dc.DrawLine(cx, footY, cx-leg, footY)
+	dc.DrawLine(g.CenterX, g.FootY, g.LegLeft, g.FootY)
 	dc.Stroke()
-	dc.DrawLine(cx, footY, cx+leg, footY)
+	dc.DrawLine(g.CenterX, g.FootY, g.LegRight, g.FootY)
 	dc.Stroke()
 }
 

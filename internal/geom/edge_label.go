@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/niklas-heer/sceno/internal/fonts"
-	"github.com/niklas-heer/sceno/internal/measure"
 	"github.com/niklas-heer/sceno/internal/model"
 	"github.com/niklas-heer/sceno/internal/theme"
 )
@@ -42,7 +41,7 @@ func LayoutEdgeLabel(pts []Point, label string, ctx *EdgeLabelContext) EdgeLabel
 	lineH := fontSize * EdgeLabelLineMult
 	maxW := 0.0
 	for _, line := range lines {
-		w := measure.TextWidth(line, fontSize, fonts.WeightMedium)
+		w := fonts.TextWidth(line, fontSize, fonts.WeightMedium)
 		if w > maxW {
 			maxW = w
 		}

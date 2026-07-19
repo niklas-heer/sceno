@@ -1,8 +1,7 @@
 package measure
 
 import (
-	"math"
-
+	"github.com/niklas-heer/sceno/internal/geom"
 	"github.com/niklas-heer/sceno/internal/model"
 )
 
@@ -11,23 +10,16 @@ import (
 // lobes, and cylinder rims where text may technically fit the rectangle but
 // still paint outside the visible shape.
 func ShapeContentInsets(kind model.ShapeKind, w, h float64) (left, top, right, bottom float64) {
-	switch model.NormalizeShape(kind) {
-	case model.ShapeCloud:
-		return w * .10, h * .18, w * .10, h * .18
-	case model.ShapeCylinder, model.ShapeDatabase:
-		rim := math.Min(math.Min(w*.10, h*.15), 12)
-		return 8, rim + 4, 8, rim + 4
-	case model.ShapeHexagon, model.ShapeOctagon:
-		return w * .14, h * .08, w * .14, h * .08
-	case model.ShapeDiamond, model.ShapeDecision:
-		return w * .26, h * .22, w * .26, h * .22
-	default:
-		return 0, 0, 0, 0
-	}
+	n := model.Node{Kind: kind, Rect: model.Rect{W: w, H: h}}
+	writable := geom.WritableRect(n, w/h)
+	return writable.X, writable.Y, w - writable.Right(), h - writable.Bottom()
 }
 
 // ShapeContentRect is the visible interior available for text and icons.
 func ShapeContentRect(n model.Node) model.Rect {
-	l, t, r, b := ShapeContentInsets(n.Kind, n.Rect.W, n.Rect.H)
-	return model.Rect{X: n.Rect.X + l, Y: n.Rect.Y + t, W: math.Max(0, n.Rect.W-l-r), H: math.Max(0, n.Rect.H-t-b)}
+	return ShapeWritableRect(n, n.Rect.W/n.Rect.H)
 }
+
+// ShapeWritableRect derives a content rectangle from the shared stroked
+// silhouette at the requested content aspect ratio.
+func ShapeWritableRect(n model.Node, aspect float64) model.Rect { return geom.WritableRect(n, aspect) }

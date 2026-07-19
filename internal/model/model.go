@@ -55,6 +55,8 @@ type ThemeConfig struct {
 type InteriorLayout struct {
 	IconX, IconY float64
 	IconSize     float64
+	FontSize     float64
+	SubtitleSize float64
 	TitleX       float64
 	TitleStartY  float64
 	TitleLineH   float64
@@ -66,6 +68,10 @@ type InteriorLayout struct {
 	InlineIcon   bool
 	MinW         float64
 	MinH         float64
+	WritableX    float64
+	WritableY    float64
+	WritableW    float64
+	WritableH    float64
 	Ready        bool
 }
 

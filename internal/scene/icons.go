@@ -63,13 +63,13 @@ func ruleIcons(ctx ruleContext) []Finding {
 
 func overlapsLabel(icon model.Rect, n model.Node) bool {
 	cl := measure.LayoutFor(n)
-	fs := n.FontSize
+	fs := cl.FontSize
 	if fs <= 0 {
 		fs = 14
 	}
 	for i, line := range strings.Split(n.Label, "\n") {
 		w := measure.TextWidth(line, fs, fonts.WeightMedium)
-		x := n.Rect.X + (n.Rect.W-w)/2
+		x := n.Rect.X + cl.WritableX + (cl.WritableW-w)/2
 		if cl.InlineIcon {
 			x = n.Rect.X + cl.TitleX
 		}
@@ -79,9 +79,12 @@ func overlapsLabel(icon model.Rect, n model.Node) bool {
 		}
 	}
 	if cl.HasSubtitle {
-		subSize := fs * 0.85
+		subSize := cl.SubtitleSize
+		if subSize <= 0 {
+			subSize = fs * .85
+		}
 		w := measure.TextWidth(n.Subtitle, subSize, fonts.WeightRegular)
-		x := n.Rect.X + (n.Rect.W-w)/2
+		x := n.Rect.X + cl.WritableX + (cl.WritableW-w)/2
 		if cl.InlineIcon {
 			x = n.Rect.X + cl.TitleX
 		}

@@ -6,8 +6,6 @@ import (
 
 	"github.com/niklas-heer/sceno/internal/fonts"
 	"github.com/niklas-heer/sceno/internal/model"
-
-	"golang.org/x/image/font"
 )
 
 const (
@@ -21,19 +19,7 @@ const (
 
 // TextWidth returns pixel width of s using embedded Inter.
 func TextWidth(s string, size float64, weight fonts.Weight) float64 {
-	if s == "" {
-		return 0
-	}
-	face, err := fonts.Face(weight, size)
-	if err != nil {
-		return float64(len(s)) * size * 0.55
-	}
-	return measureString(face, s)
-}
-
-func measureString(face font.Face, s string) float64 {
-	d := &font.Drawer{Face: face}
-	return float64(d.MeasureString(s).Ceil())
+	return fonts.TextWidth(s, size, weight)
 }
 
 // ContentSize returns the inner size needed for label, subtitle, and icon.
@@ -167,6 +153,23 @@ func FitSize(n model.NodeSpec) (w, h float64) {
 		}
 		return w, h
 	}
+	// Explicit two-dimensional bounds are a strong compositional preference.
+	// Keep them when the label can fit by selecting a smaller readable font;
+	// only grow the shape when even the minimum font cannot clear its silhouette.
+	if n.W > 0 && n.H > 0 {
+		placed := nodeFromSpec(n)
+		placed.Rect = model.Rect{W: n.W, H: n.H}
+		preferred := n.FontSize
+		if preferred <= 0 {
+			preferred = 14
+		}
+		fontSize := fittedFontSize(placed, preferred)
+		req := measureContentRequirements(placed, fontSize)
+		writable := ShapeWritableRect(placed, req.requiredW/req.requiredH)
+		if req.requiredW <= writable.W+.5 && req.requiredH <= writable.H+.5 {
+			return Snap(n.W), Snap(n.H)
+		}
+	}
 	cl := BuildContentLayout(nodeFromSpec(n))
 	w, h = cl.MinW, cl.MinH
 	if n.W > 0 && n.W > w {
@@ -189,14 +192,11 @@ func nodeFromSpec(ns model.NodeSpec) model.Node {
 // Overflow returns how many pixels label content exceeds the node rect (0 = fits).
 func Overflow(n model.Node) (overW, overH float64) {
 	cl := LayoutFor(n)
-	if n.Rect.W < cl.MinW {
-		overW = cl.MinW - n.Rect.W
-	}
-	if n.Rect.H < cl.MinH {
-		overH = cl.MinH - n.Rect.H
-	}
+	required := measureContentRequirements(n, cl.FontSize)
+	overW = math.Max(0, required.requiredW-cl.WritableW)
+	overH = math.Max(0, required.requiredH-cl.WritableH)
 	content := textBounds(n, cl)
-	safe := ShapeContentRect(n)
+	safe := model.Rect{X: n.Rect.X + cl.WritableX, Y: n.Rect.Y + cl.WritableY, W: cl.WritableW, H: cl.WritableH}
 	if content.W > 0 {
 		overW = math.Max(overW, math.Max(safe.X-content.X, content.Right()-safe.Right()))
 		overH = math.Max(overH, math.Max(safe.Y-content.Y, content.Bottom()-safe.Bottom()))
@@ -205,7 +205,7 @@ func Overflow(n model.Node) (overW, overH float64) {
 }
 
 func textBounds(n model.Node, cl ContentLayout) model.Rect {
-	fs := n.FontSize
+	fs := cl.FontSize
 	if fs <= 0 {
 		fs = 14
 	}
@@ -227,7 +227,7 @@ func textBounds(n model.Node, cl ContentLayout) model.Rect {
 			continue
 		}
 		w := TextWidth(line, fs, fonts.WeightMedium)
-		x := n.Rect.X + (n.Rect.W-w)/2
+		x := n.Rect.X + cl.WritableX + (cl.WritableW-w)/2
 		if cl.InlineIcon {
 			x = n.Rect.X + cl.TitleX
 		}
@@ -235,14 +235,17 @@ func textBounds(n model.Node, cl ContentLayout) model.Rect {
 		add(model.Rect{X: x, Y: baseline - fs, W: w, H: cl.TitleLineH})
 	}
 	if cl.HasSubtitle && n.Subtitle != "" {
-		subSize := fs * .85
+		subSize := cl.SubtitleSize
+		if subSize <= 0 {
+			subSize = fs * .85
+		}
 		w := TextWidth(n.Subtitle, subSize, fonts.WeightRegular)
-		x := n.Rect.X + (n.Rect.W-w)/2
+		x := n.Rect.X + cl.WritableX + (cl.WritableW-w)/2
 		if cl.InlineIcon {
 			x = n.Rect.X + cl.TitleX
 		}
 		baseline := n.Rect.Y + cl.SubtitleY
-		add(model.Rect{X: x, Y: baseline - subSize, W: w, H: subtitleH})
+		add(model.Rect{X: x, Y: baseline - subSize, W: w, H: subSize * 1.25})
 	}
 	return bounds
 }

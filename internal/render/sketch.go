@@ -5,7 +5,9 @@ import (
 	"math"
 	"strings"
 
+	"github.com/niklas-heer/sceno/internal/fonts"
 	"github.com/niklas-heer/sceno/internal/geom"
+	"github.com/niklas-heer/sceno/internal/measure"
 	"github.com/niklas-heer/sceno/internal/model"
 )
 
@@ -78,15 +80,21 @@ func labelSketch(n model.Node) string {
 	if len(lines) == 0 {
 		return ""
 	}
-	lineH := n.FontSize * 1.25
-	totalH := float64(len(lines)) * lineH
-	startY := n.Rect.CY() - totalH/2 + lineH*0.75
+	cl := measure.LayoutFor(n)
+	fontSize := cl.FontSize
+	if fontSize <= 0 {
+		fontSize = 14
+	}
+	lineH := cl.TitleLineH
 	var b strings.Builder
 	for i, line := range lines {
-		tw := float64(len(line)) * n.FontSize * 0.55
-		x := n.Rect.CX() - tw/2
-		y := startY + float64(i)*lineH
-		b.WriteString(textEl(line, x, y, n.FontSize, "#1e1e1e", ""))
+		tw := measure.TextWidth(line, fontSize, fonts.WeightMedium)
+		x := n.Rect.X + cl.WritableX + (cl.WritableW-tw)/2
+		if cl.InlineIcon {
+			x = n.Rect.X + cl.TitleX
+		}
+		y := n.Rect.Y + cl.TitleStartY + float64(i)*lineH
+		b.WriteString(textEl(line, x, y, fontSize, "#1e1e1e", ""))
 	}
 	return b.String()
 }

@@ -52,16 +52,20 @@ func (p PlaneKind) String() string {
 
 // StackItem is one drawable on a plane.
 type StackItem struct {
-	ID           string        `json:"id"`
-	Kind         string        `json:"kind"` // lane, edge, node, label, title
-	Ref          string        `json:"ref,omitempty"`
-	Parent       string        `json:"parent,omitempty"`
-	Plane        PlaneKind     `json:"plane"`
-	Z            int           `json:"z"`
-	Order        int           `json:"order"`
-	AllowOverlap bool          `json:"allow_overlap,omitempty"`
-	Bounds       model.Rect    `json:"bounds"`
-	Content      []ContentItem `json:"content,omitempty"`
+	ID            string        `json:"id"`
+	Kind          string        `json:"kind"` // lane, edge, node, label, title
+	Ref           string        `json:"ref,omitempty"`
+	Parent        string        `json:"parent,omitempty"`
+	Plane         PlaneKind     `json:"plane"`
+	Z             int           `json:"z"`
+	Order         int           `json:"order"`
+	AllowOverlap  bool          `json:"allow_overlap,omitempty"`
+	Bounds        model.Rect    `json:"bounds"`
+	Outline       [][]float64   `json:"outline,omitempty"`
+	InternalLines [][]float64   `json:"internal_lines,omitempty"`
+	Writable      *model.Rect   `json:"writable_bounds,omitempty"`
+	FontSize      float64       `json:"effective_font_size,omitempty"`
+	Content       []ContentItem `json:"content,omitempty"`
 }
 
 // ContentItem exposes internal visual geometry so agents can reason about
@@ -106,10 +110,23 @@ func BuildStack(d *model.Diagram) Stack {
 	for order, n := range d.Nodes {
 		kind := string(n.Kind)
 		plane := PlaneForNode(n)
+		outline := geom.PathToSlices(geom.ShapeOutline(n))
+		lines := geom.ShapeInternalLines(n)
+		internalLines := make([][]float64, len(lines))
+		for i, line := range lines {
+			internalLines[i] = []float64{line[0].X, line[0].Y, line[1].X, line[1].Y}
+		}
+		var writable *model.Rect
+		fontSize := 0.0
+		if !model.IsContainer(n.Kind) && model.NormalizeShape(n.Kind) != model.ShapeCode {
+			cl := measure.LayoutFor(n)
+			bounds := model.Rect{X: n.Rect.X + cl.WritableX, Y: n.Rect.Y + cl.WritableY, W: cl.WritableW, H: cl.WritableH}
+			writable, fontSize = &bounds, cl.FontSize
+		}
 		add(plane, StackItem{
 			ID: n.ID, Kind: kind, Ref: n.ID, Parent: n.Parent, Bounds: n.Rect,
 			Z: int(plane), Order: order, AllowOverlap: n.AllowOverlap,
-			Content: nodeContent(n),
+			Outline: outline, InternalLines: internalLines, Writable: writable, FontSize: fontSize, Content: nodeContent(n),
 		})
 	}
 
@@ -170,7 +187,7 @@ func nodeContent(n model.Node) []ContentItem {
 		out = append(out, ContentItem{Kind: "icon", Value: n.Icon, Bounds: model.Rect{X: x, Y: y, W: measure.IconSize, H: measure.IconSize}})
 	}
 	cl := measure.LayoutFor(n)
-	fs := n.FontSize
+	fs := cl.FontSize
 	if fs <= 0 {
 		fs = theme.NodeSize
 	}
@@ -179,7 +196,7 @@ func nodeContent(n model.Node) []ContentItem {
 			continue
 		}
 		w := measure.TextWidth(line, fs, fonts.WeightMedium)
-		x := n.Rect.X + (n.Rect.W-w)/2
+		x := n.Rect.X + cl.WritableX + (cl.WritableW-w)/2
 		if cl.InlineIcon {
 			x = n.Rect.X + cl.TitleX
 		}
@@ -187,14 +204,18 @@ func nodeContent(n model.Node) []ContentItem {
 		out = append(out, ContentItem{Kind: "title", Value: line, Bounds: model.Rect{X: x, Y: baseline - fs, W: w, H: cl.TitleLineH}})
 	}
 	if cl.HasSubtitle {
-		w := measure.TextWidth(n.Subtitle, theme.SubSize, fonts.WeightRegular)
-		x := n.Rect.X + (n.Rect.W-w)/2
+		subSize := cl.SubtitleSize
+		if subSize <= 0 {
+			subSize = theme.SubSize
+		}
+		w := measure.TextWidth(n.Subtitle, subSize, fonts.WeightRegular)
+		x := n.Rect.X + cl.WritableX + (cl.WritableW-w)/2
 		if cl.InlineIcon {
 			x = n.Rect.X + cl.TitleX
 		}
 		out = append(out, ContentItem{
 			Kind: "subtitle", Value: n.Subtitle,
-			Bounds: model.Rect{X: x, Y: n.Rect.Y + cl.SubtitleY - theme.SubSize, W: w, H: theme.SubSize * 1.25},
+			Bounds: model.Rect{X: x, Y: n.Rect.Y + cl.SubtitleY - subSize, W: w, H: subSize * 1.25},
 		})
 	}
 	return out

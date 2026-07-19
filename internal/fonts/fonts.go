@@ -81,6 +81,21 @@ func Face(w Weight, size float64) (font.Face, error) {
 	return truetype.NewFace(f, &truetype.Options{Size: size, DPI: 72}), nil
 }
 
+// TextWidth measures a string with the embedded Inter face used by every
+// renderer. Keeping this primitive below geometry avoids package cycles while
+// preserving identical typography metrics.
+func TextWidth(s string, size float64, weight Weight) float64 {
+	if s == "" {
+		return 0
+	}
+	face, err := Face(weight, size)
+	if err != nil {
+		return float64(len(s)) * size * .55
+	}
+	drawer := &font.Drawer{Face: face}
+	return float64(drawer.MeasureString(s).Ceil())
+}
+
 // WeightFromCSS maps SVG/CSS font-weight strings to a face weight.
 func WeightFromCSS(w string) Weight {
 	switch w {

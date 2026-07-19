@@ -60,8 +60,8 @@ edge api -> db`,
 		Example: `edge api -> db fromSide=right toSide=left`,
 	},
 	CodeTextOverflow: {
-		Meaning: "Label/subtitle does not fit the node box.",
-		Fix:     "Remove fixed w/h, shorten text, use \\n for line breaks, or drop fontSize override.",
+		Meaning: "Label, subtitle, or icon does not fit the silhouette-safe writable region even after automatic font fitting.",
+		Fix:     "Inspect shape, writable, and content bounds; apply the proposed w/h repair, shorten text, or use \\n for line breaks.",
 		Example: `shape box api "API Gateway" icon=api`,
 	},
 	CodeUnknownIcon: {
