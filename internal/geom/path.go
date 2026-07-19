@@ -36,6 +36,91 @@ func SimplifyPath(pts []Point) []Point {
 	return out
 }
 
+// CollapseJogs removes tiny orthogonal staircase segments and fold-backs that
+// endpoint snapping and lane shifts leave behind. Endpoints are shape anchors
+// and never move; interior runs shift by less than tol to absorb the jog.
+func CollapseJogs(pts []Point, tol float64) []Point {
+	out := SimplifyPath(append([]Point(nil), pts...))
+	for iter := 0; iter < 32; iter++ {
+		if removeFoldBack(out) {
+			out = SimplifyPath(out[:len(out)-1])
+			continue
+		}
+		if !shiftTinyJog(out, tol) {
+			break
+		}
+		out = SimplifyPath(out)
+	}
+	return out
+}
+
+// removeFoldBack drops the middle point of two collinear segments that reverse
+// direction; the retraced portion overlaps the direct segment exactly, so the
+// drawn line only gets cleaner. Compacts in place, returns true when found.
+func removeFoldBack(out []Point) bool {
+	const eps = 0.5
+	for i := 1; i < len(out)-1; i++ {
+		a, b, c := out[i-1], out[i], out[i+1]
+		horizontal := math.Abs(a.Y-b.Y) < eps && math.Abs(b.Y-c.Y) < eps && (b.X-a.X)*(c.X-b.X) < 0
+		vertical := math.Abs(a.X-b.X) < eps && math.Abs(b.X-c.X) < eps && (b.Y-a.Y)*(c.Y-b.Y) < 0
+		if horizontal || vertical {
+			copy(out[i:], out[i+1:])
+			return true
+		}
+	}
+	return false
+}
+
+// shiftTinyJog aligns the runs around one interior segment shorter than tol.
+// Anchored endpoints never move, and jogs near the path end shift the previous
+// run so the straight approach before the arrowhead keeps its length.
+func shiftTinyJog(out []Point, tol float64) bool {
+	const eps = 0.5
+	for i := 1; i < len(out)-2; i++ {
+		a, b := out[i], out[i+1]
+		dx, dy := math.Abs(b.X-a.X), math.Abs(b.Y-a.Y)
+		vertical := dx < eps && dy > eps && dy < tol
+		horizontal := dy < eps && dx > eps && dx < tol
+		if !vertical && !horizontal {
+			continue
+		}
+		coord := func(p *Point) *float64 {
+			if vertical {
+				return &p.Y
+			}
+			return &p.X
+		}
+		shiftPrev := func() bool {
+			if i-1 <= 0 {
+				return false
+			}
+			*coord(&out[i]) = *coord(&b)
+			*coord(&out[i-1]) = *coord(&b)
+			return true
+		}
+		shiftNext := func() bool {
+			if i+2 < len(out)-1 {
+				*coord(&out[i+1]) = *coord(&a)
+				*coord(&out[i+2]) = *coord(&a)
+				return true
+			}
+			if i+2 == len(out)-1 && math.Abs(*coord(&out[i+2])-*coord(&a)) < eps {
+				*coord(&out[i+1]) = *coord(&a)
+				return true
+			}
+			return false
+		}
+		if i+2 >= len(out)-2 { // jog near the target: keep the final approach intact
+			if shiftPrev() || shiftNext() {
+				return true
+			}
+		} else if shiftNext() || shiftPrev() {
+			return true
+		}
+	}
+	return false
+}
+
 func collinear(a, b, c Point) bool {
 	const eps = 0.5
 	// Same horizontal line

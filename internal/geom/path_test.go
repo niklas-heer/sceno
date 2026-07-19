@@ -15,6 +15,58 @@ func TestSimplifyPathPreservesDirectionReversal(t *testing.T) {
 	}
 }
 
+func TestCollapseJogsRemovesTinyStaircase(t *testing.T) {
+	// Real route from examples/self-service.kdl (policy -> runner):
+	// up 27, left 112, down 2, right 24, up 27 — the down-2/right-24 jog is
+	// endpoint-snapping residue and must collapse into a clean staircase.
+	pts := []Point{
+		{X: 1320, Y: 238}, {X: 1320, Y: 211}, {X: 1208, Y: 211},
+		{X: 1208, Y: 213}, {X: 1232, Y: 213}, {X: 1232, Y: 186},
+	}
+	got := CollapseJogs(pts, 8)
+	if got[0] != pts[0] || got[len(got)-1] != pts[len(pts)-1] {
+		t.Fatalf("endpoints moved: %+v", got)
+	}
+	// The bus shifts to the jog's far side (213) so the final approach into the
+	// target keeps its full 27px before the arrowhead.
+	want := []Point{{X: 1320, Y: 238}, {X: 1320, Y: 213}, {X: 1232, Y: 213}, {X: 1232, Y: 186}}
+	if len(got) != len(want) {
+		t.Fatalf("jog not collapsed: %+v", got)
+	}
+	for i := range want {
+		if math.Abs(got[i].X-want[i].X) > 0.01 || math.Abs(got[i].Y-want[i].Y) > 0.01 {
+			t.Fatalf("point %d = %+v, want %+v (full: %+v)", i, got[i], want[i], got)
+		}
+	}
+}
+
+func TestCollapseJogsKeepsCleanPaths(t *testing.T) {
+	pts := []Point{{X: 0, Y: 0}, {X: 0, Y: 40}, {X: 100, Y: 40}, {X: 100, Y: 80}}
+	got := CollapseJogs(pts, 8)
+	if len(got) != 4 {
+		t.Fatalf("clean staircase altered: %+v", got)
+	}
+}
+
+func TestCollapseJogsNeverMovesAnchoredEnds(t *testing.T) {
+	// Short jog adjacent to the final anchor: the anchor must stay put; the
+	// interior run shifts instead.
+	pts := []Point{
+		{X: 0, Y: 0}, {X: 0, Y: 30}, {X: 60, Y: 30}, {X: 60, Y: 33}, {X: 90, Y: 33},
+	}
+	got := CollapseJogs(pts, 8)
+	if got[len(got)-1] != (Point{X: 90, Y: 33}) {
+		t.Fatalf("end anchor moved: %+v", got)
+	}
+	for i := 1; i < len(got)-1; i++ {
+		dx := math.Abs(got[i].X - got[i-1].X)
+		dy := math.Abs(got[i].Y - got[i-1].Y)
+		if dx+dy < 8 && dx+dy > 0.01 && i > 1 {
+			t.Fatalf("tiny interior segment survives: %+v", got)
+		}
+	}
+}
+
 func TestEdgeLabelBoxHorizontal(t *testing.T) {
 	pts := []Point{{X: 0, Y: 0}, {X: 100, Y: 0}}
 	layout := LayoutEdgeLabel(pts, "write", nil)

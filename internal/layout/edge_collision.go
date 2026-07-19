@@ -97,7 +97,7 @@ func rerouteEdge(d *model.Diagram, byID map[string]*model.Node, c model.EdgeColl
 
 		for lane := 0; lane < 48; lane++ {
 			pts := routeWithLane(start, end, obs, d.Gap, float64(lane)*d.Gap*0.5, fs, ts)
-			pts = geom.SimplifyPath(pts)
+			pts = geom.CollapseJogs(pts, jogTolerance)
 			if !pathHitsNodes(pts, d.Nodes, re.Edge.From, re.Edge.To, routeBorderClearance) &&
 				!pathConflictsWithRoutes(pointsToPath(pts), d.Routed, re.Key) {
 				re.Points = pointsToPath(pts)

@@ -9,6 +9,9 @@ import (
 	"github.com/niklas-heer/sceno/internal/model"
 )
 
+// jogTolerance is the longest staircase residue (px) collapsed after routing.
+const jogTolerance = 8.0
+
 const (
 	minInteriorSegment   = 16.0
 	routeBorderClearance = 8.0
@@ -33,7 +36,7 @@ func RouteEdges(d *model.Diagram) {
 		obstacles := obstacleNodes(d.Nodes, e.From, e.To, pad)
 		fs, ts, pts := chooseRoute(e, *a, *b, obstacles, pad, d.Routed)
 		e.FromSide, e.ToSide = fs, ts
-		pts = geom.SimplifyPath(pts)
+		pts = geom.CollapseJogs(pts, jogTolerance)
 		if d.Style == model.StyleSketch && len(pts) >= 3 {
 			start, end := geom.EdgeAnchors(*a, *b, fs, ts)
 			pts = geom.SmoothPath(pts, 8)
@@ -125,7 +128,7 @@ func fanOutSharedPorts(d *model.Diagram, byID map[string]*model.Node, pad float6
 		}
 		obstacles := obstacleNodes(d.Nodes, re.Edge.From, re.Edge.To, pad)
 		pts := routeWithLane(starts[i], ends[i], obstacles, pad, 0, re.Edge.FromSide, re.Edge.ToSide)
-		pts = geom.SimplifyPath(pts)
+		pts = geom.CollapseJogs(pts, jogTolerance)
 		if d.Style == model.StyleSketch && len(pts) >= 3 {
 			pts = geom.SmoothPath(pts, 8)
 			pts[0], pts[len(pts)-1] = starts[i], ends[i]
