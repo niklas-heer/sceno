@@ -1,8 +1,13 @@
 /sceno
-dist/
-output/
+/dist/
+/output/
 node_modules/
 .DS_Store
+coverage.out
+*.prof
+.env
+.env.*
+!.env.example
 
 # Force-track (macOS global gitignore may match Icon? on paths containing "icons")
 !internal/icons/
