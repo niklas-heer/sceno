@@ -34,7 +34,7 @@ Release notes are generated from conventional commits by `mask release` and publ
 * add dogfooded how-it-works diagram to README ([fdb501a](https://github.com/niklas-heer/sceno/commit/fdb501afc81039a6c402fcd0439cb93e4b56cb0b))
 * **install**: default to latest release and update examples ([3c1609c](https://github.com/niklas-heer/sceno/commit/3c1609cba19cbfa68e20bc01a52be7512b0d0984))
 
-## [0.2.0](https://github.com/ssh://git@github.com/niklas-heer/sceno/releases/tag/v0.2.0) (2026-06-05)
+## [0.2.0](https://github.com/niklas-heer/sceno/releases/tag/v0.2.0) (2026-06-05)
 
 ### Features
 * add automated semver release scripts

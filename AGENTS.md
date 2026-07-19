@@ -30,10 +30,10 @@ sceno docs architecture --json  # geometry vs semantics SoT, pipeline.Result, pa
 sceno docs visual --json        # measurable composition, spacing, icon, and connector rules
 sceno docs stack --json         # stacked-plane validation model + visual rules
 sceno docs validation --json    # validate + advise commands, error codes
-sceno docs goals              # product goals + quality bar
-sceno docs practices --json   # workflow + best practices
-sceno docs spec               # full KDL specification
-sceno docs errors --json      # error code repair catalog
+sceno docs goals --json        # product goals + quality bar
+sceno docs practices --json    # workflow + best practices
+sceno docs spec --json         # full KDL specification
+sceno docs errors --json       # error code repair catalog
 ```
 
 ## Edit loop (every change)
@@ -71,7 +71,7 @@ Collision and routing checks project onto reduced planes. Full details: `sceno d
 - `slides[n].visual_problems` — overlaps, hidden edges, misalignment, exact geometry, repair candidates
 - `slides[n].edges[].route` — step-by-step connector path
 
-`scene_stack.planes.*[].content` contains exact icon/title/subtitle boxes inside shapes; `order` is source order within a semantic plane.
+`slides[n].engine.scene_stack.planes.*[]` contains exact outer `bounds`, visible `outline`, `internal_lines`, silhouette-safe `writable_bounds`, selected `effective_font_size`, and icon/title/subtitle `content` boxes; `order` is source order within a semantic plane. Text is fitted to that writable region with a 10px readability floor, and `text_overflow` exposes shape/writable/content geometry plus a size repair when it cannot fit.
 
 `sceno advise --json` returns:
 

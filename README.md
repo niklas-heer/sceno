@@ -30,7 +30,7 @@ sceno render -i examples/how-it-works.kdl -o docs/how-it-works
 sceno docs guide --json
 ```
 
-Browse all topics: `sceno docs --json` (guide, spec, goals, practices, visual, stack, validation, errors, shapes, icons). Use `sceno docs visual --json` for the measurable composition, icon, spacing, and connector contract. Documentation is **generated from code** at runtime.
+Browse all topics: `sceno docs --json` (guide, architecture, spec, goals, practices, visual, stack, validation, errors, shapes, icons). Use `sceno docs architecture --json` for the geometry source-of-truth chain and `sceno docs visual --json` for the measurable composition, shape-content, spacing, and connector contract. Documentation is **generated from code** at runtime.
 
 **After every KDL edit:**
 
@@ -164,10 +164,10 @@ sceno describe -i examples/self-service.kdl --json
 - `slides[0].scene` — paint order, groups, occlusion, edge visibility, aesthetic score, `stack`
 - `slides[0].engine` — stack validation findings and visual score
 - `slides[0].ascii_map` — coarse character grid of node positions and edge paths
-- `slides[0].visual_problems` — overlaps, hidden edges, misalignment
+- `slides[0].visual_problems` — overlaps, hidden/detached arrows, label collisions, text overflow, exact geometry, and repair candidates
 - `slides[0].edges[].route` — step-by-step connector path
 
-The full `scene_stack` includes every semantic plane, outer bounds, source order, parent containment, and nested icon/title/subtitle boxes.
+`slides[n].engine.scene_stack.planes.*[]` includes every semantic plane, source order, parent containment, outer `bounds`, visible `outline`, `internal_lines`, silhouette-safe `writable_bounds`, selected `effective_font_size`, and exact nested icon/title/subtitle `content` boxes. These are the same computed numbers consumed by SVG, PNG, PDF, HTML, and slides.
 
 Collision problems include exact `bounds`, the `overlap` rectangle, and candidate `repairs` such as `{ "dx": "48" }`. Apply one candidate to the KDL and run the loop again; candidates are local suggestions, not a substitute for revalidation.
 
@@ -250,6 +250,8 @@ Open `.slides.html` in a browser — **← / → / Space** to navigate. Use `--a
 Run `sceno docs shapes` and `sceno docs icons` (categories, suggested pairings, `iconPos` options), or see `examples/shapes-demo.kdl` and the README diagram in `examples/how-it-works.kdl`.
 
 Highlights: `box`, `actor`, `cylinder`, `cloud`, `document`, `callout`, `lane`, `hexagon`, `note`, …
+
+Shape text is fitted automatically: Sceno derives writable space from the visible silhouette, border stroke, and internal seams, then chooses the largest readable font that fits (10px minimum). If content still cannot fit, `text_overflow` reports the shape, writable, and content bounds with a size repair candidate.
 
 ## Export formats
 
