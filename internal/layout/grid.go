@@ -1,8 +1,10 @@
 package layout
 
 import (
+	"math"
 	"sort"
 
+	"github.com/niklas-heer/sceno/internal/geom"
 	"github.com/niklas-heer/sceno/internal/model"
 )
 
@@ -45,6 +47,7 @@ func Grid(d *model.Diagram, gap float64) {
 
 	singleRow := DiagramSingleRow(d.Nodes)
 	rowHeights := rowHeightsByRow(groups, maxCol, singleRow)
+	columnGaps, rowGaps := contentAwareGaps(d, maxCol, len(rowHeights), gap)
 
 	x := gap
 	for col := 0; col <= maxCol; col++ {
@@ -67,7 +70,7 @@ func Grid(d *model.Diagram, gap float64) {
 		for _, n := range ns {
 			y := gap + titleOffset(d)
 			for r := 0; r < n.Row; r++ {
-				y += rowHeights[r] + gap
+				y += rowHeights[r] + rowGaps[r]
 			}
 			if singleRow {
 				n.Rect.Y = y + (rowHeights[n.Row]-n.Rect.H)/2
@@ -76,8 +79,51 @@ func Grid(d *model.Diagram, gap float64) {
 			}
 			n.Rect.X = x + (colW-n.Rect.W)/2
 		}
-		x += colW + gap*2
+		x += colW + columnGaps[col]
 	}
+}
+
+func contentAwareGaps(d *model.Diagram, maxCol, rowCount int, gap float64) ([]float64, []float64) {
+	columnGaps := make([]float64, maxCol+1)
+	for i := range columnGaps {
+		columnGaps[i] = gap * 2
+	}
+	rowGaps := make([]float64, rowCount)
+	for i := range rowGaps {
+		rowGaps[i] = gap
+	}
+	byID := map[string]*model.Node{}
+	for i := range d.Nodes {
+		byID[d.Nodes[i].ID] = &d.Nodes[i]
+	}
+	for _, edge := range d.Edges {
+		if edge.Label == "" {
+			continue
+		}
+		a, b := byID[edge.From], byID[edge.To]
+		if a == nil || b == nil || a.Fixed || b.Fixed {
+			continue
+		}
+		connectorRoom := (geom.EdgeLabelClearRun + geom.ArrowHeadDepth) * 2
+		if a.Row == b.Row && int(math.Abs(float64(a.Column-b.Column))) == 1 {
+			layout := geom.LayoutEdgeLabel([]geom.Point{{X: 0, Y: 0}, {X: 100, Y: 0}}, edge.Label, nil)
+			idx := minInt(a.Column, b.Column)
+			columnGaps[idx] = math.Max(columnGaps[idx], layout.BoxW+connectorRoom)
+		}
+		if int(math.Abs(float64(a.Row-b.Row))) == 1 {
+			layout := geom.LayoutEdgeLabel([]geom.Point{{X: 0, Y: 0}, {X: 0, Y: 100}}, edge.Label, nil)
+			idx := minInt(a.Row, b.Row)
+			rowGaps[idx] = math.Max(rowGaps[idx], layout.BoxH+connectorRoom)
+		}
+	}
+	return columnGaps, rowGaps
+}
+
+func minInt(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 func DiagramSingleRow(nodes []model.Node) bool {

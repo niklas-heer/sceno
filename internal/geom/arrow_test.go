@@ -15,3 +15,24 @@ func TestArrowGeometryTipOnBorder(t *testing.T) {
 		t.Fatalf("stroke should end before tip: stroke=%v tip=%v", ag.StrokeEnd, ag.Tip)
 	}
 }
+
+func TestArrowGeometryUsesPathDistanceForSmoothedTail(t *testing.T) {
+	pts := []Point{{0, 0}, {30, 0}, {50, 10}, {65, 25}, {74, 40}, {79, 51}, {82, 58}, {84, 62}, {85, 64}, {85.5, 65}, {86, 66}}
+	ag, ok := ArrowGeometryForPath(pts)
+	if !ok {
+		t.Fatal("expected arrow geometry")
+	}
+	if ag.VisibleApproach < EdgeLabelClearRun-0.01 {
+		t.Fatalf("smoothed visible approach = %.2f", ag.VisibleApproach)
+	}
+	if ag.StartApproach.X <= pts[0].X {
+		t.Fatalf("start approach should follow the route: %+v", ag.StartApproach)
+	}
+	trimmed := TrimArrowEnd(pts)
+	if len(trimmed) >= len(pts) {
+		t.Fatalf("trim should remove dense tail: before=%d after=%d", len(pts), len(trimmed))
+	}
+	if gap := TipGap(trimmed[len(trimmed)-1], ag.StrokeEnd); gap > 0.01 {
+		t.Fatalf("trim end does not match arrow geometry: %.2f", gap)
+	}
+}

@@ -23,3 +23,25 @@ func TestGridRespectsAtZeroColumn(t *testing.T) {
 		t.Fatalf("row 1 should sit below row 0")
 	}
 }
+
+func TestGridReservesBreathingRoomAroundEdgeLabels(t *testing.T) {
+	d := model.Diagram{Gap: 24, Nodes: []model.Node{
+		{ID: "a", Rect: model.Rect{W: 80, H: 44}, AtSet: true, Layer: 0, Row: 0},
+		{ID: "b", Rect: model.Rect{W: 80, H: 44}, AtSet: true, Layer: 1, Row: 0},
+		{ID: "c", Rect: model.Rect{W: 80, H: 44}, AtSet: true, Layer: 0, Row: 1},
+	}, Edges: []model.Edge{
+		{From: "a", To: "b", Label: "long operation"},
+		{From: "a", To: "c", Label: "events"},
+	}}
+	Grid(&d, d.Gap)
+	byID := map[string]model.Node{}
+	for _, n := range d.Nodes {
+		byID[n.ID] = n
+	}
+	if horizontal := byID["b"].Rect.X - byID["a"].Rect.Right(); horizontal < 105 {
+		t.Fatalf("horizontal labeled gap = %.0f, want at least 105", horizontal)
+	}
+	if vertical := byID["c"].Rect.Y - byID["a"].Rect.Bottom(); vertical < 65 {
+		t.Fatalf("vertical labeled gap = %.0f, want at least 65", vertical)
+	}
+}

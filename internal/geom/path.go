@@ -51,13 +51,14 @@ func collinear(a, b, c Point) bool {
 
 // TrimArrowEnd shortens the path to the stroke end (tip remains at the original anchor).
 func TrimArrowEnd(pts []Point) []Point {
-	ag, ok := ArrowGeometryForPath(pts)
-	if !ok {
+	if len(pts) < 2 {
 		return pts
 	}
-	out := make([]Point, len(pts))
-	copy(out, pts)
-	out[len(out)-1] = ag.StrokeEnd
+	strokeEnd, segmentIndex := pointBeforePathEnd(pts, ArrowHeadDepth)
+	out := append([]Point(nil), pts[:segmentIndex]...)
+	if len(out) == 0 || out[len(out)-1] != strokeEnd {
+		out = append(out, strokeEnd)
+	}
 	return out
 }
 

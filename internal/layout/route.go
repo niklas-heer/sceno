@@ -24,15 +24,12 @@ func RouteEdges(d *model.Diagram) {
 		if !okA || !okB {
 			continue
 		}
-		fs, ts := resolveSides(e, a, b)
-		e.FromSide, e.ToSide = fs, ts
-
-		start, end := geom.EdgeAnchors(*a, *b, fs, ts)
 		obstacles := obstacleNodes(d.Nodes, e.From, e.To, pad)
-
-		pts := routeWithLane(start, end, obstacles, pad, float64(i)*pad*0.6, fs, ts)
+		fs, ts, pts := chooseRoute(e, *a, *b, obstacles, pad, d.Routed)
+		e.FromSide, e.ToSide = fs, ts
 		pts = geom.SimplifyPath(pts)
 		if d.Style == model.StyleSketch && len(pts) >= 3 {
+			start, end := geom.EdgeAnchors(*a, *b, fs, ts)
 			pts = geom.SmoothPath(pts, 8)
 			pts[0] = start
 			pts[len(pts)-1] = end
@@ -45,10 +42,72 @@ func RouteEdges(d *model.Diagram) {
 	}
 }
 
+type sidePair struct {
+	from model.Side
+	to   model.Side
+}
+
+func chooseRoute(e model.Edge, a, b model.Node, obstacles []model.Node, pad float64, existing []model.RoutedEdge) (model.Side, model.Side, []geom.Point) {
+	bestPair := sidePair{}
+	var bestPath []geom.Point
+	bestScore := 1e18
+	idealFrom, idealTo := geom.BestSides(a, b)
+	for _, pair := range routeSidePairs(e, idealFrom, idealTo) {
+		start, end := geom.EdgeAnchors(a, b, pair.from, pair.to)
+		path := routeWithLane(start, end, obstacles, pad, 0, pair.from, pair.to)
+		score := scorePath(path, obstacles, start, end, pad, pair.from, pair.to)
+		if pair.from != idealFrom {
+			score += 240
+		}
+		if pair.to != idealTo {
+			score += 240
+		}
+		for _, routed := range existing {
+			if pathsCross(pointsToPath(path), routed.Points) {
+				score += 20000
+			}
+		}
+		if betterPath(score, path, bestScore, bestPath) {
+			bestPair, bestPath, bestScore = pair, path, score
+		}
+	}
+	return bestPair.from, bestPair.to, bestPath
+}
+
+func routeSidePairs(e model.Edge, idealFrom, idealTo model.Side) []sidePair {
+	from := candidateSides(e.FromSide, idealFrom)
+	to := candidateSides(e.ToSide, idealTo)
+	seen := map[sidePair]bool{}
+	var out []sidePair
+	for _, fs := range from {
+		for _, ts := range to {
+			pair := sidePair{from: fs, to: ts}
+			if !seen[pair] {
+				seen[pair] = true
+				out = append(out, pair)
+			}
+		}
+	}
+	return out
+}
+
+func candidateSides(explicit, ideal model.Side) []model.Side {
+	if explicit != "" && explicit != model.SideAuto {
+		return []model.Side{explicit}
+	}
+	out := []model.Side{ideal}
+	for _, side := range []model.Side{model.SideRight, model.SideBottom, model.SideLeft, model.SideTop} {
+		if side != ideal {
+			out = append(out, side)
+		}
+	}
+	return out
+}
+
 func routeWithLane(start, end geom.Point, obstacles []model.Node, pad, laneOff float64, fromSide, toSide model.Side) []geom.Point {
-	// A short normal segment makes arrow orientation match the declared side
-	// without consuming the full clearance between tightly stacked rows.
-	stub := math.Min(16, pad)
+	// Keep enough straight shaft before a corner and arrowhead. Direct aligned
+	// routes do not need endpoint stubs and remain compact in tight stacks.
+	stub := math.Max(geom.ArrowHeadDepth+geom.EdgeLabelClearRun, math.Min(pad, 36))
 	innerStart := anchorStub(start, fromSide, stub)
 	innerEnd := anchorStub(end, toSide, stub)
 	candidates := [][]geom.Point{
@@ -77,9 +136,14 @@ func routeWithLane(start, end geom.Point, obstacles []model.Node, pad, laneOff f
 			[]geom.Point{innerStart, {X: innerStart.X, Y: innerStart.Y + off}, {X: innerEnd.X, Y: innerStart.Y + off}, innerEnd},
 		)
 	}
-	for i := range candidates {
-		candidates[i] = withEndpointStubs(start, end, candidates[i])
+	completed := make([][]geom.Point, 0, len(candidates)+1)
+	if laneOff == 0 && directRouteCompatible(start, end, fromSide, toSide) {
+		completed = append(completed, []geom.Point{start, end})
 	}
+	for i := range candidates {
+		completed = append(completed, withEndpointStubs(start, end, candidates[i]))
+	}
+	candidates = completed
 	best := candidates[0]
 	bestScore := 1e18
 	for _, c := range candidates {
@@ -93,6 +157,28 @@ func routeWithLane(start, end geom.Point, obstacles []model.Node, pad, laneOff f
 		}
 	}
 	return snapPathEnds(best, start, end)
+}
+
+func directRouteCompatible(start, end geom.Point, fromSide, toSide model.Side) bool {
+	dx, dy := end.X-start.X, end.Y-start.Y
+	if math.Abs(dx) > 1 && math.Abs(dy) > 1 {
+		return false
+	}
+	leaves := func(side model.Side, x, y float64) bool {
+		switch side {
+		case model.SideLeft:
+			return x < 0
+		case model.SideRight:
+			return x > 0
+		case model.SideTop:
+			return y < 0
+		case model.SideBottom:
+			return y > 0
+		default:
+			return false
+		}
+	}
+	return leaves(fromSide, dx, dy) && leaves(toSide, -dx, -dy)
 }
 
 func anchorStub(p geom.Point, side model.Side, distance float64) geom.Point {
@@ -209,7 +295,7 @@ func scorePath(pts []geom.Point, obstacles []model.Node, start, end geom.Point, 
 			}
 		}
 	}
-	score += float64(len(pts)) * 6
+	score += float64(len(pts)) * 60
 	if len(pts) == 2 && math.Abs(pts[0].Y-pts[1].Y) < 1 {
 		score -= 800
 	}
@@ -218,8 +304,8 @@ func scorePath(pts []geom.Point, obstacles []model.Node, start, end geom.Point, 
 	}
 	// Penalize routes that extend far beyond the node bounding span
 	span := math.Hypot(end.X-start.X, end.Y-start.Y)
-	if pathLength(pts) > span*2.5+pad*4 {
-		score += 2000
+	if pathLength(pts) > span*1.8+pad*2 {
+		score += 5000
 	}
 	return score
 }
@@ -287,12 +373,32 @@ func pathsCross(a, b [][]float64) bool {
 	pb := pathToPoints(b)
 	for i := 1; i < len(pa); i++ {
 		for j := 1; j < len(pb); j++ {
-			if geom.SegmentsCross(pa[i-1], pa[i], pb[j-1], pb[j]) {
+			if segmentsConflict(pa[i-1], pa[i], pb[j-1], pb[j]) {
 				return true
 			}
 		}
 	}
 	return false
+}
+
+func segmentsConflict(a1, a2, b1, b2 geom.Point) bool {
+	if geom.SegmentsCross(a1, a2, b1, b2) {
+		return true
+	}
+	const eps = 1.0
+	if math.Abs(a1.Y-a2.Y) < eps && math.Abs(b1.Y-b2.Y) < eps && math.Abs(a1.Y-b1.Y) < eps {
+		return intervalOverlap(a1.X, a2.X, b1.X, b2.X) > eps
+	}
+	if math.Abs(a1.X-a2.X) < eps && math.Abs(b1.X-b2.X) < eps && math.Abs(a1.X-b1.X) < eps {
+		return intervalOverlap(a1.Y, a2.Y, b1.Y, b2.Y) > eps
+	}
+	return false
+}
+
+func intervalOverlap(a1, a2, b1, b2 float64) float64 {
+	amin, amax := math.Min(a1, a2), math.Max(a1, a2)
+	bmin, bmax := math.Min(b1, b2), math.Max(b1, b2)
+	return math.Min(amax, bmax) - math.Max(amin, bmin)
 }
 
 func pathToPoints(path [][]float64) []geom.Point {

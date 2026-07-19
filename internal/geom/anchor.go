@@ -93,7 +93,34 @@ func EdgeAnchors(from, to model.Node, fromSide, toSide model.Side) (Point, Point
 			return pipelineAnchor(from, fs, rowCY), pipelineAnchor(to, ts, rowCY)
 		}
 	}
-	return Anchor(from, fs), Anchor(to, ts)
+	return projectedAnchor(from, fs, Point{X: to.Rect.CX(), Y: to.Rect.CY()}),
+		projectedAnchor(to, ts, Point{X: from.Rect.CX(), Y: from.Rect.CY()})
+}
+
+func projectedAnchor(n model.Node, side model.Side, toward Point) Point {
+	p := Anchor(n, side)
+	if !supportsSlidingPorts(n.Kind) {
+		return p
+	}
+	const inset = 12.0
+	switch side {
+	case model.SideLeft, model.SideRight:
+		p.Y = math.Max(n.Rect.Y+inset, math.Min(toward.Y, n.Rect.Bottom()-inset))
+	case model.SideTop, model.SideBottom:
+		p.X = math.Max(n.Rect.X+inset, math.Min(toward.X, n.Rect.Right()-inset))
+	}
+	return p
+}
+
+func supportsSlidingPorts(kind model.ShapeKind) bool {
+	switch model.NormalizeShape(kind) {
+	case model.ShapeEllipse, model.ShapeCircle, model.ShapeCloud,
+		model.ShapeDiamond, model.ShapeDecision, model.ShapeHexagon, model.ShapeOctagon,
+		model.ShapeTriangle, model.ShapeCylinder, model.ShapeDatabase:
+		return false
+	default:
+		return true
+	}
 }
 
 func pipelineAnchor(n model.Node, side model.Side, rowCY float64) Point {

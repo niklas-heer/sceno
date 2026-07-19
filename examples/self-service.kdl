@@ -17,10 +17,10 @@ diagram title="Self-Service Infrastructure Platform" subtitle="Pulumi Components
   shape cylinder database "Database\nComponent" icon=database fill="#ede9fe" at=3,1
   shape cylinder storage "Storage\nComponent" icon=storage fill="#ede9fe" at=4,1
 
-  shape callout policy "Policy Pack" subtitle="Policy as Code" icon=policy accent="#e11d48" fill="#fff1f2" at=6,1
+  shape callout policy "Policy Pack" subtitle="Policy as Code" icon=policy accent="#e11d48" fill="#fff1f2" at=5,1
   shape box state "Pulumi Cloud\nState · Secrets" icon=lock fill="#ffedd5" at=2,2
-  shape note stacks "Stack\nReferences" fill="#fef3c7" at=3,2
-  shape box res-eks "EKS" icon=k8s fill="#d1fae5" at=5,2
+  shape box stacks "Stack\nReferences" fill="#fef3c7" at=3,2
+  shape box res-eks "EKS" icon=k8s fill="#d1fae5" at=6,1
 
   edge devs -> portal fromSide=top toSide=left
   edge platform -> vpc dashed=true
@@ -29,9 +29,10 @@ diagram title="Self-Service Infrastructure Platform" subtitle="Pulumi Components
   edge queue -> runner
   edge runner -> pulumi
   edge vpc -> eks
-  edge eks -> database
+  edge vpc -> database fromSide=right toSide=left
   edge database -> storage fromSide=right toSide=left
-  edge pulumi -> res-eks fromSide=bottom toSide=top
-  edge policy -> runner fromSide=left toSide=bottom dashed=true color="#e11d48"
-  edge eks -> stacks dashed=true
+  edge pulumi -> res-eks
+  edge policy -> runner fromSide=top toSide=bottom dashed=true color="#e11d48"
+  edge eks -> state dashed=true
+  edge state -> stacks dashed=true
 }

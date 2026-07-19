@@ -114,6 +114,22 @@ func TestEdgeLabelOverlapReportsExactGeometry(t *testing.T) {
 	t.Fatalf("missing edge label overlap finding: %+v", ev.Findings)
 }
 
+func TestEdgeDetourFindingRejectsDecorativeLoops(t *testing.T) {
+	d := &model.Diagram{Gap: 24, Nodes: []model.Node{
+		{ID: "a", Kind: model.ShapeBox, Rect: model.Rect{W: 80, H: 40}},
+		{ID: "b", Kind: model.ShapeBox, Rect: model.Rect{X: 200, W: 80, H: 40}},
+	}, Routed: []model.RoutedEdge{{
+		Key: "a-b-0", Edge: model.Edge{From: "a", To: "b", FromSide: model.SideRight, ToSide: model.SideLeft},
+		Points: [][]float64{{80, 20}, {100, 20}, {100, -120}, {180, -120}, {180, 20}, {200, 20}},
+	}}}
+	for _, finding := range Evaluate(d).Findings {
+		if finding.Code == string(diag.CodeEdgeDetour) {
+			return
+		}
+	}
+	t.Fatal("missing edge_detour finding")
+}
+
 func TestRunEngineHowItWorks(t *testing.T) {
 	d := &model.Diagram{
 		Title:    "How Sceno Works",

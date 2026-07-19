@@ -49,3 +49,15 @@ func TestEdgeAnchorsUseSharedBorderRange(t *testing.T) {
 		t.Fatalf("anchor %v is outside shorter target border %+v", end, to.Rect)
 	}
 }
+
+func TestEdgeAnchorsSlideTowardDiagonalPeer(t *testing.T) {
+	from := model.Node{Row: 1, Kind: model.ShapeBox, Rect: model.Rect{X: 0, Y: 160, W: 100, H: 60}}
+	to := model.Node{Row: 0, Kind: model.ShapeBox, Rect: model.Rect{X: 240, Y: 40, W: 120, H: 80}}
+	start, end := EdgeAnchors(from, to, model.SideRight, model.SideLeft)
+	if start.Y != from.Rect.Y+12 {
+		t.Fatalf("source port did not slide upward: %+v", start)
+	}
+	if end.Y != to.Rect.Bottom()-12 {
+		t.Fatalf("target port did not slide downward: %+v", end)
+	}
+}

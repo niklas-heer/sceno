@@ -67,7 +67,7 @@ func BuildRecommendations(r Report) []Recommendation {
 
 func categoryForCode(code Code) string {
 	switch code {
-	case CodeEdgeCollision, CodeEdgeHidden, CodeArrowDetached, CodeArrowHidden, CodeEdgeLabelChrome, CodeEdgeLabelOverlap, CodeEdgeLabelOffAxis, CodeEdgeSideMismatch:
+	case CodeEdgeCollision, CodeEdgeHidden, CodeArrowDetached, CodeArrowHidden, CodeEdgeLabelChrome, CodeEdgeLabelOverlap, CodeEdgeLabelOffAxis, CodeEdgeSideMismatch, CodeEdgeDetour:
 		return "edges"
 	case CodeMisaligned, CodeSuggestCompact, CodeCollision, CodeOccluded, CodeDenseLayout, CodeSlideCrowded, CodeTooManyElements, CodeAnnotationBlocks:
 		return "layout"
@@ -84,7 +84,7 @@ func priorityForCode(code Code) int {
 	switch code {
 	case CodeEdgeCollision, CodeArrowDetached:
 		return 1
-	case CodeEdgeHidden, CodeEdgeLabelChrome, CodeEdgeLabelOverlap, CodeEdgeLabelOffAxis, CodeMisaligned, CodeOccluded, CodeDenseLayout, CodeSlideCrowded, CodeAnnotationBlocks:
+	case CodeEdgeHidden, CodeEdgeLabelChrome, CodeEdgeLabelOverlap, CodeEdgeLabelOffAxis, CodeEdgeDetour, CodeMisaligned, CodeOccluded, CodeDenseLayout, CodeSlideCrowded, CodeAnnotationBlocks:
 		return 2
 	case CodeSuggestCompact, CodeSuggestAnnotation, CodeWeakHierarchy, CodeSparseLayout, CodeTooManyElements:
 		return 3

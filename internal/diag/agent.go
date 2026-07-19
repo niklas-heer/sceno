@@ -113,6 +113,11 @@ shape box b "B" at=0,1`,
 		Meaning: "Edge label is not centered on the connector line.",
 		Fix:     "Labels render on the connector with an opaque box — avoid placing them above the header.",
 	},
+	CodeEdgeDetour: {
+		Meaning: "A connector is much longer or more bent than the direct span between its anchors.",
+		Fix:     "Use directionally sensible fromSide/toSide anchors, move blockers, or reorder grid slots to follow the reading direction.",
+		Example: `edge source -> target fromSide=right toSide=left`,
+	},
 	CodeMisaligned: {
 		Meaning: "Nodes or labels are not visually aligned within a column or icon row.",
 		Fix:     "Use consistent layer/column, at=col,row, or shorten labels.",

@@ -39,6 +39,7 @@ const (
 	CodeEdgeLabelOverlap  Code = "edge_label_overlap"
 	CodeEdgeLabelOffAxis  Code = "edge_label_off_axis"
 	CodeEdgeSideMismatch  Code = "edge_side_mismatch"
+	CodeEdgeDetour        Code = "edge_detour"
 )
 
 // Issue is one actionable problem.

@@ -127,5 +127,5 @@ func rowTopAlign(ns []*model.Node) bool {
 			maxH = n.Rect.H
 		}
 	}
-	return maxH-minH > 20 && maxH > minH*1.25
+	return maxH-minH >= 20 && maxH > minH*1.25
 }

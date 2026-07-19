@@ -5,16 +5,14 @@ import (
 	"math"
 	"strings"
 
+	"github.com/niklas-heer/sceno/internal/composition"
 	"github.com/niklas-heer/sceno/internal/diag"
-	"github.com/niklas-heer/sceno/internal/fonts"
 	"github.com/niklas-heer/sceno/internal/geom"
-	"github.com/niklas-heer/sceno/internal/measure"
 	"github.com/niklas-heer/sceno/internal/model"
-	"github.com/niklas-heer/sceno/internal/theme"
 )
 
 const (
-	minVisibleArrowStroke = 18.0
+	minVisibleArrowStroke = geom.EdgeLabelClearRun
 	maxLabelAxisDrift     = 6.0
 	anchorEps             = 1.5
 )
@@ -84,7 +82,25 @@ func checkEdgeArrow(d *model.Diagram, re model.RoutedEdge) []Finding {
 	key := re.Edge.From + "→" + re.Edge.To
 	pathStart := gpts[0]
 	pathEnd := gpts[len(gpts)-1]
-	if !exitsSide(pathStart, gpts[1], re.Edge.FromSide) || !entersSide(gpts[len(gpts)-2], pathEnd, re.Edge.ToSide) {
+	directSpan := math.Hypot(pathEnd.X-pathStart.X, pathEnd.Y-pathStart.Y)
+	routeLen := 0.0
+	for i := 1; i < len(gpts); i++ {
+		routeLen += math.Hypot(gpts[i].X-gpts[i-1].X, gpts[i].Y-gpts[i-1].Y)
+	}
+	if len(gpts) >= 4 && directSpan > 0 && routeLen > directSpan*1.8+d.Gap*2 {
+		out = append(out, Finding{
+			RuleID: "edge_clarity", Severity: "warning", Plane: PlaneEdge,
+			Code:    string(diag.CodeEdgeDetour),
+			Message: fmt.Sprintf("edge %s takes a %.0fpx route across a %.0fpx direct span with %d bends", key, routeLen, directSpan, len(gpts)-2),
+			Fix:     "Use directionally sensible fromSide/toSide anchors, move blockers, or reorder at= slots to follow the reading direction.",
+			Items:   []string{re.Edge.From, re.Edge.To},
+		})
+	}
+	ag, ok := geom.ArrowGeometryForPath(gpts)
+	if !ok {
+		return out
+	}
+	if !exitsSide(pathStart, ag.StartApproach, re.Edge.FromSide) || !entersSide(ag.Prev, pathEnd, re.Edge.ToSide) {
 		out = append(out, Finding{
 			RuleID: "edge_clarity", Severity: "warning", Plane: PlaneEdge,
 			Code:    string(diag.CodeEdgeSideMismatch),
@@ -113,10 +129,6 @@ func checkEdgeArrow(d *model.Diagram, re model.RoutedEdge) []Finding {
 		})
 	}
 
-	ag, ok := geom.ArrowGeometryForPath(gpts)
-	if !ok {
-		return out
-	}
 	if geom.TipGap(ag.Tip, dstAnchor) > geom.MaxArrowTipGap {
 		out = append(out, Finding{
 			RuleID: "edge_clarity", Severity: "error", Plane: PlaneEdge,
@@ -127,7 +139,7 @@ func checkEdgeArrow(d *model.Diagram, re model.RoutedEdge) []Finding {
 		})
 	}
 
-	strokeLen := math.Hypot(ag.StrokeEnd.X-ag.Prev.X, ag.StrokeEnd.Y-ag.Prev.Y)
+	strokeLen := ag.VisibleApproach
 	if strokeLen < minVisibleArrowStroke {
 		out = append(out, Finding{
 			RuleID: "edge_clarity", Severity: "warning", Plane: PlaneEdge,
@@ -274,40 +286,6 @@ func edgeLabelContext(d *model.Diagram, e model.Edge) *geom.EdgeLabelContext {
 	return &geom.EdgeLabelContext{From: a.Rect, To: b.Rect}
 }
 
-// diagramChromeBand approximates the title/subtitle region (matches render.Bounds).
 func diagramChromeBand(d *model.Diagram) (model.Rect, bool) {
-	if d.Title == "" && d.Subtitle == "" {
-		return model.Rect{}, false
-	}
-	minX, minY := 1e9, 1e9
-	for _, n := range d.Nodes {
-		if n.Rect.X < minX {
-			minX = n.Rect.X
-		}
-		if n.Rect.Y < minY {
-			minY = n.Rect.Y
-		}
-	}
-	if minX > 1e8 {
-		return model.Rect{}, false
-	}
-	pad := d.Padding + 48
-	bandX := minX - pad + 28
-	bandTop := minY - pad + float64(theme.TitleSize)*0.25
-	bandH := float64(theme.TitleSize) + 8
-	if d.Title != "" {
-		tw := measure.TextWidth(d.Title, theme.TitleSize, fonts.WeightBold)
-		if tw < 120 {
-			tw = 120
-		}
-		if d.Subtitle != "" {
-			sw := measure.TextWidth(d.Subtitle, theme.SubtitleSize, fonts.WeightRegular)
-			if sw > tw {
-				tw = sw
-			}
-			bandH = 62 - 32 + float64(theme.SubtitleSize) + float64(theme.TitleSize)
-		}
-		return model.Rect{X: bandX, Y: bandTop, W: tw + 16, H: bandH + 12}, true
-	}
-	return model.Rect{X: bandX, Y: bandTop, W: 200, H: bandH}, true
+	return composition.ChromeBounds(*d)
 }

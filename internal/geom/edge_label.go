@@ -13,6 +13,8 @@ const (
 	EdgeLabelPadX     = 6.0
 	EdgeLabelPadY     = 2.0
 	EdgeLabelLineMult = 1.2
+	// EdgeLabelClearRun is the minimum visible connector on each side of a label.
+	EdgeLabelClearRun = 18.0
 )
 
 // EdgeLabelLayout is the computed label box used for draw and validate.

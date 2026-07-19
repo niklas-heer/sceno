@@ -61,3 +61,38 @@ func TestRouteEdgesApproachesExplicitTargetSideTangentially(t *testing.T) {
 		t.Fatalf("left anchor must be approached horizontally from outside: %v", pts)
 	}
 }
+
+func TestRouteEdgesChooseClearAutoAnchors(t *testing.T) {
+	d := &model.Diagram{Gap: 32, Nodes: []model.Node{
+		{ID: "source", Kind: model.ShapeBox, Rect: model.Rect{X: 0, Y: 0, W: 80, H: 60}},
+		{ID: "blocker", Kind: model.ShapeBox, Rect: model.Rect{X: 120, Y: 0, W: 100, H: 60}},
+		{ID: "target", Kind: model.ShapeBox, Rect: model.Rect{X: 240, Y: 120, W: 80, H: 60}},
+	}, Edges: []model.Edge{{From: "source", To: "target"}}}
+	RouteEdges(d)
+	if len(d.Routed) != 1 {
+		t.Fatalf("routed edges = %d", len(d.Routed))
+	}
+	re := d.Routed[0]
+	if re.Edge.FromSide == model.SideRight && re.Edge.ToSide == model.SideLeft {
+		t.Fatalf("router kept blocked default anchors: %+v", re.Edge)
+	}
+	for i := 1; i < len(re.Points); i++ {
+		a := geom.Point{X: re.Points[i-1][0], Y: re.Points[i-1][1]}
+		b := geom.Point{X: re.Points[i][0], Y: re.Points[i][1]}
+		if geom.SegmentHitsRect(a, b, d.Nodes[1].Rect, 8) {
+			t.Fatalf("route crosses blocker: %v", re.Points)
+		}
+	}
+}
+
+func TestRouteEdgesAvoidOverlappingOutgoingConnectors(t *testing.T) {
+	d := &model.Diagram{Gap: 32, Nodes: []model.Node{
+		{ID: "source", Kind: model.ShapeBox, Rect: model.Rect{X: 0, Y: 80, W: 80, H: 60}},
+		{ID: "top", Kind: model.ShapeBox, Rect: model.Rect{X: 220, Y: 40, W: 80, H: 60}},
+		{ID: "bottom", Kind: model.ShapeBox, Rect: model.Rect{X: 220, Y: 160, W: 80, H: 60}},
+	}, Edges: []model.Edge{{From: "source", To: "top"}, {From: "source", To: "bottom"}}}
+	RouteEdges(d)
+	if collisions := FindEdgeCollisions(d); len(collisions) != 0 {
+		t.Fatalf("outgoing connectors collide: %+v routes=%+v", collisions, d.Routed)
+	}
+}

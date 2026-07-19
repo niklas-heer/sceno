@@ -120,18 +120,17 @@ func pathSketch(pts [][]float64, e model.Edge) string {
 		return ""
 	}
 	gpts := geom.SlicesToPath(pts)
-	if len(gpts) >= 3 {
-		gpts = geom.SmoothPath(gpts, 6)
-	}
 	flat := make([][2]float64, len(gpts))
 	for i, p := range gpts {
 		flat[i] = [2]float64{p.X, p.Y}
 	}
 	seed := gpts[0].X + gpts[0].Y
 	wo := wobblePolyline(flat, seed)
-	d := pathData(wo)
-	if len(gpts) >= 3 {
-		d = geom.PathDSmooth(wobbleToPoints(wo))
+	wobbled := wobbleToPoints(wo)
+	strokePath := geom.TrimArrowEnd(wobbled)
+	d := geom.PathDSmooth(strokePath)
+	if len(strokePath) == 2 {
+		d = pathData(pointsToWobble(strokePath))
 	}
 	stroke := e.Color
 	if stroke == "" {
@@ -141,7 +140,8 @@ func pathSketch(pts [][]float64, e model.Edge) string {
 	if e.Dashed {
 		dash = ` stroke-dasharray="8 6"`
 	}
-	return fmt.Sprintf(`<path d="%s" fill="none" stroke="%s" stroke-width="2"%s marker-end="url(#arrow)"/>`, d, stroke, dash)
+	e.Color = stroke
+	return fmt.Sprintf(`<path d="%s" fill="none" stroke="%s" stroke-width="2"%s/>%s`, d, stroke, dash, ArrowHeadSVG(geom.PathToSlices(wobbled), e))
 }
 
 // Rough.js-lite wobble via seeded sin noise.
@@ -155,7 +155,20 @@ func wobblePolygon(pts [][2]float64, seed float64) [][2]float64 {
 }
 
 func wobblePolyline(pts [][2]float64, seed float64) [][2]float64 {
-	return wobblePolygon(pts, seed)
+	out := wobblePolygon(pts, seed)
+	if len(out) > 0 {
+		out[0] = pts[0]
+		out[len(out)-1] = pts[len(pts)-1]
+	}
+	return out
+}
+
+func pointsToWobble(pts []geom.Point) [][2]float64 {
+	out := make([][2]float64, len(pts))
+	for i, p := range pts {
+		out[i] = [2]float64{p.X, p.Y}
+	}
+	return out
 }
 
 func wobbleToPoints(pts [][2]float64) []geom.Point {

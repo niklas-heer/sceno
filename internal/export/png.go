@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/niklas-heer/sceno/internal/fonts"
+	"github.com/niklas-heer/sceno/internal/geom"
 	"github.com/niklas-heer/sceno/internal/model"
 	"github.com/niklas-heer/sceno/internal/render"
 	"github.com/niklas-heer/sceno/internal/scene"
@@ -107,32 +108,27 @@ func drawSketchNode(dc *gg.Context, n model.Node, vp render.Viewport, scale floa
 }
 
 func drawSketchEdge(dc *gg.Context, pts [][]float64, e model.Edge, vp render.Viewport, scale float64) {
-	if len(pts) < 2 {
+	gpts := geom.SimplifyPath(geom.SlicesToPath(pts))
+	ag, ok := geom.ArrowGeometryForPath(gpts)
+	if !ok {
 		return
 	}
 	r, g, b := hexRGB(e.Color, 0.12, 0.12, 0.12)
 	dc.SetRGB(r, g, b)
 	dc.SetLineWidth(2 * scale)
-	for i := 1; i < len(pts); i++ {
-		if len(pts[i]) < 2 || len(pts[i-1]) < 2 {
-			continue
-		}
-		x1, y1 := vp.PX(pts[i-1][0], pts[i-1][1], scale)
-		x2, y2 := vp.PX(pts[i][0], pts[i][1], scale)
+	stroke := geom.TrimArrowEnd(gpts)
+	for i := 1; i < len(stroke); i++ {
+		x1, y1 := vp.PX(stroke[i-1].X, stroke[i-1].Y, scale)
+		x2, y2 := vp.PX(stroke[i].X, stroke[i].Y, scale)
 		wobbleLine(dc, x1, y1, x2, y2)
 	}
 	dc.Stroke()
-	if len(pts) >= 2 {
-		drawSketchArrow(dc, pts[len(pts)-2], pts[len(pts)-1], vp, scale)
-	}
+	drawSketchArrow(dc, ag.Prev, ag.Tip, vp, scale)
 }
 
-func drawSketchArrow(dc *gg.Context, prev, last []float64, vp render.Viewport, scale float64) {
-	if len(prev) < 2 || len(last) < 2 {
-		return
-	}
-	x1, y1 := vp.PX(prev[0], prev[1], scale)
-	x2, y2 := vp.PX(last[0], last[1], scale)
+func drawSketchArrow(dc *gg.Context, prev, last geom.Point, vp render.Viewport, scale float64) {
+	x1, y1 := vp.PX(prev.X, prev.Y, scale)
+	x2, y2 := vp.PX(last.X, last.Y, scale)
 	angle := math.Atan2(y2-y1, x2-x1)
 	sz := 8 * scale
 	dc.MoveTo(x2, y2)
