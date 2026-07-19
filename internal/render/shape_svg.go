@@ -131,14 +131,26 @@ func parallelogramPoints(r model.Rect) string {
 		r.X+s, r.Y, r.Right(), r.Y, r.Right()-s, r.Bottom(), r.X, r.Bottom())
 }
 
+// CylinderRimRY is the rim ellipse radius for a cylinder of the given size.
+// Shared by all backends so the silhouette matches across formats.
+func CylinderRimRY(w, h float64) float64 {
+	return math.Min(math.Min(w*0.1, h*0.15), 12.0)
+}
+
 func cylinderSVG(r model.Rect, fill, stroke string) string {
-	ry := math.Min(r.W*0.12, 14.0)
-	return fmt.Sprintf(`<rect x="%.1f" y="%.1f" width="%.1f" height="%.1f" fill="%s" stroke="%s" stroke-width="1.5"/>`+
-		`<ellipse cx="%.1f" cy="%.1f" rx="%.1f" ry="%.1f" fill="%s" stroke="%s" stroke-width="1.5"/>`+
-		`<ellipse cx="%.1f" cy="%.1f" rx="%.1f" ry="%.1f" fill="%s" stroke="%s" stroke-width="1.5"/>`,
-		r.X, r.Y+ry, r.W, r.H-ry*2, fill, stroke,
-		r.CX(), r.Y+ry, r.W/2, ry, fill, stroke,
-		r.CX(), r.Bottom()-ry, r.W/2, ry, fill, stroke)
+	ry := CylinderRimRY(r.W, r.H)
+	top := r.Y + ry
+	bot := r.Bottom() - ry
+	rx := r.W / 2
+	// Body: sides + bottom bulge; the top seam stays unstroked so no line
+	// crosses the interior — the rim ellipse closes the outline.
+	body := fmt.Sprintf(`<path d="M %.1f %.1f L %.1f %.1f A %.1f %.1f 0 0 0 %.1f %.1f L %.1f %.1f Z" fill="%s" stroke="none"/>`,
+		r.X, top, r.X, bot, rx, ry, r.Right(), bot, r.Right(), top, fill)
+	outline := fmt.Sprintf(`<path d="M %.1f %.1f L %.1f %.1f A %.1f %.1f 0 0 0 %.1f %.1f L %.1f %.1f" fill="none" stroke="%s" stroke-width="1.5"/>`,
+		r.X, top, r.X, bot, rx, ry, r.Right(), bot, r.Right(), top, stroke)
+	rim := fmt.Sprintf(`<ellipse cx="%.1f" cy="%.1f" rx="%.1f" ry="%.1f" fill="%s" stroke="%s" stroke-width="1.5"/>`,
+		r.CX(), top, rx, ry, fill, stroke)
+	return body + outline + rim
 }
 
 func cloudSVG(r model.Rect, fill, stroke string) string {

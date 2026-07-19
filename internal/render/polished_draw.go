@@ -156,18 +156,23 @@ func drawPolishedNodeGG(dc *gg.Context, n model.Node, vp Viewport, ox, oy, scale
 		skew := w * 0.15
 		drawPolygonGG(dc, [][2]float64{{x + skew, y}, {x + w, y}, {x + w - skew, y + h}, {x, y + h}}, sr, sg, sb)
 	case model.ShapeCylinder:
-		ry := math.Min(w*0.12, 14*scale)
-		dc.DrawRectangle(x, y+ry, w, h-2*ry)
-		dc.FillPreserve()
+		ry := CylinderRimRY(w/scale, h/scale) * scale
+		cx := x + w/2
+		// Body with bottom bulge; the top seam stays unstroked (rim closes it).
+		dc.MoveTo(x, y+ry)
+		dc.LineTo(x, y+h-ry)
+		dc.DrawEllipticalArc(cx, y+h-ry, w/2, ry, math.Pi, 0)
+		dc.LineTo(x+w, y+ry)
+		dc.ClosePath()
+		dc.Fill()
+		dc.MoveTo(x, y+ry)
+		dc.LineTo(x, y+h-ry)
+		dc.DrawEllipticalArc(cx, y+h-ry, w/2, ry, math.Pi, 0)
+		dc.LineTo(x+w, y+ry)
 		dc.SetRGB(sr, sg, sb)
 		dc.Stroke()
 		dc.SetRGB(fr, fg, fb)
-		dc.DrawEllipse(x+w/2, y+ry, w/2, ry)
-		dc.FillPreserve()
-		dc.SetRGB(sr, sg, sb)
-		dc.Stroke()
-		dc.SetRGB(fr, fg, fb)
-		dc.DrawEllipse(x+w/2, y+h-ry, w/2, ry)
+		dc.DrawEllipse(cx, y+ry, w/2, ry)
 		dc.FillPreserve()
 		dc.SetRGB(sr, sg, sb)
 		dc.Stroke()
@@ -429,10 +434,14 @@ func drawPolishedNodePDF(pdf *gofpdf.Fpdf, n model.Node, minX, minY float64) {
 		skew := w * 0.15
 		pdf.Polygon([]gofpdf.PointType{{X: x + skew, Y: y}, {X: x + w, Y: y}, {X: x + w - skew, Y: y + h}, {X: x, Y: y + h}}, "FD")
 	case model.ShapeCylinder:
-		ry := math.Min(w*0.12, 14)
-		pdf.Rect(x, y+ry, w, h-2*ry, "FD")
+		ry := CylinderRimRY(w, h)
+		// Body fill without stroking seams; sides and bottom bulge stroked
+		// separately so no line crosses the interior (parity with SVG).
+		pdf.Rect(x, y+ry, w, h-2*ry, "F")
+		pdf.Arc(x+w/2, y+h-ry, w/2, ry, 0, 180, 360, "FD")
+		pdf.Line(x, y+ry, x, y+h-ry)
+		pdf.Line(x+w, y+ry, x+w, y+h-ry)
 		pdf.Ellipse(x+w/2, y+ry, w/2, ry, 0, "FD")
-		pdf.Ellipse(x+w/2, y+h-ry, w/2, ry, 0, "FD")
 	case model.ShapeCloud:
 		start, curves := cloudPath(model.Rect{X: x, Y: y, W: w, H: h})
 		pdf.MoveTo(start[0], start[1])

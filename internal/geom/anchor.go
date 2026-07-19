@@ -31,7 +31,9 @@ func Anchor(n model.Node, side model.Side) Point {
 	case model.ShapeTriangle:
 		return triangleAnchor(r, side)
 	case model.ShapeCylinder, model.ShapeDatabase:
-		return cylinderAnchor(r, side)
+		// The rim ellipse peaks at r.Y and the bottom bulge reaches r.Bottom()
+		// at center-x, so the silhouette touches the bbox at every side midpoint.
+		return rectAnchor(r, side)
 	default:
 		return rectAnchor(r, side)
 	}
@@ -198,18 +200,6 @@ func triangleAnchor(r model.Rect, side model.Side) Point {
 		return Point{r.X, r.CY()}
 	default:
 		return Point{r.Right(), r.CY()}
-	}
-}
-
-func cylinderAnchor(r model.Rect, side model.Side) Point {
-	ry := math.Min(r.W*0.12, 14.0)
-	switch side {
-	case model.SideTop:
-		return Point{r.CX(), r.Y + ry}
-	case model.SideBottom:
-		return Point{r.CX(), r.Bottom() - ry}
-	default:
-		return rectAnchor(r, side)
 	}
 }
 

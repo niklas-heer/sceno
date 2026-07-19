@@ -17,6 +17,21 @@ func TestAnchorRightEdge(t *testing.T) {
 	}
 }
 
+func TestCylinderAnchorsTouchSilhouette(t *testing.T) {
+	n := model.Node{
+		Kind: model.ShapeCylinder,
+		Rect: model.Rect{X: 100, Y: 50, W: 200, H: 80},
+	}
+	top := Anchor(n, model.SideTop)
+	if top.X != 200 || top.Y != 50 {
+		t.Fatalf("top anchor %+v; want (200,50) on the top rim silhouette", top)
+	}
+	bottom := Anchor(n, model.SideBottom)
+	if bottom.X != 200 || bottom.Y != 130 {
+		t.Fatalf("bottom anchor %+v; want (200,130) on the bottom bulge silhouette", bottom)
+	}
+}
+
 func TestSlidingAnchorClampsToUsableSideSpan(t *testing.T) {
 	n := model.Node{Kind: model.ShapeBox, Rect: model.Rect{X: 100, Y: 200, W: 120, H: 60}}
 	top, ok := SlidingAnchor(n, model.SideLeft, -100)
