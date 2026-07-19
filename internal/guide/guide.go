@@ -40,6 +40,7 @@ type Document struct {
 	GoalsSummary   string                  `json:"goals_summary"`
 	VisualRules    []scene.VisualRule      `json:"visual_rules"`
 	StackModel     string                  `json:"stack_model"`
+	DescribeOutput map[string]string       `json:"describe_output"`
 }
 
 // JSON writes the agent guide.
@@ -66,6 +67,10 @@ func Markdown(w io.Writer) error {
 	b.WriteString("\n## Commands\n\n")
 	for k, v := range d.Commands {
 		b.WriteString("- `" + k + "` — " + v + "\n")
+	}
+	b.WriteString("\n## Describe geometry\n\n")
+	for _, key := range sortedKeys(d.DescribeOutput) {
+		b.WriteString("- `" + key + "` — " + d.DescribeOutput[key] + "\n")
 	}
 	b.WriteString("\n## Minimal spec\n\n```kdl\n")
 	b.WriteString(d.SpecMinimal)
@@ -159,13 +164,13 @@ func Build() Document {
 			"Use \\n inside quotes for line breaks: \"API\\nGateway\"",
 			"Use info/tip/warning/infobox for callouts; iconPos=top-left for icons",
 			"Edges only connect node ids defined in the same diagram or slide { } block",
-			"Use sceno describe --json to see spatial layout; sceno docs stack for plane model",
+			"Use sceno describe --json and inspect slides[n].engine.scene_stack for exact shape and content geometry; sceno docs stack explains the plane model",
 		},
 		Commands: map[string]string{
 			"sceno init [-o file.kdl]":     "Create a starter spec",
 			"sceno validate -i f --json":   "Check spec + layout; returns ok, errors, next_steps",
 			"sceno advise -i f --json":     "Stack engine + visual design rules + recommendations (--ai for external CLI)",
-			"sceno describe -i f --json":   "2D scene (layers, occlusion, edge visibility, engine) + ascii_map",
+			"sceno describe -i f --json":   "2D scene, exact silhouette/content geometry, routed edges, engine findings, and ascii_map",
 			"sceno render -i f -o out":     "Export PNG by default; -format svg,pdf for more; --all for every format",
 			"sceno render -format slides":  "HTML presentation (16:9)",
 			"sceno docs [--json]":          "Self-doc hub — guide, spec, goals, shapes, icons, errors, …",
@@ -178,6 +183,16 @@ func Build() Document {
 			"sceno docs validation --json": "validate + advise reference",
 			"sceno docs errors --json":     "Error code repair catalog",
 			"sceno version [--json]":       "Tool version and build metadata",
+		},
+		DescribeOutput: map[string]string{
+			"slides[n].engine.scene_stack.planes.*[]":                     "semantic paint-plane items with exact computed geometry",
+			"slides[n].engine.scene_stack.planes.*[].outline":             "sampled visible silhouette used by shape-aware measurement",
+			"slides[n].engine.scene_stack.planes.*[].internal_lines":      "visible seams, folds, rims, or disjoint figure strokes",
+			"slides[n].engine.scene_stack.planes.*[].writable_bounds":     "border- and seam-safe rectangle available to icon and text",
+			"slides[n].engine.scene_stack.planes.*[].effective_font_size": "largest readable font selected for the writable region",
+			"slides[n].engine.scene_stack.planes.*[].content":             "exact icon, title, and subtitle bounds",
+			"slides[n].edges[].route":                                     "step-by-step connector route derived from rendered points",
+			"slides[n].visual_problems":                                   "findings with exact geometry and candidate repairs",
 		},
 		ErrorCodes:     codes,
 		Shapes:         append(shapeList, "code (lang=, source=) — syntax-highlighted block for slides"),
@@ -251,6 +266,7 @@ func Build() Document {
 		BestPractices: []string{
 			"Spec is source of truth — never hand-tweak exports; change KDL and re-render",
 			"Validate → describe → render (agents: use --json on validate and describe)",
+			"For shape text, trust writable_bounds and effective_font_size rather than the outer bbox; text_overflow reports exact shape/content geometry",
 			"Set fromSide/toSide when edges cross nodes; increase gap for dense diagrams",
 			"Use theme=dark for slide decks; background=transparent for embed overlays",
 			"Group related nodes in columns (layer/at); avoid single-node orphan columns when possible",

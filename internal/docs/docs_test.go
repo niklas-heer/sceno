@@ -63,7 +63,7 @@ func TestRunVisualJSON(t *testing.T) {
 	if err := json.Unmarshal(buf.Bytes(), &doc); err != nil {
 		t.Fatal(err)
 	}
-	if len(doc.Principles) < 5 || doc.Metrics["minimum_target_approach"] == "" || len(doc.ReviewLoop) < 4 {
+	if len(doc.Principles) < 5 || doc.Metrics["minimum_target_approach"] == "" || doc.Metrics["minimum_automatic_font_size"] == "" || len(doc.ReviewLoop) < 4 {
 		t.Fatalf("visual doc incomplete: %+v", doc)
 	}
 }
@@ -130,6 +130,10 @@ func TestRunArchitectureJSON(t *testing.T) {
 	}
 	if len(doc.Pipeline) < 4 || len(doc.Consumers) < 4 {
 		t.Fatalf("expected full pipeline doc: %+v", doc)
+	}
+	joined := strings.Join(doc.Principles, "\n")
+	if !strings.Contains(joined, "geom.ShapeOutline") || !strings.Contains(joined, "writable_bounds") {
+		t.Fatalf("architecture doc omits shared silhouette geometry: %+v", doc.Principles)
 	}
 }
 

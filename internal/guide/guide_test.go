@@ -16,6 +16,9 @@ func TestGuideJSON(t *testing.T) {
 	if d.SpecMinimal == "" || d.ErrorCodes["missing_node"].Fix == "" {
 		t.Fatal("missing content")
 	}
+	if d.DescribeOutput["slides[n].engine.scene_stack.planes.*[].writable_bounds"] == "" {
+		t.Fatal("missing agent-readable writable geometry")
+	}
 	data, err := json.Marshal(d)
 	if err != nil || !json.Valid(data) {
 		t.Fatal("invalid json")

@@ -237,6 +237,8 @@ func buildVisualDoc() VisualDoc {
 		Principles: []string{
 			"Hierarchy first: title, primary flow, supporting detail, then chrome.",
 			"Whitespace must be intentional: reserve a header band, keep outer insets balanced, and avoid stranded empty canvas.",
+			"Derive writable space from the visible silhouette, centered border stroke, and internal seams; fit icon and text inside that region.",
+			"Choose the largest readable font that fits the writable region; never shrink automatic text below 10px.",
 			"Treat icon and text as one content group; default inline when they fit and stack only for deliberate tall cards.",
 			"Connectors should be direct, orthogonal, obstacle-free, and long enough to read before the arrowhead.",
 			"Labels belong on clear connector spans and must not consume the complete shaft or overlap other labels.",
@@ -244,6 +246,8 @@ func buildVisualDoc() VisualDoc {
 		},
 		Metrics: map[string]string{
 			"content_grid":                 "4px",
+			"shape_border_clearance":       "6px inside the visible border after accounting for its centered stroke width",
+			"minimum_automatic_font_size":  "10px readability floor",
 			"header_to_content_min":        "36px after subtitle baseline",
 			"canvas_side_bottom_extra":     "20px plus diagram padding",
 			"inline_icon_text_gap":         "12px",
@@ -256,7 +260,7 @@ func buildVisualDoc() VisualDoc {
 		ReviewLoop: []string{
 			"validate until ok=true; geometry errors block rendering",
 			"advise and resolve every collision, edge crossing, hidden edge, detached arrow, and label overlap",
-			"describe and inspect scene_stack, routes, content bounds, and ascii_map",
+			"describe and inspect slides[n].engine.scene_stack: outline, internal_lines, writable_bounds, effective_font_size, content boxes, routes, and ascii_map",
 			"render every target format and visually sample dense, vertical, dark, icon-heavy, and hybrid cases",
 			"regenerate the complete corpus and reject new visual findings or score regressions",
 		},
