@@ -1,6 +1,7 @@
 package export
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -41,8 +42,8 @@ func TestHTMLEmbeddedFonts(t *testing.T) {
 	if !strings.Contains(html, "@font-face") || !strings.Contains(html, "font-family:Inter") {
 		t.Fatal("expected embedded Inter fonts")
 	}
-	if !strings.Contains(html, "class=\"node") {
-		t.Fatal("expected node markup")
+	if !strings.Contains(html, `class="diagram"`) || !strings.Contains(html, "<svg") {
+		t.Fatal("expected canonical SVG diagram markup")
 	}
 }
 
@@ -145,6 +146,20 @@ func TestRenderPNG(t *testing.T) {
 	}
 }
 
+func TestPDFIncludesCatalogIcons(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "icons.pdf")
+	if err := WritePDF(testDiagram(t), path, Options{}); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(data, []byte("/Subtype /Image")) {
+		t.Fatal("PDF contains no icon image objects")
+	}
+}
+
 func TestWriteAllDeckMultiSlide(t *testing.T) {
 	path := filepath.Join("..", "..", "examples", "slides-demo.kdl")
 	s, err := spec.LoadFile(path)
@@ -176,6 +191,13 @@ func TestWriteAllDeckMultiSlide(t *testing.T) {
 		if st.Size() < 100 {
 			t.Fatalf("%s too small", p)
 		}
+	}
+	pdfData, err := os.ReadFile(base + ".pdf")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if pages := bytes.Count(pdfData, []byte("/Type /Page")); pages < len(deck.Slides) {
+		t.Fatalf("multi-slide PDF contains %d page objects, want at least %d", pages, len(deck.Slides))
 	}
 }
 

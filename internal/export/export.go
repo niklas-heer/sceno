@@ -160,6 +160,8 @@ func WriteDeck(deck model.Deck, path string, format Format, opt Options) error {
 			}
 		}
 		return nil
+	case FormatPDF:
+		return WritePDFDeck(deck, path, opt)
 	default:
 		if len(deck.Slides) > 0 {
 			return Write(deck.Slides[0], path, format, opt)
@@ -230,7 +232,7 @@ func WriteAllDeck(deck model.Deck, basePath string, opt Options) ([]string, erro
 			{".html", FormatHTML},
 		} {
 			p := base + f.ext
-			if err := Write(deck.Slides[0], p, f.fmt, opt); err != nil {
+			if err := WriteDeck(deck, p, f.fmt, opt); err != nil {
 				return written, fmt.Errorf("%s: %w", f.ext, err)
 			}
 			written = append(written, p)

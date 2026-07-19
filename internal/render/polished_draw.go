@@ -1,12 +1,14 @@
 package render
 
 import (
+	"bytes"
 	"fmt"
 	"math"
 	"strings"
 
 	"github.com/niklas-heer/sceno/internal/fonts"
 	"github.com/niklas-heer/sceno/internal/geom"
+	"github.com/niklas-heer/sceno/internal/highlight"
 	"github.com/niklas-heer/sceno/internal/icons"
 	"github.com/niklas-heer/sceno/internal/measure"
 	"github.com/niklas-heer/sceno/internal/model"
@@ -23,7 +25,11 @@ func DrawPolishedGG(dc *gg.Context, d model.Diagram, ox, oy, scale float64, vp V
 	useDiagramPalette(d)
 	w := vp.Width * scale
 	h := vp.Height * scale
-	dc.SetRGB(0.98, 0.98, 0.98)
+	if paint.BgCanvas == "none" {
+		dc.SetRGBA(0, 0, 0, 0)
+	} else {
+		setGGColor(dc, paint.BgCanvas)
+	}
 	dc.DrawRoundedRectangle(ox, oy, w, h, 12*scale)
 	dc.Fill()
 
@@ -40,19 +46,15 @@ func DrawPolishedGG(dc *gg.Context, d model.Diagram, ox, oy, scale float64, vp V
 		dc.DrawString(d.Subtitle, tx+ox, ty+oy)
 	}
 
-	for _, n := range d.Nodes {
-		if paintsBeforeEdges(n.Kind) {
-			drawPolishedNodeGG(dc, n, vp, ox, oy, scale)
-		}
+	for _, n := range nodesBeforeEdges(&d) {
+		drawPolishedNodeGG(dc, n, vp, ox, oy, scale)
 	}
 	for _, re := range d.Routed {
 		lctx := LabelContext(d, re.Edge)
 		drawPolishedEdgeGG(dc, re.Points, re.Edge, lctx, vp, ox, oy, scale)
 	}
-	for _, n := range d.Nodes {
-		if !paintsBeforeEdges(n.Kind) {
-			drawPolishedNodeGG(dc, n, vp, ox, oy, scale)
-		}
+	for _, n := range nodesAfterEdges(&d) {
+		drawPolishedNodeGG(dc, n, vp, ox, oy, scale)
 	}
 	for _, re := range d.Routed {
 		if strings.TrimSpace(re.Edge.Label) == "" {
@@ -68,35 +70,32 @@ func DrawPolishedGG(dc *gg.Context, d model.Diagram, ox, oy, scale float64, vp V
 
 // DrawPolishedPDF renders the polished scene to gofpdf (PDF export).
 func DrawPolishedPDF(pdf *gofpdf.Fpdf, d model.Diagram, minX, minY float64) {
+	useDiagramPalette(d)
 	registerPDFFonts(pdf)
 	w, h := pdf.GetPageSize()
-	pdf.SetFillColor(250, 250, 250)
+	setPDFFillColor(pdf, paint.BgCanvas)
 	pdf.Rect(0, 0, w, h, "F")
 
 	if d.Title != "" {
 		setPDFFont(pdf, "B", theme.TitleSize)
-		pdf.SetTextColor(15, 23, 42)
-		pdf.Text(minX+28, minY+32, d.Title)
+		setPDFTextColor(pdf, paint.FgPrimary)
+		pdf.Text(28, 32, d.Title)
 	}
 	if d.Subtitle != "" {
 		setPDFFont(pdf, "", theme.SubtitleSize)
-		pdf.SetTextColor(100, 116, 139)
-		pdf.Text(minX+28, minY+56, d.Subtitle)
+		setPDFTextColor(pdf, paint.FgMuted)
+		pdf.Text(28, 56, d.Subtitle)
 	}
 
-	for _, n := range d.Nodes {
-		if paintsBeforeEdges(n.Kind) {
-			drawPolishedNodePDF(pdf, n, minX, minY)
-		}
+	for _, n := range nodesBeforeEdges(&d) {
+		drawPolishedNodePDF(pdf, n, minX, minY)
 	}
 	for _, re := range d.Routed {
 		lctx := LabelContext(d, re.Edge)
 		drawPolishedEdgePDF(pdf, re.Points, re.Edge, lctx, minX, minY)
 	}
-	for _, n := range d.Nodes {
-		if !paintsBeforeEdges(n.Kind) {
-			drawPolishedNodePDF(pdf, n, minX, minY)
-		}
+	for _, n := range nodesAfterEdges(&d) {
+		drawPolishedNodePDF(pdf, n, minX, minY)
 	}
 	for _, re := range d.Routed {
 		if strings.TrimSpace(re.Edge.Label) == "" {
@@ -195,18 +194,20 @@ func drawPolishedNodeGG(dc *gg.Context, n model.Node, vp Viewport, ox, oy, scale
 		dc.Stroke()
 	}
 
+	if model.IsContainer(n.Kind) {
+		if n.Label != "" {
+			setGGFont(dc, fonts.WeightSemiBold, theme.LaneLabelSize*scale)
+			setGGColor(dc, paint.FgMuted)
+			dc.DrawString(n.Label, x+14*scale, y+14*scale)
+		}
+		return
+	}
 	if n.Icon != "" {
 		ix, iy := IconRect(n, polishedIconSize)
 		px, py := vp.PX(ix, iy, scale)
 		icons.Draw(dc, n.Icon, px+ox, py+oy, polishedIconSize*scale, paint.FgMuted)
 	}
-
 	drawPolishedLabelGG(dc, n, x, y, w, h, scale)
-	if model.IsContainer(n.Kind) && n.Label != "" {
-		setGGFont(dc, fonts.WeightSemiBold, theme.LaneLabelSize*scale)
-		setGGColor(dc, paint.FgMuted)
-		dc.DrawString(n.Label, x+14*scale, y+14*scale)
-	}
 }
 
 func drawPolishedLabelGG(dc *gg.Context, n model.Node, x, y, w, h, scale float64) {
@@ -222,20 +223,14 @@ func drawPolishedLabelGG(dc *gg.Context, n model.Node, x, y, w, h, scale float64
 	setGGColor(dc, paint.FgPrimary)
 	lines := strings.Split(n.Label, "\n")
 	lh := cl.TitleLineH * scale
-	contentW := w - measure.PadX*scale
-	if n.Icon != "" && n.IconPos != model.IconTop && n.IconPos != model.IconTopRight {
-		contentW -= measure.IconColumn * scale
-	}
 	for i, line := range lines {
 		tw, _ := dc.MeasureString(line)
 		tx := x + cl.TitleX*scale
-		if !cl.TopAlign || n.Icon == "" {
-			tx = x + cl.TitleX*scale + (contentW-tw)/2
-		}
-		if n.Icon != "" && (n.IconPos == "" || n.IconPos == model.IconTopLeft) && !cl.TopAlign {
-			tx = x + measure.IconColumn*scale + (contentW-tw)/2
-		}
-		if cl.TopAlign && n.Icon != "" {
+		if cl.TopAlign {
+			tx = x + (w-tw)/2
+		} else if cl.InlineIcon {
+			tx = x + cl.TitleX*scale + (w-cl.TitleX*scale-tw)/2
+		} else {
 			tx = x + (w-tw)/2
 		}
 		dc.DrawString(line, tx, y+cl.TitleStartY*scale+float64(i)*lh)
@@ -243,7 +238,12 @@ func drawPolishedLabelGG(dc *gg.Context, n model.Node, x, y, w, h, scale float64
 	if cl.HasSubtitle {
 		setGGFont(dc, fonts.WeightRegular, theme.SubSize*scale)
 		setGGColor(dc, paint.FgMuted)
-		dc.DrawString(n.Subtitle, x+cl.SubtitleX*scale, y+cl.SubtitleY*scale)
+		sw, _ := dc.MeasureString(n.Subtitle)
+		sx := x + (w-sw)/2
+		if cl.InlineIcon {
+			sx = x + cl.TitleX*scale + (w-cl.TitleX*scale-sw)/2
+		}
+		dc.DrawString(n.Subtitle, sx, y+cl.SubtitleY*scale)
 	}
 }
 
@@ -304,6 +304,10 @@ func drawPolishedNodePDF(pdf *gofpdf.Fpdf, n model.Node, minX, minY float64) {
 	y := n.Rect.Y - minY
 	w := n.Rect.W
 	h := n.Rect.H
+	if model.NormalizeShape(n.Kind) == model.ShapeCode {
+		drawCodeBlockPDF(pdf, n, x, y, w, h)
+		return
+	}
 	fill := n.Fill
 	if fill == "" {
 		fill = paint.BgCard
@@ -352,10 +356,20 @@ func drawPolishedNodePDF(pdf *gofpdf.Fpdf, n model.Node, minX, minY float64) {
 		pdf.RoundedRect(x, y, w, h, 6, "1234", "FD")
 	}
 
+	if n.Icon != "" && !model.IsContainer(n.Kind) {
+		ix, iy := IconRect(n, polishedIconSize)
+		data, err := icons.PNG(n.Icon, 64, paint.FgMuted)
+		if err == nil {
+			key := "sceno-icon-" + n.Icon + "-" + strings.TrimPrefix(paint.FgMuted, "#")
+			opt := gofpdf.ImageOptions{ImageType: "PNG", ReadDpi: true}
+			pdf.RegisterImageOptionsReader(key, opt, bytes.NewReader(data))
+			pdf.ImageOptions(key, ix-minX, iy-minY, polishedIconSize, polishedIconSize, false, opt, 0, "")
+		}
+	}
 	drawPolishedLabelPDF(pdf, n, x, y, w, h)
 	if model.IsContainer(n.Kind) && n.Label != "" {
 		setPDFFont(pdf, "SB", theme.LaneLabelSize)
-		pdf.SetTextColor(100, 116, 139)
+		setPDFTextColor(pdf, paint.FgMuted)
 		pdf.Text(x+14, y+14, n.Label)
 	}
 }
@@ -369,18 +383,71 @@ func drawPolishedLabelPDF(pdf *gofpdf.Fpdf, n model.Node, x, y, w, h float64) {
 		fs = theme.NodeSize
 	}
 	setPDFFont(pdf, "M", fs)
-	pdf.SetTextColor(15, 23, 42)
+	setPDFTextColor(pdf, paint.FgPrimary)
 	lines := strings.Split(n.Label, "\n")
-	lineH := fs * 1.25
-	startY := y + h/2 - float64(len(lines))*lineH/2 + lineH*0.7
+	cl := measure.LayoutFor(n)
+	lineH := cl.TitleLineH
 	for i, line := range lines {
 		tw := pdf.GetStringWidth(line)
-		pdf.Text(x+w/2-tw/2, startY+float64(i)*lineH, line)
+		tx := x + (w-tw)/2
+		if cl.InlineIcon {
+			tx = x + cl.TitleX + (w-cl.TitleX-tw)/2
+		}
+		pdf.Text(tx, y+cl.TitleStartY+float64(i)*lineH, line)
 	}
-	if n.Subtitle != "" {
+	if cl.HasSubtitle {
 		setPDFFont(pdf, "", theme.SubSize)
-		pdf.SetTextColor(100, 116, 139)
-		pdf.Text(x+14, y+h-12, n.Subtitle)
+		setPDFTextColor(pdf, paint.FgMuted)
+		tw := pdf.GetStringWidth(n.Subtitle)
+		tx := x + (w-tw)/2
+		if cl.InlineIcon {
+			tx = x + cl.TitleX + (w-cl.TitleX-tw)/2
+		}
+		pdf.Text(tx, y+cl.SubtitleY, n.Subtitle)
+	}
+}
+
+func drawCodeBlockPDF(pdf *gofpdf.Fpdf, n model.Node, x, y, w, h float64) {
+	fill := n.Fill
+	if fill == "" {
+		fill = paint.BgCode
+	}
+	stroke := n.Stroke
+	if stroke == "" {
+		stroke = paint.Border
+	}
+	setPDFFillColor(pdf, fill)
+	setPDFDrawColor(pdf, stroke)
+	pdf.RoundedRect(x, y, w, h, 5, "1234", "FD")
+
+	body := n.Code
+	if body == "" {
+		body = n.Label
+	}
+	lang := n.CodeLang
+	if lang == "" {
+		lang = "text"
+	}
+	lineY := y + codePadY + codeFontSize
+	if n.Label != "" && n.Label != body {
+		setPDFFont(pdf, "SB", codeFontSize)
+		setPDFTextColor(pdf, paint.FgMuted)
+		pdf.Text(x+codePadX, y+14, n.Label)
+		lineY += 18
+	}
+	setPDFFont(pdf, "", codeFontSize)
+	for _, line := range strings.Split(body, "\n") {
+		line = strings.ReplaceAll(line, "\t", "    ")
+		lineX := x + codePadX
+		for _, span := range highlight.Tokenize(lang, line) {
+			setPDFTextColor(pdf, codeColor(span.Kind))
+			pdf.Text(lineX, lineY, span.Text)
+			lineX += pdf.GetStringWidth(span.Text)
+		}
+		lineY += codeLineH
+		if lineY > y+h-codePadY {
+			break
+		}
 	}
 }
 
@@ -474,11 +541,29 @@ func drawEdgeLabelPDF(pdf *gofpdf.Fpdf, pts [][]float64, e model.Edge, lctx *geo
 		return
 	}
 	setPDFFont(pdf, "M", theme.SubSize)
-	pdf.SetTextColor(113, 113, 122)
+	setPDFTextColor(pdf, paint.FgMuted)
 	for i, line := range layout.Lines {
 		tw := pdf.GetStringWidth(line)
 		pdf.Text(layout.CenterX-minX-tw/2, layout.TextBaselineY(i)-minY, line)
 	}
+}
+
+func setPDFFillColor(pdf *gofpdf.Fpdf, color string) {
+	if color == "none" || color == "" {
+		color = "#ffffff"
+	}
+	r, g, b := hexRGBInt(color, 255, 255, 255)
+	pdf.SetFillColor(r, g, b)
+}
+
+func setPDFDrawColor(pdf *gofpdf.Fpdf, color string) {
+	r, g, b := hexRGBInt(color, 226, 232, 240)
+	pdf.SetDrawColor(r, g, b)
+}
+
+func setPDFTextColor(pdf *gofpdf.Fpdf, color string) {
+	r, g, b := hexRGBInt(color, 15, 23, 42)
+	pdf.SetTextColor(r, g, b)
 }
 
 func registerPDFFonts(pdf *gofpdf.Fpdf) {

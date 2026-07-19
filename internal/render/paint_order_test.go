@@ -1,7 +1,6 @@
 package render
 
 import (
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -39,16 +38,24 @@ func TestPaintOrderContainersBeforeEdges(t *testing.T) {
 	}
 }
 
-func TestPaintOrderTridentInternalEdges(t *testing.T) {
-	path := filepath.Join("..", "..", "examples", "trident-architecture.kdl")
-	result, err := pipeline.BuildAndEvaluateFile(path, pipeline.DefaultOptions())
+func TestPaintOrderContainerInternalEdges(t *testing.T) {
+	s := model.Spec{
+		Layout: model.LayoutAuto, Gap: 32,
+		Nodes: []model.NodeSpec{
+			{ID: "frame", Kind: model.ShapeFrame, Label: "Group"},
+			{ID: "producer", Kind: model.ShapeBox, Label: "Producer", Parent: "frame", Layer: 1, Fill: "#dbeafe"},
+			{ID: "consumer", Kind: model.ShapeBox, Label: "Consumer", Parent: "frame", Layer: 2, Fill: "#dcfce7"},
+		},
+		Edges: []model.EdgeSpec{{From: "producer", To: "consumer"}},
+	}
+	d, _, err := pipeline.BuildFromSpec(s, pipeline.DefaultOptions())
 	if err != nil {
 		t.Fatal(err)
 	}
-	svg := PolishedSVG(result.Slides[0].Diagram)
+	svg := PolishedSVG(d)
 	// First pipeline connector should be visible in SVG (stroke path before consumer child fills).
 	firstEdge := strings.Index(svg, `stroke="`+paint.EdgeDefault+`"`)
-	consumerChild := strings.Index(svg, `#dbeafe`) // repo fill from trident KDL
+	consumerChild := strings.Index(svg, `#dbeafe`)
 	if firstEdge < 0 || consumerChild < 0 {
 		t.Fatal("missing edge or consumer node fill")
 	}

@@ -11,6 +11,7 @@ import (
 	"github.com/niklas-heer/sceno/internal/fonts"
 	"github.com/niklas-heer/sceno/internal/model"
 	"github.com/niklas-heer/sceno/internal/render"
+	"github.com/niklas-heer/sceno/internal/scene"
 
 	"github.com/fogleman/gg"
 )
@@ -64,16 +65,16 @@ func drawSketchVector(dc *gg.Context, d model.Diagram, vp render.Viewport, scale
 		dc.SetRGB(0.44, 0.28, 0.91)
 		dc.DrawString(d.Title, tx, ty)
 	}
-	for _, n := range d.Nodes {
-		if n.Kind == model.ShapeLane {
+	for _, plane := range []scene.PlaneKind{scene.PlaneLane, scene.PlaneStructure} {
+		for _, n := range scene.NodesOnPlane(&d, plane) {
 			drawSketchNode(dc, n, vp, scale)
 		}
 	}
 	for _, re := range d.Routed {
 		drawSketchEdge(dc, re.Points, re.Edge, vp, scale)
 	}
-	for _, n := range d.Nodes {
-		if n.Kind != model.ShapeLane {
+	for _, plane := range []scene.PlaneKind{scene.PlaneAnnotation, scene.PlaneNode} {
+		for _, n := range scene.NodesOnPlane(&d, plane) {
 			drawSketchNode(dc, n, vp, scale)
 		}
 	}

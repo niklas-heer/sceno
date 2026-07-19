@@ -26,21 +26,19 @@ func SVG(d model.Diagram) string {
 	if d.Subtitle != "" {
 		b.WriteString(textEl(d.Subtitle, (minX+maxX)/2-220, minY+58, 16, "#495057", ""))
 	}
-	// Paint order: containers → edges → nodes (connectors stay visible inside frames).
-	for _, n := range d.Nodes {
-		if paintsBeforeEdges(n.Kind) {
-			b.WriteString(nodeSketch(n, minX, minY))
-		}
+	// Paint order follows the semantic stack used by describe and advise.
+	for _, n := range nodesBeforeEdges(&d) {
+		b.WriteString(nodeSketch(n, minX, minY))
+	}
+	for _, re := range d.Routed {
+		b.WriteString(pathSketch(re.Points, re.Edge))
+	}
+	for _, n := range nodesAfterEdges(&d) {
+		b.WriteString(nodeSketch(n, minX, minY))
 	}
 	for _, re := range d.Routed {
 		lctx := LabelContext(d, re.Edge)
-		b.WriteString(pathSketch(re.Points, re.Edge))
 		b.WriteString(EdgeLabelSketch(re.Points, re.Edge, lctx))
-	}
-	for _, n := range d.Nodes {
-		if !paintsBeforeEdges(n.Kind) {
-			b.WriteString(nodeSketch(n, minX, minY))
-		}
 	}
 	if len(d.Routed) == 0 {
 		for key, path := range d.EdgePaths {
@@ -179,4 +177,3 @@ func pathData(pts [][2]float64) string {
 	}
 	return b.String()
 }
-

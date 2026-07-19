@@ -1,7 +1,10 @@
 package icons
 
 import (
+	"bytes"
+	"fmt"
 	"image"
+	"image/png"
 	"strings"
 	"sync"
 
@@ -46,6 +49,19 @@ func Draw(dc *gg.Context, name string, x, y, size float64, color string) {
 	dc.Scale(s, s)
 	dc.DrawImage(img, 0, 0)
 	dc.Pop()
+}
+
+// PNG returns a transparent rasterization for renderers that cannot consume SVG paths.
+func PNG(name string, px int, color string) ([]byte, error) {
+	img := rasterIcon(name, px, color)
+	if img == nil {
+		return nil, fmt.Errorf("unknown or invalid icon %q", name)
+	}
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, img); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }
 
 func rasterIcon(name string, px int, color string) image.Image {
