@@ -28,8 +28,17 @@ type ContentLayout struct {
 	SubtitleY    float64
 	HasSubtitle  bool
 	TopAlign     bool
+	InlineIcon   bool
 	MinW         float64
 	MinH         float64
+}
+
+// EffectiveIconPos returns the icon position used by layout (default: top-centered card stack).
+func EffectiveIconPos(n model.Node) model.IconPosition {
+	if n.IconPos != "" {
+		return n.IconPos
+	}
+	return model.IconTop
 }
 
 // BuildContentLayout computes snapped interior placement and tight outer bounds.
@@ -47,10 +56,7 @@ func BuildContentLayout(n model.Node) ContentLayout {
 		lineH = fs
 	}
 
-	pos := n.IconPos
-	if pos == "" {
-		pos = model.IconTopLeft
-	}
+	pos := EffectiveIconPos(n)
 	k := model.NormalizeShape(n.Kind)
 
 	cl := ContentLayout{
@@ -59,29 +65,36 @@ func BuildContentLayout(n model.Node) ContentLayout {
 		IconSize:   IconSize,
 	}
 
+	hasIcon := n.Icon != ""
+	cl.InlineIcon = hasIcon && pos == model.IconTopLeft
+	topIcon := hasIcon && (pos == model.IconTop || pos == model.IconTopRight)
+	bottomIcon := hasIcon && (pos == model.IconBottomLeft || pos == model.IconBottom || pos == model.IconBottomRight)
+
 	switch {
-	case k == model.ShapeInfobox, k == model.ShapeCallout:
+	case cl.InlineIcon:
+		cl.TopAlign = false
+	case k == model.ShapeInfobox, k == model.ShapeCallout, k == model.ShapeNote:
 		cl.TopAlign = true
-	case pos == model.IconTop, pos == model.IconTopRight:
+	case k == model.ShapeActor:
 		cl.TopAlign = true
-	case n.Icon != "" && pos == model.IconTopLeft && k == model.ShapeActor:
+	case topIcon:
 		cl.TopAlign = true
 	}
 
-	padX := Snap(PadX * 0.85)
-	padY := Snap(PadY * 0.8)
-	if cl.TopAlign {
-		padY = Snap(12)
+	padX := Snap(16)
+	padY := Snap(12)
+	if cl.InlineIcon {
+		padX = Snap(PadX * 0.85)
+		padY = Snap(PadY * 0.8)
 	}
 
-	iconBand := 0.0
-	if n.Icon != "" {
-		ix, iy := IconRect(n, IconSize)
-		cl.IconX = Snap(ix - n.Rect.X)
-		cl.IconY = Snap(iy - n.Rect.Y)
-		if cl.TopAlign {
-			iconBand = Snap(IconPad + IconSize + 6)
-		}
+	topBand := 0.0
+	bottomBand := 0.0
+	if topIcon {
+		topBand = Snap(IconPad + IconSize + 8)
+	}
+	if bottomIcon {
+		bottomBand = Snap(IconPad + IconSize + 8)
 	}
 
 	titleBlockH := float64(len(lines)) * lineH
@@ -91,16 +104,16 @@ func BuildContentLayout(n model.Node) ContentLayout {
 		subBlockH = Snap(subtitleH + 4)
 	}
 
-	innerH := padY + iconBand + titleBlockH
+	innerH := padY + topBand + titleBlockH
 	if cl.HasSubtitle {
 		innerH += subBlockH
 	}
-	if !cl.TopAlign {
-		innerH += padY
+	if cl.InlineIcon {
+		innerH = math.Max(innerH, IconSize+padY*2)
 	} else {
-		innerH += Snap(8)
+		innerH += bottomBand + padY
 	}
-	cl.MinH = Snap(math.Max(innerH, 40))
+	cl.MinH = Snap(math.Max(innerH, shapeMinH(k)))
 
 	maxLineW := 0.0
 	for _, line := range lines {
@@ -110,7 +123,7 @@ func BuildContentLayout(n model.Node) ContentLayout {
 		}
 	}
 	contentW := maxLineW
-	if n.Icon != "" && !cl.TopAlign {
+	if cl.InlineIcon {
 		contentW += IconColumn
 	}
 	if n.Subtitle != "" {
@@ -119,27 +132,78 @@ func BuildContentLayout(n model.Node) ContentLayout {
 			contentW = sw
 		}
 	}
-	cl.MinW = Snap(math.Max(contentW+padX, 72))
-
-	cl.TitleX = padX
-	if n.Icon != "" && !cl.TopAlign && pos == model.IconTopLeft {
-		cl.TitleX = Snap(IconColumn)
+	cl.MinW = Snap(math.Max(contentW+padX*2, shapeMinW(k)))
+	if hasIcon {
+		cl.MinW = math.Max(cl.MinW, Snap(IconSize+IconPad*2))
 	}
-	cl.TitleStartY = padY + iconBand + lineH*0.75
-	if !cl.TopAlign {
-		cl.TitleStartY = (cl.MinH-titleBlockH-iconBand)/2 + lineH*0.75
-		if cl.HasSubtitle {
-			cl.TitleStartY -= subBlockH / 2
-		}
+
+	groupH := titleBlockH + subBlockH
+	if cl.InlineIcon {
+		cl.TitleX = Snap(IconColumn)
+		cl.TitleStartY = (cl.MinH-groupH)/2 + lineH*0.75
+	} else if cl.TopAlign {
+		cl.TitleX = padX
+		cl.TitleStartY = padY + topBand + lineH*0.75
+	} else {
+		cl.TitleX = padX
+		availableH := cl.MinH - bottomBand
+		cl.TitleStartY = (availableH-groupH)/2 + lineH*0.75
 	}
 	cl.TitleStartY = Snap(cl.TitleStartY)
 	cl.SubtitleX = padX
-	cl.SubtitleY = Snap(cl.MinH - 14)
-	if cl.TopAlign && cl.HasSubtitle {
-		cl.SubtitleY = Snap(cl.TitleStartY + float64(len(lines))*lineH + 4)
+	if cl.HasSubtitle {
+		cl.SubtitleY = Snap(cl.TitleStartY + float64(len(lines))*lineH + 6)
+	}
+
+	if hasIcon {
+		layoutW := math.Max(n.Rect.W, cl.MinW)
+		layoutH := math.Max(n.Rect.H, cl.MinH)
+		cl.IconX, cl.IconY = iconOffset(pos, layoutW, layoutH)
 	}
 
 	return cl
+}
+
+func iconOffset(pos model.IconPosition, w, h float64) (x, y float64) {
+	switch pos {
+	case model.IconTop:
+		x, y = (w-IconSize)/2, IconPad
+	case model.IconTopRight:
+		x, y = w-IconPad-IconSize, IconPad
+	case model.IconCenter:
+		x, y = (w-IconSize)/2, (h-IconSize)/2
+	case model.IconBottomLeft:
+		x, y = IconPad, h-IconPad-IconSize
+	case model.IconBottom:
+		x, y = (w-IconSize)/2, h-IconPad-IconSize
+	case model.IconBottomRight:
+		x, y = w-IconPad-IconSize, h-IconPad-IconSize
+	default:
+		x, y = IconPad, (h-IconSize)/2
+	}
+	return Snap(x), Snap(y)
+}
+
+func shapeMinH(k model.ShapeKind) float64 {
+	switch k {
+	case model.ShapeActor:
+		return 72
+	case model.ShapeDiamond, model.ShapeDecision:
+		return 56
+	default:
+		return 44
+	}
+}
+
+func shapeMinW(k model.ShapeKind) float64 {
+	switch k {
+	case model.ShapeActor:
+		return 72
+	case model.ShapeInfobox, model.ShapeCallout:
+		return 120
+	default:
+		return 80
+	}
 }
 
 // LayoutFor returns the interior grid for a node (stored layout from pipeline when ready).
@@ -156,7 +220,8 @@ func contentFromInterior(n model.Node) ContentLayout {
 		IconX: in.IconX, IconY: in.IconY, IconSize: in.IconSize,
 		TitleX: in.TitleX, TitleStartY: in.TitleStartY, TitleLineH: in.TitleLineH,
 		TitleLines: in.TitleLines, SubtitleX: in.SubtitleX, SubtitleY: in.SubtitleY,
-		HasSubtitle: in.HasSubtitle, TopAlign: in.TopAlign, MinW: in.MinW, MinH: in.MinH,
+		HasSubtitle: in.HasSubtitle, TopAlign: in.TopAlign, InlineIcon: in.InlineIcon,
+		MinW: in.MinW, MinH: in.MinH,
 	}
 }
 
@@ -176,8 +241,35 @@ func interiorToModel(cl ContentLayout) model.InteriorLayout {
 		IconX: cl.IconX, IconY: cl.IconY, IconSize: cl.IconSize,
 		TitleX: cl.TitleX, TitleStartY: cl.TitleStartY, TitleLineH: cl.TitleLineH,
 		TitleLines: cl.TitleLines, SubtitleX: cl.SubtitleX, SubtitleY: cl.SubtitleY,
-		HasSubtitle: cl.HasSubtitle, TopAlign: cl.TopAlign, MinW: cl.MinW, MinH: cl.MinH,
+		HasSubtitle: cl.HasSubtitle, TopAlign: cl.TopAlign, InlineIcon: cl.InlineIcon,
+		MinW: cl.MinW, MinH: cl.MinH,
 		Ready: true,
+	}
+}
+
+// TightenToInterior shrinks node rects toward measured content bounds (keeps center).
+func TightenToInterior(nodes []model.Node) {
+	const slack = 20.0
+	for i := range nodes {
+		n := &nodes[i]
+		if model.IsContainer(n.Kind) || n.Fixed {
+			continue
+		}
+		cl := LayoutFor(*n)
+		if cl.MinW <= 0 || cl.MinH <= 0 {
+			continue
+		}
+		targetW := math.Max(cl.MinW, n.MinW)
+		targetH := math.Max(cl.MinH, n.MinH)
+		// Keep grid column widths — shrinking W without reflowing columns causes overlaps.
+		if n.Column < 0 && n.Rect.W > targetW+slack {
+			dx := n.Rect.W - targetW
+			n.Rect.X += dx / 2
+			n.Rect.W = targetW
+		}
+		if n.Rect.H > targetH+slack {
+			n.Rect.H = targetH
+		}
 	}
 }
 
@@ -185,7 +277,7 @@ func interiorToModel(cl ContentLayout) model.InteriorLayout {
 func LabelLayoutFor(n model.Node) LabelLayout {
 	cl := LayoutFor(n)
 	contentW := n.Rect.W - PadX
-	if n.Icon != "" && !cl.TopAlign {
+	if cl.InlineIcon {
 		contentW -= IconColumn
 	}
 	return LabelLayout{

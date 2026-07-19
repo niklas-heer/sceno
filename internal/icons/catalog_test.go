@@ -40,3 +40,13 @@ func TestDocTips(t *testing.T) {
 		t.Fatal("expected icon authoring tips")
 	}
 }
+
+func TestPNGProducesRasterIcon(t *testing.T) {
+	data, err := PNG("api", 64, "#64748b")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(data) < 100 || string(data[:4]) != "\x89PNG" {
+		t.Fatalf("invalid PNG icon: %d bytes", len(data))
+	}
+}

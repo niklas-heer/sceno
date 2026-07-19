@@ -81,8 +81,7 @@ func edgeLabelBoxInner(pts []Point, fontSize, lineH float64, lines []string, max
 		ry = y
 		return rx, ry, boxW, boxH, true
 	}
-	const gap = 12.0
-	rx = x + boxW/2 + gap
+	rx = x
 	ry = y
 	return rx, ry, boxW, boxH, false
 }

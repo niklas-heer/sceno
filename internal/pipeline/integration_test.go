@@ -80,12 +80,19 @@ func TestPipelineStoresInteriorLayout(t *testing.T) {
 	}
 }
 
-func TestTridentGateBlockedVerticalEdge(t *testing.T) {
-	res, err := BuildAndEvaluateFile("../../examples/trident-architecture.kdl", DefaultOptions())
+func TestPipelinePreservesExplicitVerticalEdgeSides(t *testing.T) {
+	s := model.Spec{
+		Layout: model.LayoutAuto, Gap: 32,
+		Nodes: []model.NodeSpec{
+			{ID: "gate", Kind: model.ShapeDiamond, Label: "Policy Check", AtSet: true, Layer: 0, Row: 0},
+			{ID: "blocked", Kind: model.ShapeInfobox, Label: "Blocked", AtSet: true, Layer: 0, Row: 1},
+		},
+		Edges: []model.EdgeSpec{{From: "gate", To: "blocked", FromSide: model.SideBottom, ToSide: model.SideTop}},
+	}
+	d, _, err := BuildFromSpec(s, DefaultOptions())
 	if err != nil {
 		t.Fatal(err)
 	}
-	d := res.Deck.Slides[0]
 	for _, re := range d.Routed {
 		if re.Edge.From == "gate" && re.Edge.To == "blocked" {
 			if re.Edge.FromSide != model.SideBottom || re.Edge.ToSide != model.SideTop {

@@ -21,7 +21,7 @@ func Grid(d *model.Diagram, gap float64) {
 	for i := range d.Nodes {
 		n := &d.Nodes[i]
 		if n.Fixed {
-			n.Column = int(n.Rect.X) // preserve free placement column hint
+			n.Column = -1
 			continue
 		}
 		if model.IsContainer(n.Kind) && childCount[n.ID] > 0 {

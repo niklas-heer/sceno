@@ -39,27 +39,40 @@ func CompactSuggestion(d *model.Diagram) []diag.Issue {
 	// Suggest merging columns with few nodes
 	colCount := map[int]int{}
 	for _, n := range d.Nodes {
-		if n.Column >= 0 {
+		if !n.Fixed && !model.IsContainer(n.Kind) && n.Column >= 0 {
 			colCount[n.Column]++
 		}
 	}
-	for col, cnt := range colCount {
-		if cnt == 1 {
-			hints = append(hints, diag.Issue{
-				Code:    diag.CodeSuggestCompact,
-				Message: fmt.Sprintf("column %d has only one node", col),
-				Fix:     "Assign the same layer to related nodes or use row to stack within a column.",
-			})
+	hasMultiColumn := false
+	for _, cnt := range colCount {
+		if cnt > 1 {
+			hasMultiColumn = true
+		}
+	}
+	if hasMultiColumn {
+		for col, cnt := range colCount {
+			if cnt == 1 {
+				hints = append(hints, diag.Issue{
+					Code:    diag.CodeSuggestCompact,
+					Message: fmt.Sprintf("column %d has only one node", col),
+					Fix:     "Assign the same layer to related nodes or use row to stack within a column.",
+				})
+			}
 		}
 	}
 
 	maxLayer := 0
+	gridNodes := 0
 	for _, n := range d.Nodes {
+		if n.Fixed || model.IsContainer(n.Kind) {
+			continue
+		}
+		gridNodes++
 		if n.Layer > maxLayer {
 			maxLayer = n.Layer
 		}
 	}
-	if maxLayer > len(d.Nodes)/2 {
+	if gridNodes > 0 && maxLayer+1 > gridNodes {
 		hints = append(hints, diag.Issue{
 			Code:    diag.CodeSuggestCompact,
 			Message: "many distinct layer values widen the diagram horizontally",

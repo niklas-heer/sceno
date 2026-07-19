@@ -12,10 +12,7 @@ func IconRect(n model.Node, size float64) (x, y float64) {
 	if n.Interior.Ready && n.Interior.IconSize > 0 {
 		return n.Rect.X + n.Interior.IconX, n.Rect.Y + n.Interior.IconY
 	}
-	pos := n.IconPos
-	if pos == "" {
-		pos = model.IconTopLeft
-	}
+	pos := EffectiveIconPos(n)
 	r := n.Rect
 	switch pos {
 	case model.IconTop:

@@ -12,11 +12,11 @@ func Find(nodes []model.Node, margin float64) []model.Collision {
 	for i := 0; i < len(nodes); i++ {
 		for j := i + 1; j < len(nodes); j++ {
 			a, b := &nodes[i], &nodes[j]
-			if related(a, b) {
+			if related(a, b) || a.AllowOverlap || b.AllowOverlap {
 				continue
 			}
 			if overlaps(a.Rect, b.Rect, margin) {
-				out = append(out, model.Collision{A: a.ID, B: b.ID})
+				out = append(out, Describe(*a, *b, margin))
 			}
 		}
 	}
@@ -64,7 +64,7 @@ func ResolveWithOptions(nodes []model.Node, margin float64, maxIter int, opt Res
 				if a.Fixed && b.Fixed {
 					continue
 				}
-				if related(a, b) {
+				if related(a, b) || a.AllowOverlap || b.AllowOverlap {
 					continue
 				}
 				sx, sy := separation(a, b, margin, opt.PreserveSingleRowAlignment)
@@ -85,6 +85,28 @@ func ResolveWithOptions(nodes []model.Node, margin float64, maxIter int, opt Res
 		}
 	}
 	return moves
+}
+
+// Describe returns exact overlap geometry and minimum single-axis movements for b.
+func Describe(a, b model.Node, margin float64) model.Collision {
+	ix1 := math.Max(a.Rect.X, b.Rect.X)
+	iy1 := math.Max(a.Rect.Y, b.Rect.Y)
+	ix2 := math.Min(a.Rect.Right(), b.Rect.Right())
+	iy2 := math.Min(a.Rect.Bottom(), b.Rect.Bottom())
+	overlap := model.Rect{X: ix1, Y: iy1, W: math.Max(0, ix2-ix1), H: math.Max(0, iy2-iy1)}
+
+	moveX := a.Rect.Right() + margin - b.Rect.X
+	if b.Rect.CX() < a.Rect.CX() {
+		moveX = a.Rect.X - margin - b.Rect.Right()
+	}
+	moveY := a.Rect.Bottom() + margin - b.Rect.Y
+	if b.Rect.CY() < a.Rect.CY() {
+		moveY = a.Rect.Y - margin - b.Rect.Bottom()
+	}
+	return model.Collision{
+		A: a.ID, B: b.ID, ABounds: a.Rect, BBounds: b.Rect, Overlap: overlap,
+		MoveBX: moveX, MoveBY: moveY,
+	}
 }
 
 func applyMove(a, b *model.Node, dx, dy float64) {
@@ -110,14 +132,17 @@ func overlaps(a, b model.Rect, gap float64) bool {
 }
 
 func separation(a, b *model.Node, gap float64, preserveSingleRow bool) (dx, dy float64) {
-	overlapX := math.Min(a.Rect.Right(), b.Rect.Right()) - math.Max(a.Rect.X, b.Rect.X)
-	overlapY := math.Min(a.Rect.Bottom(), b.Rect.Bottom()) - math.Max(a.Rect.Y, b.Rect.Y)
+	if !overlaps(a.Rect, b.Rect, gap) {
+		return 0, 0
+	}
+	overlapX := math.Min(a.Rect.Right(), b.Rect.Right()) - math.Max(a.Rect.X, b.Rect.X) + gap
+	overlapY := math.Min(a.Rect.Bottom(), b.Rect.Bottom()) - math.Max(a.Rect.Y, b.Rect.Y) + gap
 	if overlapX <= 0 && overlapY <= 0 {
 		return 0, 0
 	}
 	var sx, sy float64
 	if overlapX > 0 {
-		pushX := overlapX + gap
+		pushX := overlapX
 		if a.Rect.CX() < b.Rect.CX() {
 			sx = -pushX
 		} else {
@@ -125,7 +150,7 @@ func separation(a, b *model.Node, gap float64, preserveSingleRow bool) (dx, dy f
 		}
 	}
 	if overlapY > 0 {
-		pushY := overlapY + gap
+		pushY := overlapY
 		if a.Rect.CY() < b.Rect.CY() {
 			sy = -pushY
 		} else {
@@ -133,7 +158,17 @@ func separation(a, b *model.Node, gap float64, preserveSingleRow bool) (dx, dy f
 		}
 	}
 	if overlapX > 0 && overlapY > 0 {
-		return sx / 2, sy / 2
+		// Preserve the grid axis: rows separate vertically, single-row columns horizontally.
+		if a.Row != b.Row {
+			return 0, sy
+		}
+		if preserveSingleRow && a.Column != b.Column {
+			return sx, 0
+		}
+		if overlapX < overlapY {
+			return sx, 0
+		}
+		return 0, sy
 	}
 	if overlapX > 0 {
 		return sx, 0

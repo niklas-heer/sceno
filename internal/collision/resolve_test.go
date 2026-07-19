@@ -32,6 +32,21 @@ func TestResolveSeparatesOverlap(t *testing.T) {
 	}
 }
 
+func TestResolveDifferentRowsPreservesColumns(t *testing.T) {
+	nodes := []model.Node{
+		{ID: "a", Column: 0, Row: 0, Rect: model.Rect{X: 0, Y: 0, W: 100, H: 80}},
+		{ID: "b", Column: 1, Row: 1, Rect: model.Rect{X: 60, Y: 40, W: 100, H: 80}},
+	}
+	wantAX, wantBX := nodes[0].Rect.X, nodes[1].Rect.X
+	Resolve(nodes, 12, 50)
+	if nodes[0].Rect.X != wantAX || nodes[1].Rect.X != wantBX {
+		t.Fatalf("different-row nodes drifted across columns: a=%+v b=%+v", nodes[0].Rect, nodes[1].Rect)
+	}
+	if c := Find(nodes, 12); len(c) != 0 {
+		t.Fatalf("different-row nodes still overlap: %+v", c)
+	}
+}
+
 func TestContainerIgnoresOutsideNodes(t *testing.T) {
 	nodes := []model.Node{
 		{ID: "frame", Kind: model.ShapeFrame, Rect: model.Rect{X: 0, Y: 0, W: 300, H: 200}},
@@ -39,5 +54,30 @@ func TestContainerIgnoresOutsideNodes(t *testing.T) {
 	}
 	if c := Find(nodes, 8); len(c) != 0 {
 		t.Fatalf("container should not collide with outside nodes: %+v", c)
+	}
+}
+
+func TestFindDescribesCollisionGeometryAndRepairs(t *testing.T) {
+	nodes := []model.Node{
+		{ID: "a", Rect: model.Rect{X: 0, Y: 0, W: 100, H: 80}},
+		{ID: "b", Rect: model.Rect{X: 80, Y: 20, W: 100, H: 80}},
+	}
+	colls := Find(nodes, 10)
+	if len(colls) != 1 {
+		t.Fatalf("collisions = %+v", colls)
+	}
+	c := colls[0]
+	if c.Overlap.W != 20 || c.Overlap.H != 60 || c.MoveBX != 30 || c.MoveBY != 70 {
+		t.Fatalf("collision details = %+v", c)
+	}
+}
+
+func TestFindSkipsIntentionalOverlap(t *testing.T) {
+	nodes := []model.Node{
+		{ID: "a", Rect: model.Rect{W: 100, H: 80}},
+		{ID: "b", AllowOverlap: true, Rect: model.Rect{X: 20, Y: 20, W: 100, H: 80}},
+	}
+	if got := Find(nodes, 0); len(got) != 0 {
+		t.Fatalf("intentional overlap reported: %+v", got)
 	}
 }

@@ -11,6 +11,13 @@ import (
 
 // Validate checks referential integrity and layout constraints before build.
 func Validate(s model.Spec) []diag.Issue {
+	if s.Layout != "" && s.Layout != model.LayoutAuto && s.Layout != model.LayoutHybrid && s.Layout != model.LayoutFree {
+		return []diag.Issue{{
+			Code:    diag.CodeParse,
+			Message: fmt.Sprintf("unknown layout %q", s.Layout),
+			Fix:     "Use layout=auto, layout=hybrid, or layout=free.",
+		}}
+	}
 	if len(s.Slides) == 0 && len(s.Nodes) == 0 {
 		if len(s.Edges) > 0 {
 			return validateBody(nil, s.Edges, "", s.Layout)
@@ -44,6 +51,7 @@ func Validate(s model.Spec) []diag.Issue {
 func validateBody(nodes []model.NodeSpec, edges []model.EdgeSpec, pathPrefix string, layout model.LayoutMode) []diag.Issue {
 	var issues []diag.Issue
 	ids := map[string]int{}
+	byID := map[string]model.NodeSpec{}
 	path := func(p string) string {
 		if pathPrefix == "" {
 			return p
@@ -71,6 +79,7 @@ func validateBody(nodes []model.NodeSpec, edges []model.EdgeSpec, pathPrefix str
 			})
 		}
 		ids[n.ID] = i
+		byID[n.ID] = n
 		if !isKnownShape(n.Kind) {
 			issues = append(issues, diag.Issue{
 				Code:    diag.CodeParse,
@@ -86,6 +95,15 @@ func validateBody(nodes []model.NodeSpec, edges []model.EdgeSpec, pathPrefix str
 				Fix:     "Use: sceno docs icons — allowed: " + strings.Join(iconNames(), ", "),
 				Nodes:   []string{n.ID},
 				Example: `shape box api "API" icon=api`,
+			})
+		}
+		if (n.X == nil) != (n.Y == nil) {
+			issues = append(issues, diag.Issue{
+				Code:    diag.CodeMissingPos,
+				Message: fmt.Sprintf("node %q must set x and y together", n.ID),
+				Nodes:   []string{n.ID},
+				Fix:     "Add the missing coordinate, or remove both and use at/layer/row with optional dx/dy.",
+				Example: `shape note context "Context" x=120 y=80`,
 			})
 		}
 		if model.NormalizeShape(n.Kind) == model.ShapeCode && n.Code == "" && !strings.Contains(n.Label, "\n") {
@@ -140,14 +158,48 @@ func validateBody(nodes []model.NodeSpec, edges []model.EdgeSpec, pathPrefix str
 
 	for _, n := range nodes {
 		if n.Parent != "" {
-			if _, ok := ids[n.Parent]; !ok {
+			parent, ok := byID[n.Parent]
+			if !ok {
 				issues = append(issues, diag.Issue{
 					Code:    diag.CodeMissingNode,
 					Message: fmt.Sprintf("node %q parent %q not found", n.ID, n.Parent),
 					Nodes:   []string{n.ID, n.Parent},
 					Fix:     "Define the parent lane/container shape first in the same slide or diagram.",
 				})
+			} else if !model.IsContainer(parent.Kind) {
+				issues = append(issues, diag.Issue{
+					Code:    diag.CodeParse,
+					Message: fmt.Sprintf("node %q parent %q is not a lane, frame, or container", n.ID, n.Parent),
+					Nodes:   []string{n.ID, n.Parent},
+					Fix:     "Use a lane/frame/group as parent, or remove parent= from the child.",
+				})
 			}
+		}
+	}
+
+	reportedCycle := map[string]bool{}
+	for _, n := range nodes {
+		seen := map[string]bool{}
+		id := n.ID
+		for id != "" && !reportedCycle[id] {
+			if seen[id] {
+				issues = append(issues, diag.Issue{
+					Code:    diag.CodeParse,
+					Message: fmt.Sprintf("parent cycle includes node %q", id),
+					Nodes:   []string{id},
+					Fix:     "Remove one parent= link so container nesting forms a tree.",
+				})
+				for member := range seen {
+					reportedCycle[member] = true
+				}
+				break
+			}
+			seen[id] = true
+			parent, ok := byID[id]
+			if !ok {
+				break
+			}
+			id = parent.Parent
 		}
 	}
 

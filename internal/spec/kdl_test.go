@@ -26,6 +26,20 @@ func TestLoadKDL(t *testing.T) {
 	}
 }
 
+func TestLoadKDLHybridControls(t *testing.T) {
+	data := `diagram layout=hybrid {
+  shape note callout "Context" x=40 y=60 dx=8 dy=-4 overlap=allow
+}`
+	s, err := LoadKDL([]byte(data))
+	if err != nil {
+		t.Fatal(err)
+	}
+	n := s.Nodes[0]
+	if n.X == nil || n.Y == nil || n.DX != 8 || n.DY != -4 || !n.AllowOverlap {
+		t.Fatalf("hybrid controls not parsed: %+v", n)
+	}
+}
+
 func TestKDLArrowEdge(t *testing.T) {
 	data := `diagram {
   shape box a "A" at=0,0

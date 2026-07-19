@@ -40,11 +40,11 @@ func collinear(a, b, c Point) bool {
 	const eps = 0.5
 	// Same horizontal line
 	if math.Abs(a.Y-b.Y) < eps && math.Abs(b.Y-c.Y) < eps {
-		return true
+		return (b.X-a.X)*(c.X-b.X) >= 0
 	}
 	// Same vertical line
 	if math.Abs(a.X-b.X) < eps && math.Abs(b.X-c.X) < eps {
-		return true
+		return (b.Y-a.Y)*(c.Y-b.Y) >= 0
 	}
 	return false
 }

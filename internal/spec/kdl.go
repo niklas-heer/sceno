@@ -324,6 +324,12 @@ func applyNodeProps(ns *model.NodeSpec, props map[string]kdlTok) {
 		case "y":
 			y := v.num
 			ns.Y = &y
+		case "dx":
+			ns.DX = v.num
+		case "dy":
+			ns.DY = v.num
+		case "allowOverlap", "allow-overlap", "overlap":
+			ns.AllowOverlap = v.bool || strings.EqualFold(v.str, "true") || strings.EqualFold(v.str, "allow")
 		case "lang", "language":
 			ns.CodeLang = v.str
 		case "source", "body":

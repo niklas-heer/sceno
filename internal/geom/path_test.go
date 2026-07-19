@@ -7,6 +7,14 @@ import (
 	"github.com/niklas-heer/sceno/internal/model"
 )
 
+func TestSimplifyPathPreservesDirectionReversal(t *testing.T) {
+	pts := []Point{{X: 0, Y: 0}, {X: 20, Y: 0}, {X: 10, Y: 0}}
+	got := SimplifyPath(pts)
+	if len(got) != 3 {
+		t.Fatalf("direction reversal removed: %+v", got)
+	}
+}
+
 func TestEdgeLabelBoxHorizontal(t *testing.T) {
 	pts := []Point{{X: 0, Y: 0}, {X: 100, Y: 0}}
 	layout := LayoutEdgeLabel(pts, "write", nil)
@@ -56,8 +64,8 @@ func TestEdgeLabelBoxVertical(t *testing.T) {
 	if horiz {
 		t.Fatal("expected vertical segment")
 	}
-	if rx <= 0 {
-		t.Fatalf("vertical label should sit to the right, rx=%v", rx)
+	if rx != 0 {
+		t.Fatalf("vertical label should center on connector axis, rx=%v", rx)
 	}
 	if boxW <= 0 || boxH <= 0 {
 		t.Fatalf("invalid box size")

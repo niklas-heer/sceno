@@ -6,7 +6,7 @@ diagram title="Platform Overview" slide=16x9 layout=auto style=polished gap=36 p
     shape actor platform "Platform Team" icon=user fill="#f4f4f5" at=0,2
     shape callout note "Golden paths" subtitle="Platform team maintains components" icon=info accent="#7c3aed" at=1,0 w=220 h=76
     edge devs -> note fromSide=right toSide=left
-    edge platform -> note fromSide=top toSide=bottom dashed=true
+    edge platform -> note dashed=true
   }
 
   slide "Self-service flow" {
@@ -23,7 +23,7 @@ diagram title="Platform Overview" slide=16x9 layout=auto style=polished gap=36 p
     shape callout policy "Policy Pack" subtitle="Policy as Code" icon=policy accent="#e11d48" fill="#fff1f2" at=0,0
     shape box state "Pulumi Cloud\nState · Secrets" icon=lock fill="#ffedd5" at=1,0
     shape cylinder database "Database\nComponent" icon=database fill="#ede9fe" at=2,0
-    edge policy -> state fromSide=bottom toSide=top dashed=true color="#e11d48"
+    edge policy -> state dashed=true color="#e11d48"
     edge state -> database
   }
 }

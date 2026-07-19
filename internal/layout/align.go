@@ -16,25 +16,22 @@ func AlignRows(d *model.Diagram, gap float64) {
 		}
 		byParent[n.Parent] = append(byParent[n.Parent], n)
 	}
-	hasAnnotation := diagramHasAnnotation(d)
+	singleRow := DiagramSingleRow(d.Nodes)
 	parents := sortedKeys(byParent)
 	for _, parent := range parents {
 		siblings := byParent[parent]
-		alignRowCenters(siblings, parent == "" && hasAnnotation)
+		alignRowCenters(siblings, singleRow)
 		alignColCenters(siblings)
 	}
 }
 
-func alignRowCenters(siblings []*model.Node, skipRow0 bool) {
+func alignRowCenters(siblings []*model.Node, singleRow bool) {
 	byRow := map[int][]*model.Node{}
 	for _, n := range siblings {
 		byRow[n.Row] = append(byRow[n.Row], n)
 	}
 	for _, row := range sortedIntKeys(byRow) {
 		ns := byRow[row]
-		if skipRow0 && row == 0 {
-			continue
-		}
 		if !axisSnapEligible(ns, func(n *model.Node) int { return n.Column }) {
 			continue
 		}
@@ -47,9 +44,14 @@ func alignRowCenters(siblings []*model.Node, skipRow0 bool) {
 				rowBottom = b
 			}
 		}
+		alignTops := singleRow && rowTopAlign(ns)
 		cy := (rowTop + rowBottom) / 2
 		for _, n := range ns {
-			n.Rect.Y = cy - n.Rect.H/2
+			if alignTops {
+				n.Rect.Y = rowTop
+			} else {
+				n.Rect.Y = cy - n.Rect.H/2
+			}
 		}
 	}
 }
@@ -112,12 +114,18 @@ func gridPlaced(n *model.Node) bool {
 	return true
 }
 
-func diagramHasAnnotation(d *model.Diagram) bool {
-	for _, n := range d.Nodes {
-		switch model.NormalizeShape(n.Kind) {
-		case model.ShapeCallout, model.ShapeNote, model.ShapeTextbox, model.ShapeInfobox:
-			return true
+func rowTopAlign(ns []*model.Node) bool {
+	if len(ns) < 2 {
+		return false
+	}
+	minH, maxH := ns[0].Rect.H, ns[0].Rect.H
+	for _, n := range ns[1:] {
+		if n.Rect.H < minH {
+			minH = n.Rect.H
+		}
+		if n.Rect.H > maxH {
+			maxH = n.Rect.H
 		}
 	}
-	return false
+	return maxH-minH > 20 && maxH > minH*1.25
 }

@@ -75,6 +75,35 @@ func IsHorizontalSide(s model.Side) bool {
 	return s == model.SideLeft || s == model.SideRight
 }
 
+// EdgeAnchors returns border attachment points for a connector.
+// Same-row horizontal pipelines share a row centerline so top-aligned mixed heights stay straight.
+func EdgeAnchors(from, to model.Node, fromSide, toSide model.Side) (Point, Point) {
+	fs, ts := fromSide, toSide
+	if fs == "" || fs == model.SideAuto {
+		fs, _ = BestSides(from, to)
+	}
+	if ts == "" || ts == model.SideAuto {
+		_, ts = BestSides(from, to)
+	}
+	if IsHorizontalSide(fs) && IsHorizontalSide(ts) && from.Row == to.Row && from.Row >= 0 {
+		sharedTop := math.Max(from.Rect.Y, to.Rect.Y)
+		sharedBottom := math.Min(from.Rect.Bottom(), to.Rect.Bottom())
+		if sharedTop <= sharedBottom {
+			rowCY := (sharedTop + sharedBottom) / 2
+			return pipelineAnchor(from, fs, rowCY), pipelineAnchor(to, ts, rowCY)
+		}
+	}
+	return Anchor(from, fs), Anchor(to, ts)
+}
+
+func pipelineAnchor(n model.Node, side model.Side, rowCY float64) Point {
+	p := Anchor(n, side)
+	if IsHorizontalSide(side) {
+		p.Y = rowCY
+	}
+	return p
+}
+
 func rectAnchor(r model.Rect, side model.Side) Point {
 	switch side {
 	case model.SideTop:

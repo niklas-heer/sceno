@@ -20,15 +20,22 @@ func polishedNodeSVG(n model.Node, dropShadow bool) string {
 		return b.String()
 	}
 	b.WriteString(shapeSVG(n, dropShadow))
+	if model.IsContainer(k) {
+		if n.Label != "" {
+			b.WriteString(containerLabelSVG(n))
+		}
+		return b.String()
+	}
 	if n.Icon != "" {
 		ix, iy := IconRect(n, iconSize)
 		b.WriteString(icons.Group(n.Icon, ix, iy, iconSize, paint.FgMuted))
 	}
 	b.WriteString(polishedLabel(n))
-	if model.IsContainer(k) && n.Label != "" {
-		b.WriteString(textEl(n.Label, n.Rect.X+14, n.Rect.Y+14, theme.LaneLabelSize, paint.FgMuted, "600"))
-	}
 	return b.String()
+}
+
+func containerLabelSVG(n model.Node) string {
+	return textEl(n.Label, n.Rect.X+14, n.Rect.Y+14, theme.LaneLabelSize, paint.FgMuted, "600")
 }
 
 func polishedLabel(n model.Node) string {
@@ -42,28 +49,29 @@ func polishedLabel(n model.Node) string {
 	cl := measure.LayoutFor(n)
 	lines := strings.Split(n.Label, "\n")
 	lh := cl.TitleLineH
-	contentW := n.Rect.W - measure.PadX
-	if n.Icon != "" && !cl.TopAlign {
-		contentW -= measure.IconColumn
-	}
 	var b strings.Builder
 	for i, line := range lines {
 		tw := measure.TextWidth(line, fs, fonts.WeightMedium)
 		tx := n.Rect.X + cl.TitleX
-		if !cl.TopAlign || n.Icon == "" {
-			tx = n.Rect.X + cl.TitleX + (contentW-tw)/2
-		}
-		if n.Icon != "" && (n.IconPos == "" || n.IconPos == model.IconTopLeft) && !cl.TopAlign {
-			tx = n.Rect.X + measure.IconColumn + (contentW-tw)/2
-		}
-		if cl.TopAlign && n.Icon != "" {
+		if cl.TopAlign || cl.InlineIcon {
+			if cl.TopAlign {
+				tx = n.Rect.X + (n.Rect.W-tw)/2
+			} else if cl.InlineIcon {
+				tx = n.Rect.X + cl.TitleX + (n.Rect.W-cl.TitleX-tw)/2
+			}
+		} else {
 			tx = n.Rect.X + (n.Rect.W-tw)/2
 		}
 		y := n.Rect.Y + cl.TitleStartY + float64(i)*lh
 		b.WriteString(textEl(line, tx, y, fs, paint.FgPrimary, "500"))
 	}
 	if cl.HasSubtitle {
-		b.WriteString(textEl(n.Subtitle, n.Rect.X+cl.SubtitleX, n.Rect.Y+cl.SubtitleY, theme.SubSize, paint.FgMuted, ""))
+		sw := measure.TextWidth(n.Subtitle, theme.SubSize, fonts.WeightRegular)
+		sx := n.Rect.X + (n.Rect.W-sw)/2
+		if cl.InlineIcon {
+			sx = n.Rect.X + cl.TitleX + (n.Rect.W-cl.TitleX-sw)/2
+		}
+		b.WriteString(textEl(n.Subtitle, sx, n.Rect.Y+cl.SubtitleY, theme.SubSize, paint.FgMuted, ""))
 	}
 	return b.String()
 }

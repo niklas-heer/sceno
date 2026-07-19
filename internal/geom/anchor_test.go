@@ -37,3 +37,15 @@ func TestBestSidesVerticalStack(t *testing.T) {
 		t.Fatalf("got %s %s want bottom top", f, tside)
 	}
 }
+
+func TestEdgeAnchorsUseSharedBorderRange(t *testing.T) {
+	from := model.Node{Row: 0, Rect: model.Rect{X: 0, Y: 20, W: 80, H: 120}}
+	to := model.Node{Row: 0, Rect: model.Rect{X: 200, Y: 20, W: 80, H: 40}}
+	start, end := EdgeAnchors(from, to, model.SideRight, model.SideLeft)
+	if start.Y != end.Y {
+		t.Fatalf("pipeline anchors are not aligned: %v %v", start, end)
+	}
+	if end.Y < to.Rect.Y || end.Y > to.Rect.Bottom() {
+		t.Fatalf("anchor %v is outside shorter target border %+v", end, to.Rect)
+	}
+}

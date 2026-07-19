@@ -1,5 +1,5 @@
 // Financial ledger — CQRS + event store (inspired by banking/fintech architecture decks)
-diagram title="Ledger Platform" subtitle="Double-entry events · read models · audit trail" layout=auto style=polished gap=36 padding=28 {
+diagram title="Ledger Platform" subtitle="Double-entry events · read models · audit trail" layout=auto style=polished gap=48 padding=28 {
 
   shape frame write "Write Path"
   shape box cmd "Command API" subtitle="POST /transfer" icon=api iconPos=top fill="#dbeafe" parent=write at=0,0
@@ -10,13 +10,13 @@ diagram title="Ledger Platform" subtitle="Double-entry events · read models · 
   shape frame read "Read Path"
   shape cylinder balances "Balance DB" subtitle="PostgreSQL replica" icon=database iconPos=top fill="#ffedd5" parent=read at=0,1
   shape box query "Query API" subtitle="GET /accounts" icon=api iconPos=top fill="#dbeafe" parent=read at=1,1
-  shape callout audit "Audit" subtitle="7-year retention" icon=shield accent="#0ea5e9" parent=read at=3,1 w=200 h=72
+  shape callout audit "Audit" subtitle="7-year retention" icon=shield accent="#0ea5e9" parent=read at=2,2 w=200 h=72
 
   edge cmd -> validate label="TransferCmd"
   edge validate -> journal fromSide=right toSide=left label="LedgerEvent"
-  edge validate -> cmd fromSide=bottom toSide=top label="reject" dashed=true color="#dc2626"
+  edge validate -> cmd label="reject" dashed=true color="#dc2626"
   edge journal -> projector fromSide=right toSide=left
-  edge projector -> balances fromSide=bottom toSide=top label="apply"
+  edge projector -> balances label="apply"
   edge balances -> query fromSide=right toSide=left
-  edge journal -> audit fromSide=right toSide=left dashed=true label="stream"
+  edge journal -> audit fromSide=bottom toSide=top dashed=true label="stream"
 }

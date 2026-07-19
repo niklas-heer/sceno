@@ -25,12 +25,12 @@ func RouteEdges(d *model.Diagram) {
 			continue
 		}
 		fs, ts := resolveSides(e, a, b)
+		e.FromSide, e.ToSide = fs, ts
 
-		start := geom.Anchor(*a, fs)
-		end := geom.Anchor(*b, ts)
+		start, end := geom.EdgeAnchors(*a, *b, fs, ts)
 		obstacles := obstacleNodes(d.Nodes, e.From, e.To, pad)
 
-		pts := routeWithLane(start, end, obstacles, pad, float64(i)*pad*0.6)
+		pts := routeWithLane(start, end, obstacles, pad, float64(i)*pad*0.6, fs, ts)
 		pts = geom.SimplifyPath(pts)
 		if d.Style == model.StyleSketch && len(pts) >= 3 {
 			pts = geom.SmoothPath(pts, 8)
@@ -39,22 +39,27 @@ func RouteEdges(d *model.Diagram) {
 		}
 		key := fmt.Sprintf("%s-%s-%d", e.From, e.To, i)
 		path := pointsToPath(pts)
-		re := model.RoutedEdge{Edge: e, Key: key, Points: path}
+		re := model.RoutedEdge{Edge: e, Key: key, Points: path} // e carries resolved sides
 		d.Routed = append(d.Routed, re)
 		d.EdgePaths[key] = path
 	}
 }
 
-func routeWithLane(start, end geom.Point, obstacles []model.Node, pad, laneOff float64) []geom.Point {
+func routeWithLane(start, end geom.Point, obstacles []model.Node, pad, laneOff float64, fromSide, toSide model.Side) []geom.Point {
+	// A short normal segment makes arrow orientation match the declared side
+	// without consuming the full clearance between tightly stacked rows.
+	stub := math.Min(16, pad)
+	innerStart := anchorStub(start, fromSide, stub)
+	innerEnd := anchorStub(end, toSide, stub)
 	candidates := [][]geom.Point{
-		elbowHV(start, end),
-		elbowVH(start, end),
+		elbowHV(innerStart, innerEnd),
+		elbowVH(innerStart, innerEnd),
 	}
 	for i := 0; i < 10; i++ {
 		off := pad + laneOff + pad*float64(i)
 		candidates = append(candidates,
-			corridorRoute(start, end, off, true),
-			corridorRoute(start, end, off, false),
+			corridorRoute(innerStart, innerEnd, off, true),
+			corridorRoute(innerStart, innerEnd, off, false),
 		)
 	}
 	for i := -16; i <= 16; i++ {
@@ -62,29 +67,54 @@ func routeWithLane(start, end geom.Point, obstacles []model.Node, pad, laneOff f
 			continue
 		}
 		off := pad*float64(i) + laneOff
-		candidates = append(candidates, horizontalBus(start, end, off))
+		candidates = append(candidates, horizontalBus(innerStart, innerEnd, off))
 	}
 	// Detour above/below when siblings share a column between endpoints
 	for _, mult := range []float64{1.5, 2.5, 3.5, 4.5} {
 		off := pad * mult
 		candidates = append(candidates,
-			[]geom.Point{start, {X: start.X, Y: start.Y - off}, {X: end.X, Y: start.Y - off}, end},
-			[]geom.Point{start, {X: start.X, Y: start.Y + off}, {X: end.X, Y: start.Y + off}, end},
+			[]geom.Point{innerStart, {X: innerStart.X, Y: innerStart.Y - off}, {X: innerEnd.X, Y: innerStart.Y - off}, innerEnd},
+			[]geom.Point{innerStart, {X: innerStart.X, Y: innerStart.Y + off}, {X: innerEnd.X, Y: innerStart.Y + off}, innerEnd},
 		)
 	}
-		best := candidates[0]
+	for i := range candidates {
+		candidates[i] = withEndpointStubs(start, end, candidates[i])
+	}
+	best := candidates[0]
 	bestScore := 1e18
 	for _, c := range candidates {
 		if len(c) < 2 {
 			continue
 		}
-		sc := scorePath(c, obstacles, start, end, pad)
+		sc := scorePath(c, obstacles, start, end, pad, fromSide, toSide)
 		if betterPath(sc, c, bestScore, best) {
 			bestScore = sc
 			best = c
 		}
 	}
 	return snapPathEnds(best, start, end)
+}
+
+func anchorStub(p geom.Point, side model.Side, distance float64) geom.Point {
+	switch side {
+	case model.SideLeft:
+		p.X -= distance
+	case model.SideRight:
+		p.X += distance
+	case model.SideTop:
+		p.Y -= distance
+	case model.SideBottom:
+		p.Y += distance
+	}
+	return p
+}
+
+func withEndpointStubs(start, end geom.Point, inner []geom.Point) []geom.Point {
+	out := make([]geom.Point, 0, len(inner)+2)
+	out = append(out, start)
+	out = append(out, inner...)
+	out = append(out, end)
+	return out
 }
 
 // betterPath picks a lower score, or deterministically breaks ties (fewer bends, lexicographic).
@@ -154,8 +184,24 @@ func corridorRoute(start, end geom.Point, pad float64, vertical bool) []geom.Poi
 	return []geom.Point{start, {X: start.X, Y: midY}, {X: end.X, Y: midY}, end}
 }
 
-func scorePath(pts []geom.Point, obstacles []model.Node, start, end geom.Point, pad float64) float64 {
+func scorePath(pts []geom.Point, obstacles []model.Node, start, end geom.Point, pad float64, fromSide, toSide model.Side) float64 {
 	score := pathLength(pts)
+	if endpointReverses(pts) {
+		score += 100000
+	}
+	dx := math.Abs(end.X - start.X)
+	dy := math.Abs(end.Y - start.Y)
+	if geom.IsHorizontalSide(fromSide) && geom.IsHorizontalSide(toSide) && dx > dy {
+		if len(pts) >= 3 && math.Abs(pts[0].Y-pts[1].Y) > 2 {
+			score += 3000
+		}
+	}
+	if (fromSide == model.SideTop || fromSide == model.SideBottom) &&
+		(toSide == model.SideTop || toSide == model.SideBottom) && dy > dx {
+		if len(pts) >= 3 && math.Abs(pts[0].X-pts[1].X) > 2 {
+			score += 3000
+		}
+	}
 	for _, n := range obstacles {
 		for i := 1; i < len(pts); i++ {
 			if geom.SegmentHitsRect(pts[i-1], pts[i], n.Rect, pad) {
@@ -176,6 +222,17 @@ func scorePath(pts []geom.Point, obstacles []model.Node, start, end geom.Point, 
 		score += 2000
 	}
 	return score
+}
+
+func endpointReverses(pts []geom.Point) bool {
+	if len(pts) < 3 {
+		return false
+	}
+	dot := func(a, b, c geom.Point) float64 {
+		return (b.X-a.X)*(c.X-b.X) + (b.Y-a.Y)*(c.Y-b.Y)
+	}
+	return dot(pts[0], pts[1], pts[2]) < 0 ||
+		dot(pts[len(pts)-3], pts[len(pts)-2], pts[len(pts)-1]) < 0
 }
 
 func pathLength(pts []geom.Point) float64 {

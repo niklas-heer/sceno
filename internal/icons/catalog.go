@@ -12,6 +12,8 @@ type Entry struct {
 	DefaultIconPos  string   `json:"default_icon_pos,omitempty"`
 }
 
+const DefaultIconPosition = "top"
+
 // svg path fragments (24×24 viewBox, stroke icons).
 var svgPaths = map[string]string{
 	"cloud":    `<path d="M17.5 19H9a7 7 0 1 1-.5-14 9 9 0 0 1 9 9 2.5 2.5 0 0 1 0 5Z" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>`,
@@ -92,6 +94,9 @@ func init() {
 func Catalog() []Entry {
 	out := make([]Entry, len(catalogMeta))
 	copy(out, catalogMeta)
+	for i := range out {
+		out[i].DefaultIconPos = DefaultIconPosition
+	}
 	return out
 }
 
@@ -113,6 +118,7 @@ func Categories() []string {
 func ByCategory() map[string][]Entry {
 	m := map[string][]Entry{}
 	for _, e := range catalogMeta {
+		e.DefaultIconPos = DefaultIconPosition
 		m[e.Category] = append(m[e.Category], e)
 	}
 	return m
@@ -122,10 +128,10 @@ func ByCategory() map[string][]Entry {
 func DocTips() []string {
 	return []string{
 		"Use icon=name on shape lines — never invent names; run sceno docs icons --json",
-		"iconPos=top-left (default) for box cards; iconPos=top for narrow columns; iconPos=center on pills",
+		"iconPos=top (default) stacks icons above labels; use iconPos=top-left for compact horizontal cards",
 		"Pair icons with shape kind: database→cylinder, cloud→cloud, policy→infobox",
 		"One icon per primary node; avoid icons on every shape in dense diagrams",
-		"Icons render at 20px in polished style with label column clearance",
+		"Icons render consistently in SVG, PNG, PDF, HTML, and slide exports",
 	}
 }
 

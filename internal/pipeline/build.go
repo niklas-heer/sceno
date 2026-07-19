@@ -33,31 +33,30 @@ func BuildFromSpec(s model.Spec, opt Options) (model.Diagram, []model.Collision,
 	nodes := make([]model.Node, 0, len(s.Nodes))
 	for _, ns := range s.Nodes {
 		w, h := measure.FitSize(ns)
-		if ns.W > 0 {
-			w = ns.W
-		}
-		if ns.H > 0 {
-			h = ns.H
-		}
 		n := model.Node{
-			ID:       ns.ID,
-			Label:    ns.Label,
-			Subtitle: ns.Subtitle,
-			Kind:     ns.Kind,
-			Icon:     ns.Icon,
-			IconPos:  ns.IconPos,
-			CodeLang: ns.CodeLang,
-			Code:     ns.Code,
-			Fill:     ns.Fill,
-			Stroke:   ns.Stroke,
-			Accent:   ns.Accent,
-			FontSize: ns.FontSize,
-			Layer:    ns.Layer,
-			Row:      ns.Row,
-			AtSet:    ns.AtSet,
-			Parent:   ns.Parent,
-			Column:   -1,
-			Rect:     model.Rect{W: w, H: h},
+			ID:           ns.ID,
+			Label:        ns.Label,
+			Subtitle:     ns.Subtitle,
+			Kind:         ns.Kind,
+			Icon:         ns.Icon,
+			IconPos:      ns.IconPos,
+			CodeLang:     ns.CodeLang,
+			Code:         ns.Code,
+			Fill:         ns.Fill,
+			Stroke:       ns.Stroke,
+			Accent:       ns.Accent,
+			FontSize:     ns.FontSize,
+			Layer:        ns.Layer,
+			Row:          ns.Row,
+			AtSet:        ns.AtSet,
+			DX:           ns.DX,
+			DY:           ns.DY,
+			AllowOverlap: ns.AllowOverlap,
+			Parent:       ns.Parent,
+			MinW:         ns.W,
+			MinH:         ns.H,
+			Column:       -1,
+			Rect:         model.Rect{W: w, H: h},
 		}
 		if ns.X != nil && ns.Y != nil {
 			n.Rect.X = *ns.X
@@ -141,5 +140,43 @@ func BuildFromSpec(s model.Spec, opt Options) (model.Diagram, []model.Collision,
 
 	colls = collision.Find(d.Nodes, margin)
 	measure.ApplyInteriors(d.Nodes)
+	measure.TightenToInterior(d.Nodes)
+	measure.ApplyInteriors(d.Nodes)
+	layout.AlignRows(&d, s.Gap)
+	layout.PackColumns(&d, s.Gap)
+	applyNudges(d.Nodes)
+	layout.FitParents(&d, s.Padding)
+	layout.RouteEdges(&d)
+	for i := 0; i < 8; i++ {
+		layout.RerouteCollidingEdges(&d)
+	}
+	colls = collision.Find(d.Nodes, margin)
 	return d, colls, nil
+}
+
+// applyNudges runs after collision-safe auto layout. A nudge is an explicit
+// author override, so any collision it introduces is reported rather than
+// silently undoing the requested movement. Nudging a container moves its
+// complete subtree as one visual group.
+func applyNudges(nodes []model.Node) {
+	byParent := map[string][]int{}
+	for i := range nodes {
+		byParent[nodes[i].Parent] = append(byParent[nodes[i].Parent], i)
+	}
+	var shift func(string, float64, float64)
+	shift = func(parent string, dx, dy float64) {
+		for _, i := range byParent[parent] {
+			nodes[i].Rect.X += dx
+			nodes[i].Rect.Y += dy
+			shift(nodes[i].ID, dx, dy)
+		}
+	}
+	for i := range nodes {
+		if nodes[i].DX == 0 && nodes[i].DY == 0 {
+			continue
+		}
+		nodes[i].Rect.X += nodes[i].DX
+		nodes[i].Rect.Y += nodes[i].DY
+		shift(nodes[i].ID, nodes[i].DX, nodes[i].DY)
+	}
 }

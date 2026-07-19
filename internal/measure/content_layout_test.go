@@ -47,3 +47,37 @@ func TestFitSizeUsesSnappedBounds(t *testing.T) {
 		t.Fatalf("fit size not snapped: %.2f×%.2f", w, h)
 	}
 }
+
+func TestApplyInteriorsPreservesExplicitIconPositions(t *testing.T) {
+	tests := []struct {
+		pos   model.IconPosition
+		wantX float64
+		wantY float64
+	}{
+		{model.IconTopLeft, 12, 40},
+		{model.IconTop, 52, 12},
+		{model.IconTopRight, 92, 12},
+		{model.IconCenter, 52, 40},
+		{model.IconBottomLeft, 12, 68},
+		{model.IconBottom, 52, 68},
+		{model.IconBottomRight, 92, 68},
+	}
+	for _, tc := range tests {
+		t.Run(string(tc.pos), func(t *testing.T) {
+			nodes := []model.Node{{
+				Kind: model.ShapeBox, Label: "Node", Icon: "api", IconPos: tc.pos,
+				Rect: model.Rect{W: 124, H: 100},
+			}}
+			ApplyInteriors(nodes)
+			if got := nodes[0].Interior; got.IconX != tc.wantX || got.IconY != tc.wantY {
+				t.Fatalf("icon offset = %.0f,%.0f want %.0f,%.0f", got.IconX, got.IconY, tc.wantX, tc.wantY)
+			}
+		})
+	}
+}
+
+func TestDefaultIconPositionIsTop(t *testing.T) {
+	if got := EffectiveIconPos(model.Node{}); got != model.IconTop {
+		t.Fatalf("default icon position = %q want top", got)
+	}
+}

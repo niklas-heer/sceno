@@ -21,14 +21,14 @@ func TestHowItWorksSingleRow(t *testing.T) {
 	if len(colls) > 0 {
 		t.Fatalf("unexpected collisions: %+v", colls)
 	}
-	cys := map[string]float64{}
+	tops := map[string]float64{}
 	for _, n := range d.Nodes {
-		cys[n.ID] = n.Rect.CY()
+		tops[n.ID] = n.Rect.Y
 	}
-	first := cys["author"]
-	for id, cy := range cys {
-		if math.Abs(cy-first) > 1 {
-			t.Fatalf("node %q not row-aligned: cy=%.1f first=%.1f all=%v", id, cy, first, cys)
+	first := tops["author"]
+	for id, top := range tops {
+		if math.Abs(top-first) > 1 {
+			t.Fatalf("node %q not top-aligned: y=%.1f first=%.1f all=%v", id, top, first, tops)
 		}
 	}
 }
@@ -62,8 +62,7 @@ func TestHowItWorksEdgeAnchorsOnBorders(t *testing.T) {
 		}
 		start := geom.SlicesToPath(re.Points)[0]
 		end := geom.SlicesToPath(re.Points)[len(re.Points)-1]
-		wantStart := geom.Anchor(a, fs)
-		wantEnd := geom.Anchor(b, ts)
+		wantStart, wantEnd := geom.EdgeAnchors(a, b, fs, ts)
 		if math.Hypot(start.X-wantStart.X, start.Y-wantStart.Y) > eps {
 			t.Fatalf("edge %s→%s start not on border: got %v want %v", re.Edge.From, re.Edge.To, start, wantStart)
 		}

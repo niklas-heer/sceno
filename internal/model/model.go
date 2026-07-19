@@ -2,13 +2,16 @@ package model
 
 // Rect is an axis-aligned bounding box in canvas coordinates.
 type Rect struct {
-	X, Y, W, H float64
+	X float64 `json:"x"`
+	Y float64 `json:"y"`
+	W float64 `json:"w"`
+	H float64 `json:"h"`
 }
 
 func (r Rect) Right() float64  { return r.X + r.W }
 func (r Rect) Bottom() float64 { return r.Y + r.H }
-func (r Rect) CX() float64     { return r.X + r.W / 2 }
-func (r Rect) CY() float64     { return r.Y + r.H / 2 }
+func (r Rect) CX() float64     { return r.X + r.W/2 }
+func (r Rect) CY() float64     { return r.Y + r.H/2 }
 
 // ShapeKind determines rendering and anchor geometry.
 type ShapeKind string
@@ -60,6 +63,7 @@ type InteriorLayout struct {
 	SubtitleY    float64
 	HasSubtitle  bool
 	TopAlign     bool
+	InlineIcon   bool
 	MinW         float64
 	MinH         float64
 	Ready        bool
@@ -67,35 +71,40 @@ type InteriorLayout struct {
 
 // Node is a placed diagram element.
 type Node struct {
-	ID       string
-	Label    string
-	Subtitle string
-	Kind     ShapeKind
-	Icon     string // catalog name, e.g. cloud, database
-	IconPos  IconPosition
-	CodeLang string // for shape code
-	Code     string // source body
-	Fill     string
-	Stroke   string
-	Accent   string // infobox left stripe
-	FontSize float64
-	Layer    int
-	Row      int
-	Column   int
-	AtSet    bool // explicit at=col,row (layer 0 is valid)
-	Fixed    bool
-	Parent   string
-	Rect     Rect
-	Interior InteriorLayout
+	ID           string
+	Label        string
+	Subtitle     string
+	Kind         ShapeKind
+	Icon         string // catalog name, e.g. cloud, database
+	IconPos      IconPosition
+	CodeLang     string // for shape code
+	Code         string // source body
+	Fill         string
+	Stroke       string
+	Accent       string // infobox left stripe
+	FontSize     float64
+	Layer        int
+	Row          int
+	Column       int
+	AtSet        bool // explicit at=col,row (layer 0 is valid)
+	Fixed        bool
+	DX           float64 // explicit post-layout horizontal nudge
+	DY           float64 // explicit post-layout vertical nudge
+	AllowOverlap bool    // intentional overlap; source order controls order within the plane
+	Parent       string
+	MinW         float64 // explicit w= minimum from the spec
+	MinH         float64 // explicit h= minimum from the spec
+	Rect         Rect
+	Interior     InteriorLayout
 }
 
 // Edge connects two nodes with optional anchor sides and label.
 type Edge struct {
-	From, To       string
-	Label          string
+	From, To         string
+	Label            string
 	FromSide, ToSide Side
-	Dashed         bool
-	Color          string
+	Dashed           bool
+	Color            string
 }
 
 // RoutedEdge is a laid-out connector.
@@ -139,40 +148,43 @@ type Deck struct {
 
 // Spec is the input document (KDL).
 type Spec struct {
-	Title       string       `yaml:"title" json:"title"`
-	Subtitle    string       `yaml:"subtitle" json:"subtitle"`
-	Layout      LayoutMode   `yaml:"layout" json:"layout"`
-	Style       RenderStyle  `yaml:"style" json:"style"`
-	Gap         float64      `yaml:"gap" json:"gap"`
-	Padding     float64      `yaml:"padding" json:"padding"`
-	SlideAspect string       `yaml:"slideAspect" json:"slideAspect"` // slide=16x9
-	Theme       ThemeConfig  `yaml:"theme" json:"theme"`
-	Slides      []SlideSpec  `yaml:"slides" json:"slides"`
-	Nodes       []NodeSpec   `yaml:"nodes" json:"nodes"`
-	Edges       []EdgeSpec   `yaml:"edges" json:"edges"`
+	Title       string      `yaml:"title" json:"title"`
+	Subtitle    string      `yaml:"subtitle" json:"subtitle"`
+	Layout      LayoutMode  `yaml:"layout" json:"layout"`
+	Style       RenderStyle `yaml:"style" json:"style"`
+	Gap         float64     `yaml:"gap" json:"gap"`
+	Padding     float64     `yaml:"padding" json:"padding"`
+	SlideAspect string      `yaml:"slideAspect" json:"slideAspect"` // slide=16x9
+	Theme       ThemeConfig `yaml:"theme" json:"theme"`
+	Slides      []SlideSpec `yaml:"slides" json:"slides"`
+	Nodes       []NodeSpec  `yaml:"nodes" json:"nodes"`
+	Edges       []EdgeSpec  `yaml:"edges" json:"edges"`
 }
 
 type NodeSpec struct {
-	ID       string    `yaml:"id" json:"id"`
-	Label    string    `yaml:"label" json:"label"`
-	Subtitle string    `yaml:"subtitle" json:"subtitle"`
-	Kind     ShapeKind `yaml:"kind" json:"kind"`
-	Icon     string    `yaml:"icon" json:"icon"`
-	IconPos  IconPosition `yaml:"iconPos" json:"iconPos,omitempty"`
-	Fill     string    `yaml:"fill" json:"fill"`
-	Stroke   string    `yaml:"stroke" json:"stroke"`
-	Accent   string    `yaml:"accent" json:"accent"`
-	FontSize float64   `yaml:"fontSize" json:"fontSize"`
-	Layer    int       `yaml:"layer" json:"layer"`
-	Row      int       `yaml:"row" json:"row"`
-	AtSet    bool      `yaml:"atSet" json:"atSet,omitempty"`
-	Parent   string    `yaml:"parent" json:"parent"`
-	W        float64   `yaml:"w" json:"w"`
-	H        float64   `yaml:"h" json:"h"`
-	X        *float64  `yaml:"x" json:"x"`
-	Y        *float64  `yaml:"y" json:"y"`
-	CodeLang string    `yaml:"lang" json:"lang,omitempty"`
-	Code     string    `yaml:"source" json:"source,omitempty"`
+	ID           string       `yaml:"id" json:"id"`
+	Label        string       `yaml:"label" json:"label"`
+	Subtitle     string       `yaml:"subtitle" json:"subtitle"`
+	Kind         ShapeKind    `yaml:"kind" json:"kind"`
+	Icon         string       `yaml:"icon" json:"icon"`
+	IconPos      IconPosition `yaml:"iconPos" json:"iconPos,omitempty"`
+	Fill         string       `yaml:"fill" json:"fill"`
+	Stroke       string       `yaml:"stroke" json:"stroke"`
+	Accent       string       `yaml:"accent" json:"accent"`
+	FontSize     float64      `yaml:"fontSize" json:"fontSize"`
+	Layer        int          `yaml:"layer" json:"layer"`
+	Row          int          `yaml:"row" json:"row"`
+	AtSet        bool         `yaml:"atSet" json:"atSet,omitempty"`
+	Parent       string       `yaml:"parent" json:"parent"`
+	W            float64      `yaml:"w" json:"w"`
+	H            float64      `yaml:"h" json:"h"`
+	X            *float64     `yaml:"x" json:"x"`
+	Y            *float64     `yaml:"y" json:"y"`
+	DX           float64      `yaml:"dx" json:"dx,omitempty"`
+	DY           float64      `yaml:"dy" json:"dy,omitempty"`
+	AllowOverlap bool         `yaml:"allowOverlap" json:"allowOverlap,omitempty"`
+	CodeLang     string       `yaml:"lang" json:"lang,omitempty"`
+	Code         string       `yaml:"source" json:"source,omitempty"`
 }
 
 type EdgeSpec struct {
@@ -187,7 +199,13 @@ type EdgeSpec struct {
 
 // Collision between nodes.
 type Collision struct {
-	A, B string
+	A       string  `json:"a"`
+	B       string  `json:"b"`
+	ABounds Rect    `json:"a_bounds"`
+	BBounds Rect    `json:"b_bounds"`
+	Overlap Rect    `json:"overlap"`
+	MoveBX  float64 `json:"move_b_x"`
+	MoveBY  float64 `json:"move_b_y"`
 }
 
 // EdgeCollision describes a routing problem.

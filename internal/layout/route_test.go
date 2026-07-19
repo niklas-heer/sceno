@@ -1,6 +1,7 @@
 package layout
 
 import (
+	"math"
 	"testing"
 
 	"github.com/niklas-heer/sceno/internal/geom"
@@ -39,9 +40,24 @@ func TestRouteEdgesSnapsToAnchors(t *testing.T) {
 	if len(gpts) < 2 {
 		t.Fatal("empty path")
 	}
-	dst := geom.Anchor(b, model.SideLeft)
+	_, dst := geom.EdgeAnchors(a, b, re.Edge.FromSide, re.Edge.ToSide)
 	if geom.TipGap(gpts[len(gpts)-1], dst) > 1.5 {
 		t.Fatalf("path end %.1f,%.1f not on anchor %.1f,%.1f gap=%.1f",
 			gpts[len(gpts)-1].X, gpts[len(gpts)-1].Y, dst.X, dst.Y, geom.TipGap(gpts[len(gpts)-1], dst))
+	}
+}
+
+func TestRouteEdgesApproachesExplicitTargetSideTangentially(t *testing.T) {
+	a := model.Node{ID: "a", Rect: model.Rect{X: 400, Y: 0, W: 100, H: 60}}
+	b := model.Node{ID: "b", Rect: model.Rect{X: 0, Y: 240, W: 100, H: 60}}
+	d := &model.Diagram{
+		Gap: 32, Style: model.StylePolished, Nodes: []model.Node{a, b},
+		Edges: []model.Edge{{From: "a", To: "b", FromSide: model.SideRight, ToSide: model.SideLeft}},
+	}
+	RouteEdges(d)
+	pts := geom.SimplifyPath(geom.SlicesToPath(d.Routed[0].Points))
+	prev, end := pts[len(pts)-2], pts[len(pts)-1]
+	if math.Abs(prev.Y-end.Y) > 0.1 || prev.X >= end.X {
+		t.Fatalf("left anchor must be approached horizontally from outside: %v", pts)
 	}
 }
