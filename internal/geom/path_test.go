@@ -36,7 +36,7 @@ func TestEdgeLabelBoxHorizontal(t *testing.T) {
 }
 
 func TestEdgeLabelBoxClearsNodes(t *testing.T) {
-	pts := []Point{{X: 180, Y: 156}, {X: 230, Y: 156}}
+	pts := []Point{{X: 158, Y: 156}, {X: 230, Y: 156}}
 	ctx := &EdgeLabelContext{
 		From: model.Rect{X: 40, Y: 116, W: 118, H: 80},
 		To:   model.Rect{X: 230, Y: 116, W: 92, H: 80},
@@ -69,6 +69,41 @@ func TestEdgeLabelBoxVertical(t *testing.T) {
 	}
 	if boxW <= 0 || boxH <= 0 {
 		t.Fatalf("invalid box size")
+	}
+}
+
+func TestLayoutEdgeLabelSlidesAwayFromChrome(t *testing.T) {
+	pts := []Point{{X: 100, Y: 100}, {X: 100, Y: 260}}
+	chrome := model.Rect{X: 70, Y: 165, W: 80, H: 16}
+	layout := LayoutEdgeLabel(pts, "merge", &EdgeLabelContext{Avoid: []EdgeLabelObstacle{{ID: "lane:title", Kind: "chrome", Bounds: chrome}}})
+	x, y, w, h := layout.LabelRect()
+	label := model.Rect{X: x, Y: y, W: w, H: h}
+	if labelRectTooClose(label, chrome, EdgeLabelObstacleClearance) {
+		t.Fatalf("label did not slide away from chrome: label=%+v chrome=%+v", label, chrome)
+	}
+	if len(layout.BlockedBy) != 0 {
+		t.Fatalf("clear placement incorrectly marked blocked: %+v", layout.BlockedBy)
+	}
+}
+
+func TestLayoutEdgeLabelReportsUnavoidableChrome(t *testing.T) {
+	pts := []Point{{X: 100, Y: 100}, {X: 100, Y: 150}}
+	chrome := model.Rect{X: 60, Y: 90, W: 80, H: 70}
+	layout := LayoutEdgeLabel(pts, "merge", &EdgeLabelContext{Avoid: []EdgeLabelObstacle{{ID: "lane:title", Kind: "chrome", Bounds: chrome}}})
+	if len(layout.BlockedBy) != 1 || layout.BlockedBy[0].ID != "lane:title" {
+		t.Fatalf("expected unavoidable chrome blocker, got %+v", layout.BlockedBy)
+	}
+}
+
+func TestLayoutEdgeLabelKeepsSixPixelsFromNodeBorder(t *testing.T) {
+	from := model.Rect{X: 0, Y: 80, W: 100, H: 40}
+	to := model.Rect{X: 210, Y: 80, W: 100, H: 40}
+	pts := []Point{{X: 100, Y: 100}, {X: 210, Y: 100}}
+	layout := LayoutEdgeLabel(pts, "REST", &EdgeLabelContext{From: from, To: to})
+	x, y, w, h := layout.LabelRect()
+	label := model.Rect{X: x, Y: y, W: w, H: h}
+	if labelRectTooClose(label, from, EdgeLabelObstacleClearance) || labelRectTooClose(label, to, EdgeLabelObstacleClearance) {
+		t.Fatalf("label violates endpoint clearance: %+v", label)
 	}
 }
 

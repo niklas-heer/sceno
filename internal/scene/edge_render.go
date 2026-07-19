@@ -9,6 +9,7 @@ import (
 	"github.com/niklas-heer/sceno/internal/composition"
 	"github.com/niklas-heer/sceno/internal/diag"
 	"github.com/niklas-heer/sceno/internal/geom"
+	"github.com/niklas-heer/sceno/internal/measure"
 	"github.com/niklas-heer/sceno/internal/model"
 )
 
@@ -312,6 +313,35 @@ func checkEdgeLabel(d *model.Diagram, re model.RoutedEdge) []Finding {
 	key := re.Edge.From + "→" + re.Edge.To
 
 	var out []Finding
+	for _, obstacle := range layout.BlockedBy {
+		padded := model.Rect{
+			X: obstacle.Bounds.X - geom.EdgeLabelObstacleClearance,
+			Y: obstacle.Bounds.Y - geom.EdgeLabelObstacleClearance,
+			W: obstacle.Bounds.W + geom.EdgeLabelObstacleClearance*2,
+			H: obstacle.Bounds.H + geom.EdgeLabelObstacleClearance*2,
+		}
+		overlap, _ := rectIntersection(lb, padded)
+		code := diag.CodeEdgeCollision
+		message := fmt.Sprintf("edge label %q on %s cannot keep %.0fpx clearance from node %q", label, key, geom.EdgeLabelObstacleClearance, obstacle.ID)
+		if obstacle.Kind == "chrome" {
+			code = diag.CodeEdgeLabelChrome
+			message = fmt.Sprintf("edge label %q on %s cannot keep %.0fpx clearance from chrome %q", label, key, geom.EdgeLabelObstacleClearance, obstacle.ID)
+		}
+		out = append(out, Finding{
+			RuleID: "edge_clarity", Severity: "warning", Plane: PlaneLabel, Projected: true,
+			Code: string(code), Message: message,
+			Fix:   "Increase gap, shorten the label, or move an endpoint so the pill has a clear path segment.",
+			Items: []string{re.Edge.From, re.Edge.To, obstacle.ID},
+			Geometry: &diag.Geometry{Bounds: map[string]model.Rect{
+				key + ":label": lb, obstacle.ID: obstacle.Bounds,
+			}, Overlap: overlap},
+			Repairs: []diag.RepairOption{{
+				Action: "set_property", Target: "diagram",
+				Properties: map[string]string{"gap": fmt.Sprintf("%.0f", d.Gap+12)},
+				Reason:     "add connector room for the label and its 6px clearance",
+			}},
+		})
+	}
 	_, pathY, horiz := geom.LabelPlacement(gpts)
 	if horiz && math.Abs(layout.CenterY-pathY) > maxLabelAxisDrift {
 		out = append(out, Finding{
@@ -364,7 +394,22 @@ func edgeLabelContext(d *model.Diagram, e model.Edge) *geom.EdgeLabelContext {
 	if !okA || !okB {
 		return nil
 	}
-	return &geom.EdgeLabelContext{From: a.Rect, To: b.Rect}
+	ctx := &geom.EdgeLabelContext{From: a.Rect, To: b.Rect}
+	for _, n := range d.Nodes {
+		if model.IsContainer(n.Kind) {
+			if bounds := measure.ContainerLabelBounds(n); bounds.W > 0 {
+				ctx.Avoid = append(ctx.Avoid, geom.EdgeLabelObstacle{ID: n.ID + ":title", Kind: "chrome", Bounds: bounds})
+			}
+			continue
+		}
+		if n.ID != e.From && n.ID != e.To {
+			ctx.Avoid = append(ctx.Avoid, geom.EdgeLabelObstacle{ID: n.ID, Kind: "node", Bounds: n.Rect})
+		}
+	}
+	if bounds, ok := diagramChromeBand(d); ok {
+		ctx.Avoid = append(ctx.Avoid, geom.EdgeLabelObstacle{ID: "diagram:title", Kind: "chrome", Bounds: bounds})
+	}
+	return ctx
 }
 
 func diagramChromeBand(d *model.Diagram) (model.Rect, bool) {

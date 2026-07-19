@@ -117,10 +117,6 @@ func BuildStack(d *model.Diagram) Stack {
 	if pad < 6 {
 		pad = 6
 	}
-	byID := map[string]model.Node{}
-	for _, n := range d.Nodes {
-		byID[n.ID] = n
-	}
 	for _, re := range d.Routed {
 		pts := pathToGeom(re.Points)
 		b := pathBounds(pts, pad)
@@ -132,7 +128,7 @@ func BuildStack(d *model.Diagram) Stack {
 			Z:      int(PlaneEdge),
 		})
 		if re.Edge.Label != "" {
-			lb := edgeLabelBounds(pts, re.Edge, byID)
+			lb := edgeLabelBounds(d, pts, re.Edge)
 			add(PlaneLabel, StackItem{
 				ID:     re.Key + ":label",
 				Kind:   "edge_label",
@@ -158,7 +154,7 @@ func nodeContent(n model.Node) []ContentItem {
 		}
 		return []ContentItem{{
 			Kind: "container_label", Value: n.Label,
-			Bounds: model.Rect{X: n.Rect.X + 14, Y: n.Rect.Y + 2, W: measure.TextWidth(n.Label, theme.LaneLabelSize, fonts.WeightSemiBold), H: 16},
+			Bounds: measure.ContainerLabelBounds(n),
 		}}
 	}
 	if model.NormalizeShape(n.Kind) == model.ShapeCode {
@@ -261,16 +257,11 @@ func pathBounds(pts []geom.Point, pad float64) model.Rect {
 	return model.Rect{X: minX - pad, Y: minY - pad, W: maxX - minX + pad*2, H: maxY - minY + pad*2}
 }
 
-func edgeLabelBounds(pts []geom.Point, edge model.Edge, byID map[string]model.Node) model.Rect {
+func edgeLabelBounds(d *model.Diagram, pts []geom.Point, edge model.Edge) model.Rect {
 	if len(pts) < 2 || edge.Label == "" {
 		return model.Rect{}
 	}
-	var ctx *geom.EdgeLabelContext
-	if from, ok := byID[edge.From]; ok {
-		if to, ok := byID[edge.To]; ok {
-			ctx = &geom.EdgeLabelContext{From: from.Rect, To: to.Rect}
-		}
-	}
+	ctx := edgeLabelContext(d, edge)
 	layout := geom.LayoutEdgeLabel(pts, edge.Label, ctx)
 	x, y, w, h := layout.LabelRect()
 	return model.Rect{X: x, Y: y, W: w, H: h}

@@ -106,6 +106,14 @@ func LabelPlacement(pts []Point) (x, y float64, horizontal bool) {
 // EdgeLabelContext supplies endpoint nodes so labels clear shapes and sit in the gap.
 type EdgeLabelContext struct {
 	From, To model.Rect
+	Avoid    []EdgeLabelObstacle
+}
+
+// EdgeLabelObstacle is chrome or node geometry that a label pill must clear.
+type EdgeLabelObstacle struct {
+	ID     string
+	Kind   string
+	Bounds model.Rect
 }
 
 // EdgeLabelBox returns the label center and size on the best edge segment.

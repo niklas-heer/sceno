@@ -13,6 +13,8 @@ var hardVisualCodes = map[diag.Code]bool{
 	diag.CodeArrowDetached:    true,
 	diag.CodeArrowHidden:      true,
 	diag.CodeArrowCluster:     true,
+	diag.CodeEdgeLabelChrome:  true,
+	diag.CodeEdgeLabelOverlap: true,
 }
 
 func TestVisualAuditExamplesAndFixtures(t *testing.T) {

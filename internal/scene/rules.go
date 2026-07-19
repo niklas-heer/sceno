@@ -409,20 +409,11 @@ func edgeLabelHitsNode(d *model.Diagram, re model.RoutedEdge, label string) (boo
 	if len(gpts) < 2 {
 		return false, ""
 	}
-	byID := map[string]model.Node{}
-	for _, n := range d.Nodes {
-		byID[n.ID] = n
-	}
-	var lctx *geom.EdgeLabelContext
-	if a, okA := byID[re.Edge.From]; okA {
-		if b, okB := byID[re.Edge.To]; okB {
-			lctx = &geom.EdgeLabelContext{From: a.Rect, To: b.Rect}
-		}
-	}
+	lctx := edgeLabelContext(d, re.Edge)
 	layout := geom.LayoutEdgeLabel(gpts, label, lctx)
 	lx, ly, lw, lh := layout.LabelRect()
 	lb := model.Rect{X: lx, Y: ly, W: lw, H: lh}
-	margin := math.Max(d.Gap*0.15, 4)
+	margin := geom.EdgeLabelObstacleClearance
 	for _, n := range d.Nodes {
 		if model.IsContainer(n.Kind) {
 			continue

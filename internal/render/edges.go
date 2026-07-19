@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/niklas-heer/sceno/internal/composition"
 	"github.com/niklas-heer/sceno/internal/fonts"
 	"github.com/niklas-heer/sceno/internal/geom"
 	"github.com/niklas-heer/sceno/internal/measure"
@@ -59,7 +60,22 @@ func LabelContext(d model.Diagram, e model.Edge) *geom.EdgeLabelContext {
 	if !okA || !okB {
 		return nil
 	}
-	return &geom.EdgeLabelContext{From: a.Rect, To: b.Rect}
+	ctx := &geom.EdgeLabelContext{From: a.Rect, To: b.Rect}
+	for _, n := range d.Nodes {
+		if model.IsContainer(n.Kind) {
+			if bounds := measure.ContainerLabelBounds(n); bounds.W > 0 {
+				ctx.Avoid = append(ctx.Avoid, geom.EdgeLabelObstacle{ID: n.ID + ":title", Kind: "chrome", Bounds: bounds})
+			}
+			continue
+		}
+		if n.ID != e.From && n.ID != e.To {
+			ctx.Avoid = append(ctx.Avoid, geom.EdgeLabelObstacle{ID: n.ID, Kind: "node", Bounds: n.Rect})
+		}
+	}
+	if bounds, ok := composition.ChromeBounds(d); ok {
+		ctx.Avoid = append(ctx.Avoid, geom.EdgeLabelObstacle{ID: "diagram:title", Kind: "chrome", Bounds: bounds})
+	}
+	return ctx
 }
 
 func polishedPath(pts [][]float64, e model.Edge, ctx *geom.EdgeLabelContext) string {

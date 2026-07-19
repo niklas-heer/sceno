@@ -63,3 +63,24 @@ func TestArrowheadClusterReportsExactTipsAndRepair(t *testing.T) {
 		t.Fatalf("cluster lacks exact geometry or repair: %+v", findings[0])
 	}
 }
+
+func TestUnavoidableContainerChromeLabelFindingHasRepairGeometry(t *testing.T) {
+	d := &model.Diagram{Gap: 28, Nodes: []model.Node{
+		{ID: "lane", Kind: model.ShapeLane, Label: "Operations", Rect: model.Rect{X: 80, Y: 100, W: 240, H: 100}},
+		{ID: "a", Kind: model.ShapeBox, Rect: model.Rect{X: 90, Y: 40, W: 100, H: 40}},
+		{ID: "b", Kind: model.ShapeBox, Rect: model.Rect{X: 90, Y: 135, W: 100, H: 40}},
+	}, Routed: []model.RoutedEdge{{
+		Edge:   model.Edge{From: "a", To: "b", Label: "merge", FromSide: model.SideBottom, ToSide: model.SideTop},
+		Points: [][]float64{{140, 80}, {140, 135}},
+	}}}
+	findings := checkEdgeLabel(d, d.Routed[0])
+	for _, finding := range findings {
+		if finding.Code == string(diag.CodeEdgeLabelChrome) {
+			if finding.Geometry == nil || len(finding.Geometry.Bounds) != 2 || len(finding.Repairs) == 0 {
+				t.Fatalf("chrome finding lacks geometry/repair: %+v", finding)
+			}
+			return
+		}
+	}
+	t.Fatalf("expected unavoidable chrome finding, got %+v", findings)
+}

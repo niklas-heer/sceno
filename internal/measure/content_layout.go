@@ -6,6 +6,7 @@ import (
 
 	"github.com/niklas-heer/sceno/internal/fonts"
 	"github.com/niklas-heer/sceno/internal/model"
+	"github.com/niklas-heer/sceno/internal/theme"
 )
 
 // SnapUnit is the internal content grid inside shapes (icon + label bands).
@@ -33,6 +34,18 @@ type ContentLayout struct {
 	InlineIcon   bool
 	MinW         float64
 	MinH         float64
+}
+
+// ContainerLabelBounds is the chrome-plane title box painted inside a lane or
+// container. Label placement and scene inspection consume this same geometry.
+func ContainerLabelBounds(n model.Node) model.Rect {
+	if !model.IsContainer(n.Kind) || n.Label == "" {
+		return model.Rect{}
+	}
+	return model.Rect{
+		X: n.Rect.X + 14, Y: n.Rect.Y + 2,
+		W: TextWidth(n.Label, theme.LaneLabelSize, fonts.WeightSemiBold), H: 16,
+	}
 }
 
 // EffectiveIconPos returns the icon position used by layout (default: compact inline group).
