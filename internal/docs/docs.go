@@ -23,6 +23,7 @@ const (
 	TopicSpec         Topic = "spec"
 	TopicGoals        Topic = "goals"
 	TopicPractices    Topic = "practices"
+	TopicVisual       Topic = "visual"
 	TopicStack        Topic = "stack"
 	TopicValidation   Topic = "validation"
 	TopicShapes       Topic = "shapes"
@@ -33,7 +34,7 @@ const (
 
 // AllTopics lists available doc topics in display order.
 var AllTopics = []Topic{
-	TopicGuide, TopicArchitecture, TopicSpec, TopicGoals, TopicPractices, TopicStack, TopicValidation,
+	TopicGuide, TopicArchitecture, TopicSpec, TopicGoals, TopicPractices, TopicVisual, TopicStack, TopicValidation,
 	TopicShapes, TopicIcons, TopicErrors,
 }
 
@@ -79,6 +80,16 @@ type ValidationDoc struct {
 	ErrorCodes      map[string]diag.CodeDoc `json:"error_codes"`
 	VisualRules     []scene.VisualRule      `json:"visual_rules"`
 	StackModel      string                  `json:"stack_model"`
+}
+
+// VisualDoc is the measurable visual quality contract used by layout and review.
+type VisualDoc struct {
+	Tool       string             `json:"tool"`
+	Version    string             `json:"version"`
+	Principles []string           `json:"principles"`
+	Metrics    map[string]string  `json:"metrics"`
+	Rules      []scene.VisualRule `json:"rules"`
+	ReviewLoop []string           `json:"review_loop"`
 }
 
 // ShapesDoc lists shape kinds.
@@ -183,6 +194,11 @@ func Run(topic string, jsonOut bool, w io.Writer) error {
 			return writePracticesJSON(w)
 		}
 		return writePracticesMarkdown(w)
+	case TopicVisual:
+		if jsonOut {
+			return writeVisualJSON(w)
+		}
+		return writeVisualMarkdown(w)
 	case TopicStack:
 		if jsonOut {
 			return writeStackJSON(w)
@@ -213,6 +229,68 @@ func Run(topic string, jsonOut bool, w io.Writer) error {
 	default:
 		return fmt.Errorf("unknown docs topic %q — run sceno docs for topics", topic)
 	}
+}
+
+func buildVisualDoc() VisualDoc {
+	return VisualDoc{
+		Tool: "sceno", Version: version.Version,
+		Principles: []string{
+			"Hierarchy first: title, primary flow, supporting detail, then chrome.",
+			"Whitespace must be intentional: reserve a header band, keep outer insets balanced, and avoid stranded empty canvas.",
+			"Treat icon and text as one content group; default inline when they fit and stack only for deliberate tall cards.",
+			"Connectors should be direct, orthogonal, obstacle-free, and long enough to read before the arrowhead.",
+			"Labels belong on clear connector spans and must not consume the complete shaft or overlap other labels.",
+			"Prefer consistent alignment, restrained color, and one dominant reading direction per view.",
+		},
+		Metrics: map[string]string{
+			"content_grid":                 "4px",
+			"header_to_content_min":        "36px after subtitle baseline",
+			"canvas_side_bottom_extra":     "20px plus diagram padding",
+			"inline_icon_text_gap":         "12px",
+			"edge_label_visible_run":       "18px on each side",
+			"arrowhead_depth":              "9px",
+			"minimum_target_approach":      "27px straight run including arrowhead",
+			"recommended_primary_elements": "15 or fewer per view",
+		},
+		Rules: scene.VisualRulesCatalog,
+		ReviewLoop: []string{
+			"validate until ok=true; geometry errors block rendering",
+			"advise and resolve every collision, edge crossing, hidden edge, detached arrow, and label overlap",
+			"describe and inspect scene_stack, routes, content bounds, and ascii_map",
+			"render every target format and visually sample dense, vertical, dark, icon-heavy, and hybrid cases",
+			"regenerate the complete corpus and reject new visual findings or score regressions",
+		},
+	}
+}
+
+func writeVisualJSON(w io.Writer) error {
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "  ")
+	return enc.Encode(buildVisualDoc())
+}
+
+func writeVisualMarkdown(w io.Writer) error {
+	doc := buildVisualDoc()
+	var b strings.Builder
+	b.WriteString("# Sceno — visual quality contract\n\n## Principles\n\n")
+	for _, principle := range doc.Principles {
+		b.WriteString("- " + principle + "\n")
+	}
+	b.WriteString("\n## Metrics\n\n")
+	keys := make([]string, 0, len(doc.Metrics))
+	for key := range doc.Metrics {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		fmt.Fprintf(&b, "- `%s`: %s\n", key, doc.Metrics[key])
+	}
+	b.WriteString("\n## Review loop\n\n")
+	for i, step := range doc.ReviewLoop {
+		fmt.Fprintf(&b, "%d. %s\n", i+1, step)
+	}
+	_, err := io.WriteString(w, b.String())
+	return err
 }
 
 // GoalsDoc is the product mission and quality bar (sceno docs goals --json).
@@ -423,7 +501,7 @@ func writeIconsHuman(w io.Writer) error {
 	fmt.Fprintln(w, "Sceno icon catalog — use icon=<id> on shape lines")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "Placement (iconPos=):")
-	for _, p := range []string{"top-left", "top (default)", "top-right", "center", "bottom-left", "bottom", "bottom-right"} {
+	for _, p := range []string{"top-left (default inline)", "top", "top-right", "center", "bottom-left", "bottom", "bottom-right"} {
 		fmt.Fprintln(w, " ", p)
 	}
 	fmt.Fprintln(w)

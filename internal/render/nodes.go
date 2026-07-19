@@ -28,7 +28,7 @@ func polishedNodeSVG(n model.Node, dropShadow bool) string {
 	}
 	if n.Icon != "" {
 		ix, iy := IconRect(n, iconSize)
-		b.WriteString(icons.Group(n.Icon, ix, iy, iconSize, paint.FgMuted))
+		b.WriteString(icons.Group(n.Icon, ix, iy, iconSize, paint.FgSecondary))
 	}
 	b.WriteString(polishedLabel(n))
 	return b.String()
@@ -57,7 +57,7 @@ func polishedLabel(n model.Node) string {
 			if cl.TopAlign {
 				tx = n.Rect.X + (n.Rect.W-tw)/2
 			} else if cl.InlineIcon {
-				tx = n.Rect.X + cl.TitleX + (n.Rect.W-cl.TitleX-tw)/2
+				tx = n.Rect.X + cl.TitleX
 			}
 		} else {
 			tx = n.Rect.X + (n.Rect.W-tw)/2
@@ -69,7 +69,7 @@ func polishedLabel(n model.Node) string {
 		sw := measure.TextWidth(n.Subtitle, theme.SubSize, fonts.WeightRegular)
 		sx := n.Rect.X + (n.Rect.W-sw)/2
 		if cl.InlineIcon {
-			sx = n.Rect.X + cl.TitleX + (n.Rect.W-cl.TitleX-sw)/2
+			sx = n.Rect.X + cl.TitleX
 		}
 		b.WriteString(textEl(n.Subtitle, sx, n.Rect.Y+cl.SubtitleY, theme.SubSize, paint.FgMuted, ""))
 	}

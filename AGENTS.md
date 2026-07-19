@@ -18,6 +18,7 @@ Key topics (all **generated from code** at runtime — no separate markdown to m
 
 ```bash
 sceno docs architecture --json  # geometry vs semantics SoT, pipeline.Result, paint order
+sceno docs visual --json        # measurable composition, spacing, icon, and connector rules
 sceno docs stack --json         # stacked-plane validation model + visual rules
 sceno docs validation --json    # validate + advise commands, error codes
 sceno docs goals              # product goals + quality bar

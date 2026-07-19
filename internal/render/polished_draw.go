@@ -34,13 +34,13 @@ func DrawPolishedGG(dc *gg.Context, d model.Diagram, ox, oy, scale float64, vp V
 	dc.Fill()
 
 	if d.Title != "" {
-		tx, ty := vp.PX(vp.MinX+28, vp.MinY+32, scale)
+		tx, ty := vp.PX(vp.MinX+theme.CanvasTextInset, vp.MinY+theme.HeaderTitleBaseline, scale)
 		setGGFont(dc, fonts.WeightBold, theme.TitleSize*scale)
 		setGGColor(dc, paint.FgPrimary)
 		dc.DrawString(d.Title, tx+ox, ty+oy)
 	}
 	if d.Subtitle != "" {
-		tx, ty := vp.PX(vp.MinX+28, vp.MinY+56, scale)
+		tx, ty := vp.PX(vp.MinX+theme.CanvasTextInset, vp.MinY+theme.HeaderSubtitleBaseline, scale)
 		setGGFont(dc, fonts.WeightRegular, theme.SubtitleSize*scale)
 		setGGColor(dc, paint.FgMuted)
 		dc.DrawString(d.Subtitle, tx+ox, ty+oy)
@@ -79,12 +79,12 @@ func DrawPolishedPDF(pdf *gofpdf.Fpdf, d model.Diagram, minX, minY float64) {
 	if d.Title != "" {
 		setPDFFont(pdf, "B", theme.TitleSize)
 		setPDFTextColor(pdf, paint.FgPrimary)
-		pdf.Text(28, 32, d.Title)
+		pdf.Text(theme.CanvasTextInset, theme.HeaderTitleBaseline, d.Title)
 	}
 	if d.Subtitle != "" {
 		setPDFFont(pdf, "", theme.SubtitleSize)
 		setPDFTextColor(pdf, paint.FgMuted)
-		pdf.Text(28, 56, d.Subtitle)
+		pdf.Text(theme.CanvasTextInset, theme.HeaderSubtitleBaseline, d.Subtitle)
 	}
 
 	for _, n := range nodesBeforeEdges(&d) {
@@ -145,11 +145,55 @@ func drawPolishedNodeGG(dc *gg.Context, n model.Node, vp Viewport, ox, oy, scale
 		dc.Stroke()
 	case model.ShapeDiamond:
 		cx, cy := x+w/2, y+h/2
-		dc.MoveTo(cx, y)
-		dc.LineTo(x+w, cy)
-		dc.LineTo(cx, y+h)
-		dc.LineTo(x, cy)
-		dc.ClosePath()
+		drawPolygonGG(dc, [][2]float64{{cx, y}, {x + w, cy}, {cx, y + h}, {x, cy}}, sr, sg, sb)
+	case model.ShapeHexagon:
+		drawRegularPolygonGG(dc, x+w/2, y+h/2, w/2, h/2, 6, math.Pi/6, sr, sg, sb)
+	case model.ShapeOctagon:
+		drawRegularPolygonGG(dc, x+w/2, y+h/2, w/2, h/2, 8, math.Pi/8, sr, sg, sb)
+	case model.ShapeTriangle:
+		drawPolygonGG(dc, [][2]float64{{x + w/2, y}, {x + w, y + h}, {x, y + h}}, sr, sg, sb)
+	case model.ShapeParallelogram:
+		skew := w * 0.15
+		drawPolygonGG(dc, [][2]float64{{x + skew, y}, {x + w, y}, {x + w - skew, y + h}, {x, y + h}}, sr, sg, sb)
+	case model.ShapeCylinder:
+		ry := math.Min(w*0.12, 14*scale)
+		dc.DrawRectangle(x, y+ry, w, h-2*ry)
+		dc.FillPreserve()
+		dc.SetRGB(sr, sg, sb)
+		dc.Stroke()
+		dc.SetRGB(fr, fg, fb)
+		dc.DrawEllipse(x+w/2, y+ry, w/2, ry)
+		dc.FillPreserve()
+		dc.SetRGB(sr, sg, sb)
+		dc.Stroke()
+		dc.SetRGB(fr, fg, fb)
+		dc.DrawEllipse(x+w/2, y+h-ry, w/2, ry)
+		dc.FillPreserve()
+		dc.SetRGB(sr, sg, sb)
+		dc.Stroke()
+	case model.ShapeCloud:
+		rx, ry := w*0.475, h*0.425
+		for _, cloud := range [][4]float64{
+			{x + w/2 - rx*0.35, y + h/2, rx * 0.55, ry},
+			{x + w/2 + rx*0.3, y + h/2 - ry*0.1, rx * 0.5, ry * 0.9},
+			{x + w/2 + rx*0.1, y + h/2 + ry*0.15, rx * 0.65, ry * 0.85},
+		} {
+			dc.SetRGB(fr, fg, fb)
+			dc.DrawEllipse(cloud[0], cloud[1], cloud[2], cloud[3])
+			dc.FillPreserve()
+			dc.SetRGB(sr, sg, sb)
+			dc.Stroke()
+		}
+	case model.ShapeDocument:
+		fold := math.Min(w*0.22, 22*scale)
+		drawPolygonGG(dc, [][2]float64{{x, y}, {x + w - fold, y}, {x + w, y + fold}, {x + w, y + h}, {x, y + h}}, sr, sg, sb)
+		dc.MoveTo(x+w-fold, y)
+		dc.LineTo(x+w-fold, y+fold)
+		dc.LineTo(x+w, y+fold)
+		dc.SetRGB(sr, sg, sb)
+		dc.Stroke()
+	case model.ShapePill:
+		dc.DrawRoundedRectangle(x, y, w, h, h/2)
 		dc.FillPreserve()
 		dc.SetRGB(sr, sg, sb)
 		dc.Stroke()
@@ -171,6 +215,20 @@ func drawPolishedNodeGG(dc *gg.Context, n model.Node, vp Viewport, ox, oy, scale
 		dc.SetRGB(ar, ag, ab)
 		dc.DrawRectangle(x, y, 4*scale, h)
 		dc.Fill()
+	case model.ShapeNote:
+		dc.DrawRoundedRectangle(x, y, w, h, 4*scale)
+		dc.FillPreserve()
+		dc.SetRGB(sr, sg, sb)
+		dc.Stroke()
+		fold := math.Min(18*scale, math.Min(w, h)*0.28)
+		dc.MoveTo(x+w-fold, y+h)
+		dc.LineTo(x+w, y+h-fold)
+		dc.LineTo(x+w, y+h)
+		dc.ClosePath()
+		dc.SetRGB(fr, fg, fb)
+		dc.FillPreserve()
+		dc.SetRGB(sr, sg, sb)
+		dc.Stroke()
 	case model.ShapeLane:
 		lr, lg, lb := hexRGB(paint.BgLane, 0.97, 0.98, 0.99)
 		dc.SetRGB(lr, lg, lb)
@@ -205,9 +263,32 @@ func drawPolishedNodeGG(dc *gg.Context, n model.Node, vp Viewport, ox, oy, scale
 	if n.Icon != "" {
 		ix, iy := IconRect(n, polishedIconSize)
 		px, py := vp.PX(ix, iy, scale)
-		icons.Draw(dc, n.Icon, px+ox, py+oy, polishedIconSize*scale, paint.FgMuted)
+		icons.Draw(dc, n.Icon, px+ox, py+oy, polishedIconSize*scale, paint.FgSecondary)
 	}
 	drawPolishedLabelGG(dc, n, x, y, w, h, scale)
+}
+
+func drawPolygonGG(dc *gg.Context, points [][2]float64, sr, sg, sb float64) {
+	for i, point := range points {
+		if i == 0 {
+			dc.MoveTo(point[0], point[1])
+		} else {
+			dc.LineTo(point[0], point[1])
+		}
+	}
+	dc.ClosePath()
+	dc.FillPreserve()
+	dc.SetRGB(sr, sg, sb)
+	dc.Stroke()
+}
+
+func drawRegularPolygonGG(dc *gg.Context, cx, cy, rx, ry float64, sides int, offset, sr, sg, sb float64) {
+	points := make([][2]float64, sides)
+	for i := range points {
+		angle := offset + float64(i)*2*math.Pi/float64(sides)
+		points[i] = [2]float64{cx + rx*math.Cos(angle), cy + ry*math.Sin(angle)}
+	}
+	drawPolygonGG(dc, points, sr, sg, sb)
 }
 
 func drawPolishedLabelGG(dc *gg.Context, n model.Node, x, y, w, h, scale float64) {
@@ -229,7 +310,7 @@ func drawPolishedLabelGG(dc *gg.Context, n model.Node, x, y, w, h, scale float64
 		if cl.TopAlign {
 			tx = x + (w-tw)/2
 		} else if cl.InlineIcon {
-			tx = x + cl.TitleX*scale + (w-cl.TitleX*scale-tw)/2
+			tx = x + cl.TitleX*scale
 		} else {
 			tx = x + (w-tw)/2
 		}
@@ -241,7 +322,7 @@ func drawPolishedLabelGG(dc *gg.Context, n model.Node, x, y, w, h, scale float64
 		sw, _ := dc.MeasureString(n.Subtitle)
 		sx := x + (w-sw)/2
 		if cl.InlineIcon {
-			sx = x + cl.TitleX*scale + (w-cl.TitleX*scale-sw)/2
+			sx = x + cl.TitleX*scale
 		}
 		dc.DrawString(n.Subtitle, sx, y+cl.SubtitleY*scale)
 	}
@@ -322,7 +403,9 @@ func drawPolishedNodePDF(pdf *gofpdf.Fpdf, n model.Node, minX, minY float64) {
 	pdf.SetDrawColor(sr, sg, sb)
 	pdf.SetLineWidth(0.75)
 
-	switch n.Kind {
+	switch model.NormalizeShape(n.Kind) {
+	case model.ShapeActor:
+		drawActorPDF(pdf, x, y, w, h, sr, sg, sb)
 	case model.ShapeEllipse, model.ShapeCircle:
 		pdf.Ellipse(x+w/2, y+h/2, w/2, h/2, 0, "FD")
 	case model.ShapeDiamond:
@@ -334,6 +417,32 @@ func drawPolishedNodePDF(pdf *gofpdf.Fpdf, n model.Node, minX, minY float64) {
 			{X: x, Y: cy},
 		}
 		pdf.Polygon(pts, "FD")
+	case model.ShapeHexagon:
+		pdf.Polygon(regularPolygonPDF(x+w/2, y+h/2, w/2, h/2, 6, math.Pi/6), "FD")
+	case model.ShapeOctagon:
+		pdf.Polygon(regularPolygonPDF(x+w/2, y+h/2, w/2, h/2, 8, math.Pi/8), "FD")
+	case model.ShapeTriangle:
+		pdf.Polygon([]gofpdf.PointType{{X: x + w/2, Y: y}, {X: x + w, Y: y + h}, {X: x, Y: y + h}}, "FD")
+	case model.ShapeParallelogram:
+		skew := w * 0.15
+		pdf.Polygon([]gofpdf.PointType{{X: x + skew, Y: y}, {X: x + w, Y: y}, {X: x + w - skew, Y: y + h}, {X: x, Y: y + h}}, "FD")
+	case model.ShapeCylinder:
+		ry := math.Min(w*0.12, 14)
+		pdf.Rect(x, y+ry, w, h-2*ry, "FD")
+		pdf.Ellipse(x+w/2, y+ry, w/2, ry, 0, "FD")
+		pdf.Ellipse(x+w/2, y+h-ry, w/2, ry, 0, "FD")
+	case model.ShapeCloud:
+		rx, ry := w*0.475, h*0.425
+		pdf.Ellipse(x+w/2-rx*0.35, y+h/2, rx*0.55, ry, 0, "FD")
+		pdf.Ellipse(x+w/2+rx*0.3, y+h/2-ry*0.1, rx*0.5, ry*0.9, 0, "FD")
+		pdf.Ellipse(x+w/2+rx*0.1, y+h/2+ry*0.15, rx*0.65, ry*0.85, 0, "FD")
+	case model.ShapeDocument:
+		fold := math.Min(w*0.22, 22)
+		pdf.Polygon([]gofpdf.PointType{{X: x, Y: y}, {X: x + w - fold, Y: y}, {X: x + w, Y: y + fold}, {X: x + w, Y: y + h}, {X: x, Y: y + h}}, "FD")
+		pdf.Line(x+w-fold, y, x+w-fold, y+fold)
+		pdf.Line(x+w-fold, y+fold, x+w, y+fold)
+	case model.ShapePill:
+		pdf.RoundedRect(x, y, w, h, h/2, "1234", "FD")
 	case model.ShapeTextbox:
 		pdf.RoundedRect(x, y, w, h, 3, "1234", "FD")
 	case model.ShapeInfobox:
@@ -346,6 +455,10 @@ func drawPolishedNodePDF(pdf *gofpdf.Fpdf, n model.Node, minX, minY float64) {
 		pdf.SetFillColor(ar, ag, ab)
 		pdf.Rect(x, y, 1.5, h, "F")
 		pdf.SetFillColor(fr, fg, fb)
+	case model.ShapeNote:
+		pdf.RoundedRect(x, y, w, h, 2, "1234", "FD")
+		fold := math.Min(18.0, math.Min(w, h)*0.28)
+		pdf.Polygon([]gofpdf.PointType{{X: x + w - fold, Y: y + h}, {X: x + w, Y: y + h - fold}, {X: x + w, Y: y + h}}, "FD")
 	case model.ShapeLane:
 		lr, lg, lb := hexRGBInt(paint.BgLane, 248, 250, 252)
 		pdf.SetFillColor(lr, lg, lb)
@@ -358,9 +471,9 @@ func drawPolishedNodePDF(pdf *gofpdf.Fpdf, n model.Node, minX, minY float64) {
 
 	if n.Icon != "" && !model.IsContainer(n.Kind) {
 		ix, iy := IconRect(n, polishedIconSize)
-		data, err := icons.PNG(n.Icon, 64, paint.FgMuted)
+		data, err := icons.PNG(n.Icon, 64, paint.FgSecondary)
 		if err == nil {
-			key := "sceno-icon-" + n.Icon + "-" + strings.TrimPrefix(paint.FgMuted, "#")
+			key := "sceno-icon-" + n.Icon + "-" + strings.TrimPrefix(paint.FgSecondary, "#")
 			opt := gofpdf.ImageOptions{ImageType: "PNG", ReadDpi: true}
 			pdf.RegisterImageOptionsReader(key, opt, bytes.NewReader(data))
 			pdf.ImageOptions(key, ix-minX, iy-minY, polishedIconSize, polishedIconSize, false, opt, 0, "")
@@ -372,6 +485,29 @@ func drawPolishedNodePDF(pdf *gofpdf.Fpdf, n model.Node, minX, minY float64) {
 		setPDFTextColor(pdf, paint.FgMuted)
 		pdf.Text(x+14, y+14, n.Label)
 	}
+}
+
+func regularPolygonPDF(cx, cy, rx, ry float64, sides int, offset float64) []gofpdf.PointType {
+	points := make([]gofpdf.PointType, sides)
+	for i := range points {
+		angle := offset + float64(i)*2*math.Pi/float64(sides)
+		points[i] = gofpdf.PointType{X: cx + rx*math.Cos(angle), Y: cy + ry*math.Sin(angle)}
+	}
+	return points
+}
+
+func drawActorPDF(pdf *gofpdf.Fpdf, x, y, w, h float64, sr, sg, sb int) {
+	cx := x + w/2
+	headR := math.Max(4, math.Min(w*0.16, h*0.14))
+	headCY := y + headR + 3
+	shoulderY := headCY + headR + 2
+	footY := y + h - 3
+	pdf.SetDrawColor(sr, sg, sb)
+	pdf.Ellipse(cx, headCY, headR, headR, 0, "D")
+	pdf.Line(cx, shoulderY, cx, footY)
+	pdf.Line(cx-w*0.32, shoulderY+2, cx+w*0.32, shoulderY+2)
+	pdf.Line(cx, footY, cx-w*0.22, footY)
+	pdf.Line(cx, footY, cx+w*0.22, footY)
 }
 
 func drawPolishedLabelPDF(pdf *gofpdf.Fpdf, n model.Node, x, y, w, h float64) {
@@ -391,7 +527,7 @@ func drawPolishedLabelPDF(pdf *gofpdf.Fpdf, n model.Node, x, y, w, h float64) {
 		tw := pdf.GetStringWidth(line)
 		tx := x + (w-tw)/2
 		if cl.InlineIcon {
-			tx = x + cl.TitleX + (w-cl.TitleX-tw)/2
+			tx = x + cl.TitleX
 		}
 		pdf.Text(tx, y+cl.TitleStartY+float64(i)*lineH, line)
 	}
@@ -401,7 +537,7 @@ func drawPolishedLabelPDF(pdf *gofpdf.Fpdf, n model.Node, x, y, w, h float64) {
 		tw := pdf.GetStringWidth(n.Subtitle)
 		tx := x + (w-tw)/2
 		if cl.InlineIcon {
-			tx = x + cl.TitleX + (w-cl.TitleX-tw)/2
+			tx = x + cl.TitleX
 		}
 		pdf.Text(tx, y+cl.SubtitleY, n.Subtitle)
 	}

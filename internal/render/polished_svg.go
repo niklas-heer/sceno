@@ -82,10 +82,10 @@ func polishedSVGCanvas(vp Viewport) string {
 func polishedSVGContent(d model.Diagram, vp Viewport, opt SVGOptions) string {
 	var b strings.Builder
 	if d.Title != "" {
-		b.WriteString(textEl(d.Title, vp.MinX+32, vp.MinY+36, theme.TitleSize, paint.FgPrimary, "700"))
+		b.WriteString(textEl(d.Title, vp.MinX+theme.CanvasTextInset, vp.MinY+theme.HeaderTitleBaseline, theme.TitleSize, paint.FgPrimary, "700"))
 	}
 	if d.Subtitle != "" {
-		b.WriteString(textEl(d.Subtitle, vp.MinX+32, vp.MinY+62, theme.SubtitleSize, paint.FgMuted, ""))
+		b.WriteString(textEl(d.Subtitle, vp.MinX+theme.CanvasTextInset, vp.MinY+theme.HeaderSubtitleBaseline, theme.SubtitleSize, paint.FgMuted, ""))
 	}
 	for _, n := range nodesBeforeEdges(&d) {
 		b.WriteString(polishedNodeSVG(n, opt.DropShadow))

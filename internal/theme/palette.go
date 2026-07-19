@@ -9,29 +9,30 @@ import (
 
 // Palette holds resolved colors for one render (light, dark, or custom vars).
 type Palette struct {
-	Mode        string
-	Transparent bool
-	BgCanvas    string
-	BgCard      string
-	BgMuted     string
-	BgLane      string
-	BgTextbox   string
-	BgCode      string
-	Border      string
+	Mode         string
+	Transparent  bool
+	BgCanvas     string
+	BgCard       string
+	BgMuted      string
+	BgLane       string
+	BgTextbox    string
+	BgCode       string
+	Border       string
 	BorderStrong string
-	FgPrimary   string
-	FgMuted     string
-	Accent      string
-	AccentBrand string
-	EdgeDefault string
-	EdgeOpacity string
-	Shadow      string
-	Ring        string
-	CodeFg      string
-	CodeKeyword string
-	CodeString  string
-	CodeComment string
-	CodeNumber  string
+	FgPrimary    string
+	FgSecondary  string
+	FgMuted      string
+	Accent       string
+	AccentBrand  string
+	EdgeDefault  string
+	EdgeOpacity  string
+	Shadow       string
+	Ring         string
+	CodeFg       string
+	CodeKeyword  string
+	CodeString   string
+	CodeComment  string
+	CodeNumber   string
 }
 
 // LightPalette is the default zinc/shadcn light theme.
@@ -47,6 +48,7 @@ func LightPalette() Palette {
 		Border:       Border,
 		BorderStrong: BorderStrong,
 		FgPrimary:    FgPrimary,
+		FgSecondary:  "#52525b",
 		FgMuted:      FgMuted,
 		Accent:       Accent,
 		AccentBrand:  AccentBrand,
@@ -75,6 +77,7 @@ func DarkPalette() Palette {
 		Border:       "#3f3f46",
 		BorderStrong: "#52525b",
 		FgPrimary:    "#fafafa",
+		FgSecondary:  "#d4d4d8",
 		FgMuted:      "#a1a1aa",
 		Accent:       "#fafafa",
 		AccentBrand:  "#a78bfa",

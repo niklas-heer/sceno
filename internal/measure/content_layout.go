@@ -11,6 +11,8 @@ import (
 // SnapUnit is the internal content grid inside shapes (icon + label bands).
 const SnapUnit = 4.0
 
+const InlineIconGap = 12.0
+
 // Snap rounds v to the nearest SnapUnit (engine grid).
 func Snap(v float64) float64 {
 	return math.Round(v/SnapUnit) * SnapUnit
@@ -33,12 +35,12 @@ type ContentLayout struct {
 	MinH         float64
 }
 
-// EffectiveIconPos returns the icon position used by layout (default: top-centered card stack).
+// EffectiveIconPos returns the icon position used by layout (default: compact inline group).
 func EffectiveIconPos(n model.Node) model.IconPosition {
 	if n.IconPos != "" {
 		return n.IconPos
 	}
-	return model.IconTop
+	return model.IconTopLeft
 }
 
 // BuildContentLayout computes snapped interior placement and tight outer bounds.
@@ -122,15 +124,14 @@ func BuildContentLayout(n model.Node) ContentLayout {
 			maxLineW = tw
 		}
 	}
-	contentW := maxLineW
-	if cl.InlineIcon {
-		contentW += IconColumn
-	}
+	textBlockW := maxLineW
 	if n.Subtitle != "" {
 		sw := TextWidth(n.Subtitle, fs*0.85, fonts.WeightRegular)
-		if sw > contentW {
-			contentW = sw
-		}
+		textBlockW = math.Max(textBlockW, sw)
+	}
+	contentW := textBlockW
+	if cl.InlineIcon {
+		contentW += IconSize + InlineIconGap
 	}
 	cl.MinW = Snap(math.Max(contentW+padX*2, shapeMinW(k)))
 	if hasIcon {
@@ -139,7 +140,6 @@ func BuildContentLayout(n model.Node) ContentLayout {
 
 	groupH := titleBlockH + subBlockH
 	if cl.InlineIcon {
-		cl.TitleX = Snap(IconColumn)
 		cl.TitleStartY = (cl.MinH-groupH)/2 + lineH*0.75
 	} else if cl.TopAlign {
 		cl.TitleX = padX
@@ -158,7 +158,13 @@ func BuildContentLayout(n model.Node) ContentLayout {
 	if hasIcon {
 		layoutW := math.Max(n.Rect.W, cl.MinW)
 		layoutH := math.Max(n.Rect.H, cl.MinH)
-		cl.IconX, cl.IconY = iconOffset(pos, layoutW, layoutH)
+		if cl.InlineIcon {
+			cl.IconX = Snap((layoutW - contentW) / 2)
+			cl.IconY = Snap((layoutH - IconSize) / 2)
+			cl.TitleX = cl.IconX + IconSize + InlineIconGap
+		} else {
+			cl.IconX, cl.IconY = iconOffset(pos, layoutW, layoutH)
+		}
 	}
 
 	return cl

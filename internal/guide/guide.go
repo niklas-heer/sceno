@@ -204,7 +204,7 @@ func Build() Document {
 		},
 		ShapeProps: map[string]string{
 			"icon":     "Catalog icon name",
-			"iconPos":  "Icon placement: top-left | top (default) | top-right | center | bottom-left | bottom | bottom-right",
+			"iconPos":  "Icon placement: top-left (default inline) | top | top-right | center | bottom-left | bottom | bottom-right",
 			"fill":     "Background #hex",
 			"stroke":   "Border #hex",
 			"accent":   "Callout stripe #hex",

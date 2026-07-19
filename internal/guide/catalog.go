@@ -37,7 +37,7 @@ func ShapeCatalog() []ShapeEntry {
 func IconPosOptions() []string {
 	return []string{
 		"top-left",
-		"top (default)",
+		"top",
 		"top-right",
 		"center",
 		"bottom-left",
@@ -54,6 +54,7 @@ func TopicDescriptions() map[string]string {
 		"spec":         "Full KDL specification (generated from code — diagram, shapes, edges, layout, theme)",
 		"goals":        "Product mission, quality bar, ecosystem best practices",
 		"practices":    "Authoring workflow, iterate loop, best practices, common mistakes, visual rules",
+		"visual":       "Measurable visual quality contract — composition, spacing, icons, connectors, review loop",
 		"stack":        "Stacked 2D plane validation model — lanes, edges, annotations, nodes, labels",
 		"validation":   "validate + advise commands, error codes, visual rules, stack model summary",
 		"shapes":       "Allowed shape kinds including info, tip, warning callouts",
@@ -72,6 +73,7 @@ func DocsCatalogCommands() map[string]string {
 		"sceno docs stack [--json]":      "Stack validation model + visual rules",
 		"sceno docs validation --json":   "Validation + advise reference",
 		"sceno docs practices --json":    "Best practices + common mistakes + visual rules",
+		"sceno docs visual --json":       "Visual principles, exact spacing metrics, and review loop",
 		"sceno docs errors --json":       "Error code repair catalog",
 		"sceno docs goals --json":        "Product mission, quality bar, ecosystem practices",
 		"sceno validate -i f --json":     "Validate spec after every edit",
@@ -84,7 +86,7 @@ func DocsCatalogCommands() map[string]string {
 func ShapeNotes() []string {
 	return []string{
 		"info, warning, tip are semantic infobox variants with default accent colors",
-		"iconPos controls icon placement (top default)",
+		"icons default to a centered inline icon + text group; iconPos=top is an explicit tall-card treatment",
 	}
 }
 

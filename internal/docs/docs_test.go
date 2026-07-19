@@ -54,6 +54,20 @@ func TestRunPracticesJSON(t *testing.T) {
 	}
 }
 
+func TestRunVisualJSON(t *testing.T) {
+	var buf bytes.Buffer
+	if err := Run("visual", true, &buf); err != nil {
+		t.Fatal(err)
+	}
+	var doc VisualDoc
+	if err := json.Unmarshal(buf.Bytes(), &doc); err != nil {
+		t.Fatal(err)
+	}
+	if len(doc.Principles) < 5 || doc.Metrics["minimum_target_approach"] == "" || len(doc.ReviewLoop) < 4 {
+		t.Fatalf("visual doc incomplete: %+v", doc)
+	}
+}
+
 func TestRunStackJSON(t *testing.T) {
 	var buf bytes.Buffer
 	if err := Run("stack", true, &buf); err != nil {

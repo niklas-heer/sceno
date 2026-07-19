@@ -30,7 +30,7 @@ sceno render -i examples/how-it-works.kdl -o docs/how-it-works
 sceno docs guide --json
 ```
 
-Browse all topics: `sceno docs --json` (guide, spec, goals, practices, stack, validation, errors, shapes, icons). Documentation is **generated from code** at runtime.
+Browse all topics: `sceno docs --json` (guide, spec, goals, practices, visual, stack, validation, errors, shapes, icons). Use `sceno docs visual --json` for the measurable composition, icon, spacing, and connector contract. Documentation is **generated from code** at runtime.
 
 **After every KDL edit:**
 

@@ -4,6 +4,7 @@ import (
 	"math"
 	"testing"
 
+	"github.com/niklas-heer/sceno/internal/fonts"
 	"github.com/niklas-heer/sceno/internal/model"
 )
 
@@ -54,7 +55,7 @@ func TestApplyInteriorsPreservesExplicitIconPositions(t *testing.T) {
 		wantX float64
 		wantY float64
 	}{
-		{model.IconTopLeft, 12, 40},
+		{model.IconTopLeft, 28, 40},
 		{model.IconTop, 52, 12},
 		{model.IconTopRight, 92, 12},
 		{model.IconCenter, 52, 40},
@@ -76,8 +77,22 @@ func TestApplyInteriorsPreservesExplicitIconPositions(t *testing.T) {
 	}
 }
 
-func TestDefaultIconPositionIsTop(t *testing.T) {
-	if got := EffectiveIconPos(model.Node{}); got != model.IconTop {
-		t.Fatalf("default icon position = %q want top", got)
+func TestDefaultIconPositionIsInline(t *testing.T) {
+	if got := EffectiveIconPos(model.Node{}); got != model.IconTopLeft {
+		t.Fatalf("default icon position = %q want top-left", got)
+	}
+}
+
+func TestInlineIconAndTextAreCenteredAsAGroup(t *testing.T) {
+	n := model.Node{Kind: model.ShapeBox, Label: "Build", Icon: "workflow", Rect: model.Rect{W: 220, H: 64}}
+	cl := BuildContentLayout(n)
+	textW := TextWidth(n.Label, 14, fonts.WeightMedium)
+	groupLeft := cl.IconX
+	groupRight := cl.TitleX + textW
+	if math.Abs((groupLeft+groupRight)/2-n.Rect.W/2) > SnapUnit {
+		t.Fatalf("inline group not centered: left=%.0f right=%.0f node=%.0f", groupLeft, groupRight, n.Rect.W)
+	}
+	if gap := cl.TitleX - (cl.IconX + cl.IconSize); gap != InlineIconGap {
+		t.Fatalf("inline gap = %.0f want %.0f", gap, InlineIconGap)
 	}
 }

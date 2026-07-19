@@ -75,8 +75,8 @@ func TestPipelineStoresInteriorLayout(t *testing.T) {
 	if !n.Interior.Ready {
 		t.Fatal("expected interior layout from pipeline")
 	}
-	if n.Interior.TitleStartY < 40 {
-		t.Fatalf("title start too small: %.1f", n.Interior.TitleStartY)
+	if !n.Interior.InlineIcon || n.Interior.TitleX <= n.Interior.IconX+n.Interior.IconSize {
+		t.Fatalf("expected compact icon-before-text interior: %+v", n.Interior)
 	}
 }
 

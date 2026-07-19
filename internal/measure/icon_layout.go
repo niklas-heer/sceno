@@ -28,7 +28,7 @@ func IconRect(n model.Node, size float64) (x, y float64) {
 	case model.IconBottomRight:
 		return r.Right() - IconPad - size, r.Bottom() - IconPad - size
 	default:
-		return r.X + IconPad, r.Y + IconPad
+		return r.X + IconPad, r.Y + (r.H-size)/2
 	}
 }
 

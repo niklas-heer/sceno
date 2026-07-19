@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/niklas-heer/sceno/internal/composition"
 	"github.com/niklas-heer/sceno/internal/fonts"
 	"github.com/niklas-heer/sceno/internal/geom"
 	"github.com/niklas-heer/sceno/internal/measure"
@@ -89,7 +90,7 @@ func BuildStack(d *model.Diagram) Stack {
 	if d == nil {
 		return Stack{Planes: map[string][]StackItem{}}
 	}
-	minX, minY, maxX, maxY := canvasExtents(d)
+	minX, minY, maxX, maxY := composition.Bounds(*d)
 	stack := Stack{
 		Canvas: model.Rect{X: minX, Y: minY, W: maxX - minX, H: maxY - minY},
 		Planes: map[string][]StackItem{},
@@ -143,8 +144,9 @@ func BuildStack(d *model.Diagram) Stack {
 	}
 
 	if d.Title != "" || d.Subtitle != "" {
-		ch := titleChromeBounds(d, stack.Canvas)
-		add(PlaneChrome, StackItem{ID: "title", Kind: "title", Bounds: ch, Z: int(PlaneChrome)})
+		if ch, ok := composition.ChromeBounds(*d); ok {
+			add(PlaneChrome, StackItem{ID: "title", Kind: "title", Bounds: ch, Z: int(PlaneChrome)})
+		}
 	}
 	return stack
 }
@@ -183,7 +185,7 @@ func nodeContent(n model.Node) []ContentItem {
 		w := measure.TextWidth(line, fs, fonts.WeightMedium)
 		x := n.Rect.X + (n.Rect.W-w)/2
 		if cl.InlineIcon {
-			x = n.Rect.X + cl.TitleX + (n.Rect.W-cl.TitleX-w)/2
+			x = n.Rect.X + cl.TitleX
 		}
 		baseline := n.Rect.Y + cl.TitleStartY + float64(i)*cl.TitleLineH
 		out = append(out, ContentItem{Kind: "title", Value: line, Bounds: model.Rect{X: x, Y: baseline - fs, W: w, H: cl.TitleLineH}})
@@ -192,7 +194,7 @@ func nodeContent(n model.Node) []ContentItem {
 		w := measure.TextWidth(n.Subtitle, theme.SubSize, fonts.WeightRegular)
 		x := n.Rect.X + (n.Rect.W-w)/2
 		if cl.InlineIcon {
-			x = n.Rect.X + cl.TitleX + (n.Rect.W-cl.TitleX-w)/2
+			x = n.Rect.X + cl.TitleX
 		}
 		out = append(out, ContentItem{
 			Kind: "subtitle", Value: n.Subtitle,
@@ -272,18 +274,4 @@ func edgeLabelBounds(pts []geom.Point, edge model.Edge, byID map[string]model.No
 	layout := geom.LayoutEdgeLabel(pts, edge.Label, ctx)
 	x, y, w, h := layout.LabelRect()
 	return model.Rect{X: x, Y: y, W: w, H: h}
-}
-
-func titleChromeBounds(d *model.Diagram, canvas model.Rect) model.Rect {
-	h := 0.0
-	if d.Title != "" {
-		h += 48
-	}
-	if d.Subtitle != "" {
-		h += 28
-	}
-	if h > 0 {
-		h += 16
-	}
-	return model.Rect{X: canvas.X, Y: canvas.Y, W: canvas.W, H: h}
 }

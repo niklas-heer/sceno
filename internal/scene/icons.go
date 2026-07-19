@@ -71,7 +71,7 @@ func overlapsLabel(icon model.Rect, n model.Node) bool {
 		w := measure.TextWidth(line, fs, fonts.WeightMedium)
 		x := n.Rect.X + (n.Rect.W-w)/2
 		if cl.InlineIcon {
-			x = n.Rect.X + cl.TitleX + (n.Rect.W-cl.TitleX-w)/2
+			x = n.Rect.X + cl.TitleX
 		}
 		baseline := n.Rect.Y + cl.TitleStartY + float64(i)*cl.TitleLineH
 		if rectsOverlap(icon, model.Rect{X: x, Y: baseline - fs*0.8, W: w, H: fs}, 2) {
@@ -83,7 +83,7 @@ func overlapsLabel(icon model.Rect, n model.Node) bool {
 		w := measure.TextWidth(n.Subtitle, subSize, fonts.WeightRegular)
 		x := n.Rect.X + (n.Rect.W-w)/2
 		if cl.InlineIcon {
-			x = n.Rect.X + cl.TitleX + (n.Rect.W-cl.TitleX-w)/2
+			x = n.Rect.X + cl.TitleX
 		}
 		baseline := n.Rect.Y + cl.SubtitleY
 		return rectsOverlap(icon, model.Rect{X: x, Y: baseline - subSize*0.8, W: w, H: subSize}, 2)

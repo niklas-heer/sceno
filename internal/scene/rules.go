@@ -24,11 +24,11 @@ type VisualRule struct {
 // VisualRulesCatalog is the baked-in design knowledge (diagrams + slides).
 var VisualRulesCatalog = []VisualRule{
 	{ID: "hierarchy", Name: "Visual hierarchy", Source: "NN/g, IxDF", Description: "Titles and focal nodes should dominate; supporting detail recedes via size and spacing."},
-	{ID: "whitespace", Name: "Whitespace", Source: "Gestalt proximity", Description: "Use gap and padding so groups breathe; avoid overcrowded or empty canvases."},
+	{ID: "whitespace", Name: "Whitespace", Source: "Gestalt proximity", Description: "Reserve at least 36px between subtitle baseline and content; keep side/bottom insets balanced and avoid stranded canvas."},
 	{ID: "alignment", Name: "Alignment", Source: "PowerPoint grids", Description: "Same column/row nodes share center lines; icons and labels balance on a 4px interior grid."},
-	{ID: "content_grid", Name: "Interior content grid", Source: "Sceno measure", Description: "Icon, title, and subtitle snap inside shapes; FitSize uses tight measured bounds."},
+	{ID: "content_grid", Name: "Interior content grid", Source: "Sceno measure", Description: "Icon, title, and subtitle snap to 4px; inline icon + text groups center together with a 12px gap; FitSize uses tight bounds."},
 	{ID: "anchor_sides", Name: "Anchor sides", Source: "Sceno geom", Description: "Stacked nodes connect top/bottom; horizontal pipelines use left/right."},
-	{ID: "edge_clarity", Name: "Edge clarity", Source: "d2/Mermaid", Description: "Connectors attach at shape borders; filled arrowheads meet the target edge; labels sit on the connector (opaque box), never over title/subtitle chrome."},
+	{ID: "edge_clarity", Name: "Edge clarity", Source: "d2/Mermaid", Description: "Use direct obstacle-free orthogonal routes; reserve 18px of visible shaft around labels and a 27px straight target approach including the arrowhead."},
 	{ID: "element_budget", Name: "Element budget", Source: "C4 / architecture", Description: "Prefer ≤15 primary nodes per view; split slides or add lanes for more."},
 	{ID: "slide_focus", Name: "One idea per slide", Source: "10/20/30, Visme", Description: "Each slide should communicate one core idea with a clear focal point."},
 	{ID: "annotations", Name: "Callouts & notes", Source: "PowerPoint", Description: "Use infobox/note/tip for context without blocking the main flow."},

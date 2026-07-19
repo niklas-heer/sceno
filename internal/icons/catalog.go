@@ -12,7 +12,7 @@ type Entry struct {
 	DefaultIconPos  string   `json:"default_icon_pos,omitempty"`
 }
 
-const DefaultIconPosition = "top"
+const DefaultIconPosition = "top-left"
 
 // svg path fragments (24×24 viewBox, stroke icons).
 var svgPaths = map[string]string{
@@ -128,7 +128,7 @@ func ByCategory() map[string][]Entry {
 func DocTips() []string {
 	return []string{
 		"Use icon=name on shape lines — never invent names; run sceno docs icons --json",
-		"iconPos=top (default) stacks icons above labels; use iconPos=top-left for compact horizontal cards",
+		"Icons default to a compact inline icon + text group; use iconPos=top only for intentionally tall cards",
 		"Pair icons with shape kind: database→cylinder, cloud→cloud, policy→infobox",
 		"One icon per primary node; avoid icons on every shape in dense diagrams",
 		"Icons render consistently in SVG, PNG, PDF, HTML, and slide exports",
