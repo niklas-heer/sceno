@@ -3,6 +3,7 @@ package scene
 import (
 	"fmt"
 	"math"
+	"sort"
 	"strings"
 
 	"github.com/niklas-heer/sceno/internal/composition"
@@ -15,6 +16,7 @@ const (
 	minVisibleArrowStroke = geom.EdgeLabelClearRun
 	maxLabelAxisDrift     = 6.0
 	anchorEps             = 1.5
+	minArrowTipSeparation = 14.0
 )
 
 // edgeRenderFindings validates arrowheads and edge labels using the same layout as render.
@@ -24,6 +26,7 @@ func edgeRenderFindings(d *model.Diagram) []Finding {
 		out = append(out, checkEdgeArrow(d, re)...)
 		out = append(out, checkEdgeLabel(d, re)...)
 	}
+	out = append(out, checkArrowheadClusters(d)...)
 	return out
 }
 
@@ -73,15 +76,15 @@ func checkEdgeArrow(d *model.Diagram, re model.RoutedEdge) []Finding {
 	for _, n := range d.Nodes {
 		byID[n.ID] = n
 	}
-	srcAnchor, dstAnchor, ok := edgeAnchors(re.Edge, byID)
+	pathStart := gpts[0]
+	pathEnd := gpts[len(gpts)-1]
+	srcAnchor, dstAnchor, ok := edgeAnchors(re.Edge, byID, pathStart, pathEnd)
 	if !ok {
 		return nil
 	}
 
 	var out []Finding
 	key := re.Edge.From + "→" + re.Edge.To
-	pathStart := gpts[0]
-	pathEnd := gpts[len(gpts)-1]
 	directSpan := math.Hypot(pathEnd.X-pathStart.X, pathEnd.Y-pathStart.Y)
 	routeLen := 0.0
 	for i := 1; i < len(gpts); i++ {
@@ -186,7 +189,7 @@ func entersSide(a, b geom.Point, side model.Side) bool {
 	return exitsSide(b, a, side)
 }
 
-func edgeAnchors(e model.Edge, byID map[string]model.Node) (src, dst geom.Point, ok bool) {
+func edgeAnchors(e model.Edge, byID map[string]model.Node, pathStart, pathEnd geom.Point) (src, dst geom.Point, ok bool) {
 	a, okA := byID[e.From]
 	b, okB := byID[e.To]
 	if !okA || !okB {
@@ -200,7 +203,85 @@ func edgeAnchors(e model.Edge, byID map[string]model.Node) (src, dst geom.Point,
 		_, ts = geom.BestSides(a, b)
 	}
 	src, dst = geom.EdgeAnchors(a, b, fs, ts)
+	srcAlong, dstAlong := pathStart.X, pathEnd.X
+	if geom.IsHorizontalSide(fs) {
+		srcAlong = pathStart.Y
+	}
+	if geom.IsHorizontalSide(ts) {
+		dstAlong = pathEnd.Y
+	}
+	if p, sliding := geom.SlidingAnchor(a, fs, srcAlong); sliding {
+		src = p
+	}
+	if p, sliding := geom.SlidingAnchor(b, ts, dstAlong); sliding {
+		dst = p
+	}
 	return src, dst, true
+}
+
+type arrowTip struct {
+	key   string
+	edge  model.Edge
+	point geom.Point
+}
+
+func checkArrowheadClusters(d *model.Diagram) []Finding {
+	groups := map[string][]arrowTip{}
+	for _, re := range d.Routed {
+		pts := geom.SimplifyPath(geom.SlicesToPath(re.Points))
+		if len(pts) < 2 {
+			continue
+		}
+		key := re.Edge.To + "\x00" + string(re.Edge.ToSide)
+		groups[key] = append(groups[key], arrowTip{
+			key: re.Edge.From + "→" + re.Edge.To, edge: re.Edge, point: pts[len(pts)-1],
+		})
+	}
+	var out []Finding
+	for _, tips := range groups {
+		sort.SliceStable(tips, func(i, j int) bool {
+			if tips[i].point.X != tips[j].point.X {
+				return tips[i].point.X < tips[j].point.X
+			}
+			if tips[i].point.Y != tips[j].point.Y {
+				return tips[i].point.Y < tips[j].point.Y
+			}
+			return tips[i].key < tips[j].key
+		})
+		for i := 1; i < len(tips); i++ {
+			a, b := tips[i-1], tips[i]
+			distance := geom.TipGap(a.point, b.point)
+			if distance >= minArrowTipSeparation {
+				continue
+			}
+			bounds := func(p geom.Point) model.Rect { return model.Rect{X: p.X - 1, Y: p.Y - 1, W: 2, H: 2} }
+			out = append(out, Finding{
+				RuleID: "edge_clarity", Severity: "warning", Plane: PlaneEdge, Projected: true,
+				Code:    string(diag.CodeArrowCluster),
+				Message: fmt.Sprintf("arrowheads on %q %s side are only %.0fpx apart (%s and %s)", b.edge.To, b.edge.ToSide, distance, a.key, b.key),
+				Fix:     "Increase the target size or route one edge to an adjacent target side; shared rectangular ports fan out automatically.",
+				Items:   []string{a.key, b.key, b.edge.To},
+				Geometry: &diag.Geometry{Bounds: map[string]model.Rect{
+					a.key + ":tip": bounds(a.point), b.key + ":tip": bounds(b.point),
+				}},
+				Repairs: []diag.RepairOption{{
+					Action: "set_property", Target: b.key,
+					Properties: map[string]string{"toSide": adjacentSide(b.edge.ToSide)},
+					Reason:     "move one arrowhead to an adjacent target side and re-run routing",
+				}},
+			})
+		}
+	}
+	return out
+}
+
+func adjacentSide(side model.Side) string {
+	switch side {
+	case model.SideLeft, model.SideRight:
+		return string(model.SideTop)
+	default:
+		return string(model.SideLeft)
+	}
 }
 
 // arrowTipBuried is true when the tip sits more than 2px inside the node interior (not on border).

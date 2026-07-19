@@ -99,6 +99,10 @@ shape box b "B" at=0,1`,
 		Meaning: "Arrow tip sits inside a shape fill instead of on the border — may be invisible under the node.",
 		Fix:     "Ensure routing terminates on the border anchor; arrowheads render after nodes.",
 	},
+	CodeArrowCluster: {
+		Meaning: "Multiple arrowheads land too close together on the same node side.",
+		Fix:     "Fan out ports along the target side, increase the target size, or route one edge to an adjacent side.",
+	},
 	CodeEdgeLabelChrome: {
 		Meaning: "Edge label overlaps the title/subtitle band or is wider than the node gap.",
 		Fix:     "Center labels on connectors between shapes; increase gap; shorten label text.",

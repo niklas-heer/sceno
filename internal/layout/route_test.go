@@ -2,6 +2,7 @@ package layout
 
 import (
 	"math"
+	"reflect"
 	"testing"
 
 	"github.com/niklas-heer/sceno/internal/geom"
@@ -94,5 +95,95 @@ func TestRouteEdgesAvoidOverlappingOutgoingConnectors(t *testing.T) {
 	RouteEdges(d)
 	if collisions := FindEdgeCollisions(d); len(collisions) != 0 {
 		t.Fatalf("outgoing connectors collide: %+v routes=%+v", collisions, d.Routed)
+	}
+}
+
+func TestRouteEdgesFansOutSharedTargetSide(t *testing.T) {
+	d := &model.Diagram{Gap: 32, Nodes: []model.Node{
+		{ID: "top", Kind: model.ShapeBox, Rect: model.Rect{X: 0, Y: 0, W: 100, H: 52}},
+		{ID: "bottom", Kind: model.ShapeBox, Rect: model.Rect{X: 0, Y: 140, W: 100, H: 52}},
+		{ID: "target", Kind: model.ShapeBox, Rect: model.Rect{X: 260, Y: 70, W: 140, H: 60}},
+	}, Edges: []model.Edge{
+		{From: "bottom", To: "target", FromSide: model.SideRight, ToSide: model.SideLeft},
+		{From: "top", To: "target", FromSide: model.SideRight, ToSide: model.SideLeft},
+	}}
+	RouteEdges(d)
+	if len(d.Routed) != 2 {
+		t.Fatalf("routes = %d", len(d.Routed))
+	}
+	tips := map[string]geom.Point{}
+	for _, re := range d.Routed {
+		pts := geom.SlicesToPath(re.Points)
+		tips[re.Edge.From] = pts[len(pts)-1]
+	}
+	if tips["top"].Y >= tips["bottom"].Y {
+		t.Fatalf("fan-out order is not counterpart order: %+v", tips)
+	}
+	if tips["top"].Y != d.Nodes[2].Rect.Y+geom.SlidingPortInset || tips["bottom"].Y != d.Nodes[2].Rect.Bottom()-geom.SlidingPortInset {
+		t.Fatalf("tips do not use full usable span: %+v", tips)
+	}
+	if gap := math.Abs(tips["bottom"].Y - tips["top"].Y); gap < 14 {
+		t.Fatalf("tips remain clustered: %.1fpx", gap)
+	}
+}
+
+func TestRouteEdgesFanOutIsDeterministic(t *testing.T) {
+	makeDiagram := func() *model.Diagram {
+		return &model.Diagram{Gap: 32, Nodes: []model.Node{
+			{ID: "a", Rect: model.Rect{X: 0, Y: 0, W: 80, H: 48}},
+			{ID: "b", Rect: model.Rect{X: 0, Y: 100, W: 80, H: 48}},
+			{ID: "t", Rect: model.Rect{X: 240, Y: 40, W: 100, H: 64}},
+		}, Edges: []model.Edge{{From: "a", To: "t"}, {From: "b", To: "t"}}}
+	}
+	a, b := makeDiagram(), makeDiagram()
+	RouteEdges(a)
+	RouteEdges(b)
+	if !reflect.DeepEqual(a.Routed, b.Routed) {
+		t.Fatalf("fan-out routing drifted:\n%+v\n%+v", a.Routed, b.Routed)
+	}
+}
+
+func TestRouteEdgesUsesAdjacentSideWhenSilhouetteCannotSlide(t *testing.T) {
+	d := &model.Diagram{Gap: 32, Nodes: []model.Node{
+		{ID: "source", Kind: model.ShapeHexagon, Rect: model.Rect{X: 0, Y: 60, W: 140, H: 60}},
+		{ID: "near", Kind: model.ShapeBox, Rect: model.Rect{X: 240, Y: 60, W: 100, H: 60}},
+		{ID: "far", Kind: model.ShapeBox, Rect: model.Rect{X: 460, Y: 60, W: 100, H: 60}},
+	}, Edges: []model.Edge{{From: "source", To: "near"}, {From: "source", To: "far"}}}
+	RouteEdges(d)
+	if len(d.Routed) != 2 {
+		t.Fatalf("routes = %d", len(d.Routed))
+	}
+	if d.Routed[0].Edge.FromSide == d.Routed[1].Edge.FromSide {
+		t.Fatalf("tapered source stacked both ports on %s", d.Routed[0].Edge.FromSide)
+	}
+}
+
+func TestScorePathPenalizesShortInteriorSegments(t *testing.T) {
+	start, end := (geom.Point{X: 0, Y: 0}), (geom.Point{X: 100, Y: 20})
+	short := []geom.Point{start, {X: 40, Y: 0}, {X: 40, Y: 10}, {X: 100, Y: 10}, end}
+	clear := []geom.Point{start, {X: 40, Y: 0}, {X: 40, Y: 20}, end}
+	if scorePath(short, nil, start, end, 24, model.SideRight, model.SideLeft) <= scorePath(clear, nil, start, end, 24, model.SideRight, model.SideLeft) {
+		t.Fatalf("short interior jog was not penalized")
+	}
+}
+
+func TestScorePathPenalizesSameAxisReversal(t *testing.T) {
+	start, end := (geom.Point{X: 0, Y: 0}), (geom.Point{X: 20, Y: 60})
+	reversed := []geom.Point{start, {X: 50, Y: 0}, {X: 20, Y: 0}, end}
+	clear := []geom.Point{start, {X: 20, Y: 0}, end}
+	if scorePath(reversed, nil, start, end, 24, model.SideRight, model.SideBottom) <= scorePath(clear, nil, start, end, 24, model.SideRight, model.SideBottom) {
+		t.Fatalf("same-axis fold-back was not penalized")
+	}
+}
+
+func TestScorePathPenalizesEightPixelObstacleBrush(t *testing.T) {
+	obstacle := model.Node{ID: "block", Rect: model.Rect{X: 40, Y: 20, W: 40, H: 40}}
+	start, end := (geom.Point{X: 0, Y: 13}), (geom.Point{X: 120, Y: 13})
+	near := []geom.Point{start, end}
+	far := []geom.Point{{X: 0, Y: 5}, {X: 120, Y: 5}}
+	nearScore := scorePath(near, []model.Node{obstacle}, start, end, 0, model.SideRight, model.SideLeft)
+	farScore := scorePath(far, []model.Node{obstacle}, far[0], far[1], 0, model.SideRight, model.SideLeft)
+	if nearScore <= farScore {
+		t.Fatalf("7px obstacle brush score %.0f must exceed clear route %.0f", nearScore, farScore)
 	}
 }

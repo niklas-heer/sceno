@@ -17,6 +17,22 @@ func TestAnchorRightEdge(t *testing.T) {
 	}
 }
 
+func TestSlidingAnchorClampsToUsableSideSpan(t *testing.T) {
+	n := model.Node{Kind: model.ShapeBox, Rect: model.Rect{X: 100, Y: 200, W: 120, H: 60}}
+	top, ok := SlidingAnchor(n, model.SideLeft, -100)
+	if !ok || top != (Point{X: 100, Y: 212}) {
+		t.Fatalf("top sliding port = %+v ok=%v", top, ok)
+	}
+	bottom, ok := SlidingAnchor(n, model.SideRight, 999)
+	if !ok || bottom != (Point{X: 220, Y: 248}) {
+		t.Fatalf("bottom sliding port = %+v ok=%v", bottom, ok)
+	}
+	cloud := model.Node{Kind: model.ShapeCloud, Rect: n.Rect}
+	if got, sliding := SlidingAnchor(cloud, model.SideLeft, 212); sliding || got != Anchor(cloud, model.SideLeft) {
+		t.Fatalf("cloud must keep silhouette midpoint anchor, got %+v sliding=%v", got, sliding)
+	}
+}
+
 func TestBestSidesHorizontal(t *testing.T) {
 	from := model.Node{Rect: model.Rect{X: 0, Y: 0, W: 50, H: 50}}
 	to := model.Node{Rect: model.Rect{X: 200, Y: 0, W: 50, H: 50}}

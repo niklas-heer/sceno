@@ -13,7 +13,7 @@ func FindEdgeCollisions(d *model.Diagram) []model.EdgeCollision {
 		return nil
 	}
 	var out []model.EdgeCollision
-	pad := d.Gap * 0.5
+	pad := routeBorderClearance
 
 	for _, re := range d.Routed {
 		pts := pathToPoints(re.Points)
@@ -89,12 +89,16 @@ func rerouteEdge(d *model.Diagram, byID map[string]*model.Node, c model.EdgeColl
 		}
 		fs, ts := resolveSides(re.Edge, a, b)
 		start, end := geom.EdgeAnchors(*a, *b, fs, ts)
+		current := geom.SlicesToPath(re.Points)
+		if len(current) >= 2 {
+			start, end = current[0], current[len(current)-1]
+		}
 		obs := obstacleNodes(d.Nodes, re.Edge.From, re.Edge.To, d.Gap)
 
 		for lane := 0; lane < 48; lane++ {
 			pts := routeWithLane(start, end, obs, d.Gap, float64(lane)*d.Gap*0.5, fs, ts)
 			pts = geom.SimplifyPath(pts)
-			if !pathHitsNodes(pts, d.Nodes, re.Edge.From, re.Edge.To, d.Gap*0.5) &&
+			if !pathHitsNodes(pts, d.Nodes, re.Edge.From, re.Edge.To, routeBorderClearance) &&
 				!pathConflictsWithRoutes(pointsToPath(pts), d.Routed, re.Key) {
 				re.Points = pointsToPath(pts)
 				d.EdgePaths[re.Key] = re.Points

@@ -45,3 +45,21 @@ func TestLayoutEdgeLabelMatchesEngine(t *testing.T) {
 		t.Fatalf("label on connector y, got %.1f", layout.CenterY)
 	}
 }
+
+func TestArrowheadClusterReportsExactTipsAndRepair(t *testing.T) {
+	d := &model.Diagram{Nodes: []model.Node{
+		{ID: "a", Rect: model.Rect{X: 0, Y: 0, W: 80, H: 40}},
+		{ID: "b", Rect: model.Rect{X: 0, Y: 80, W: 80, H: 40}},
+		{ID: "target", Rect: model.Rect{X: 200, Y: 40, W: 100, H: 60}},
+	}, Routed: []model.RoutedEdge{
+		{Edge: model.Edge{From: "a", To: "target", ToSide: model.SideLeft}, Points: [][]float64{{80, 20}, {200, 65}}},
+		{Edge: model.Edge{From: "b", To: "target", ToSide: model.SideLeft}, Points: [][]float64{{80, 100}, {200, 72}}},
+	}}
+	findings := checkArrowheadClusters(d)
+	if len(findings) != 1 || findings[0].Code != string(diag.CodeArrowCluster) {
+		t.Fatalf("expected one arrowhead cluster, got %+v", findings)
+	}
+	if findings[0].Geometry == nil || len(findings[0].Geometry.Bounds) != 2 || len(findings[0].Repairs) == 0 {
+		t.Fatalf("cluster lacks exact geometry or repair: %+v", findings[0])
+	}
+}

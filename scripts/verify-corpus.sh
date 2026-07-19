@@ -4,7 +4,7 @@ set -euo pipefail
 binary="${SCENO_BIN:-./sceno}"
 output="${SCENO_VERIFY_OUT:-$(mktemp -d)}"
 minimum_visual_score=80
-blocked_visual_codes='collision|edge_collision|edge_detour|edge_hidden|arrow_detached|arrow_hidden|edge_label_overlap|edge_label_chrome_overlap|edge_label_off_axis|edge_side_mismatch|occluded|text_overflow'
+blocked_visual_codes='collision|edge_collision|edge_detour|edge_hidden|arrow_detached|arrow_hidden|arrowhead_cluster|edge_label_overlap|edge_label_chrome_overlap|edge_label_off_axis|edge_side_mismatch|occluded|text_overflow'
 
 if [[ ! -x "$binary" ]]; then
   echo "verify-corpus: binary not executable: $binary" >&2

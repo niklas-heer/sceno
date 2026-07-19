@@ -6,6 +6,10 @@ import (
 	"github.com/niklas-heer/sceno/internal/model"
 )
 
+// SlidingPortInset keeps distributed rectangular ports away from rounded
+// corners and container chrome.
+const SlidingPortInset = 12.0
+
 // Point on the canvas.
 type Point struct {
 	X, Y float64
@@ -98,18 +102,29 @@ func EdgeAnchors(from, to model.Node, fromSide, toSide model.Side) (Point, Point
 }
 
 func projectedAnchor(n model.Node, side model.Side, toward Point) Point {
+	along := toward.X
+	if side == model.SideLeft || side == model.SideRight {
+		along = toward.Y
+	}
+	p, _ := SlidingAnchor(n, side, along)
+	return p
+}
+
+// SlidingAnchor places a port along a straight shape side and clamps it to the
+// usable span. Curved and tapered silhouettes return their midpoint anchor,
+// because only that point is guaranteed to touch their bbox side.
+func SlidingAnchor(n model.Node, side model.Side, along float64) (Point, bool) {
 	p := Anchor(n, side)
 	if !supportsSlidingPorts(n.Kind) {
-		return p
+		return p, false
 	}
-	const inset = 12.0
 	switch side {
 	case model.SideLeft, model.SideRight:
-		p.Y = math.Max(n.Rect.Y+inset, math.Min(toward.Y, n.Rect.Bottom()-inset))
+		p.Y = math.Max(n.Rect.Y+SlidingPortInset, math.Min(along, n.Rect.Bottom()-SlidingPortInset))
 	case model.SideTop, model.SideBottom:
-		p.X = math.Max(n.Rect.X+inset, math.Min(toward.X, n.Rect.Right()-inset))
+		p.X = math.Max(n.Rect.X+SlidingPortInset, math.Min(along, n.Rect.Right()-SlidingPortInset))
 	}
-	return p
+	return p, true
 }
 
 func supportsSlidingPorts(kind model.ShapeKind) bool {

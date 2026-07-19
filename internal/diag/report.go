@@ -35,6 +35,7 @@ const (
 	CodeAnnotationBlocks  Code = "annotation_blocks"
 	CodeArrowDetached     Code = "arrow_detached"
 	CodeArrowHidden       Code = "arrow_hidden"
+	CodeArrowCluster      Code = "arrowhead_cluster"
 	CodeEdgeLabelChrome   Code = "edge_label_chrome_overlap"
 	CodeEdgeLabelOverlap  Code = "edge_label_overlap"
 	CodeEdgeLabelOffAxis  Code = "edge_label_off_axis"

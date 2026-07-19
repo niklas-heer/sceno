@@ -10,8 +10,9 @@ import (
 )
 
 var hardVisualCodes = map[diag.Code]bool{
-	diag.CodeArrowDetached: true,
-	diag.CodeArrowHidden:   true,
+	diag.CodeArrowDetached:    true,
+	diag.CodeArrowHidden:      true,
+	diag.CodeArrowCluster:     true,
 }
 
 func TestVisualAuditExamplesAndFixtures(t *testing.T) {

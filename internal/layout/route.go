@@ -3,9 +3,15 @@ package layout
 import (
 	"fmt"
 	"math"
+	"sort"
 
 	"github.com/niklas-heer/sceno/internal/geom"
 	"github.com/niklas-heer/sceno/internal/model"
+)
+
+const (
+	minInteriorSegment   = 16.0
+	routeBorderClearance = 8.0
 )
 
 // RouteEdges builds obstacle-aware orthogonal paths snapped to node borders.
@@ -40,6 +46,122 @@ func RouteEdges(d *model.Diagram) {
 		d.Routed = append(d.Routed, re)
 		d.EdgePaths[key] = path
 	}
+	fanOutSharedPorts(d, byID, pad)
+}
+
+type portUse struct {
+	route       int
+	target      bool
+	node        model.Node
+	counterpart model.Node
+	side        model.Side
+	key         string
+}
+
+// fanOutSharedPorts distributes sibling endpoints over the straight usable
+// span of a node side. Sorting by counterpart position makes the result stable
+// and prevents crossed sibling connectors.
+func fanOutSharedPorts(d *model.Diagram, byID map[string]*model.Node, pad float64) {
+	groups := map[string][]portUse{}
+	for i, re := range d.Routed {
+		from, to := byID[re.Edge.From], byID[re.Edge.To]
+		if from == nil || to == nil {
+			continue
+		}
+		if _, ok := geom.SlidingAnchor(*from, re.Edge.FromSide, sideCenter(*from, re.Edge.FromSide)); ok {
+			groupKey := "source\x00" + from.ID + "\x00" + string(re.Edge.FromSide)
+			groups[groupKey] = append(groups[groupKey], portUse{route: i, node: *from, counterpart: *to, side: re.Edge.FromSide, key: re.Key})
+		}
+		if _, ok := geom.SlidingAnchor(*to, re.Edge.ToSide, sideCenter(*to, re.Edge.ToSide)); ok {
+			groupKey := "target\x00" + to.ID + "\x00" + string(re.Edge.ToSide)
+			groups[groupKey] = append(groups[groupKey], portUse{route: i, target: true, node: *to, counterpart: *from, side: re.Edge.ToSide, key: re.Key})
+		}
+	}
+
+	starts := make([]geom.Point, len(d.Routed))
+	ends := make([]geom.Point, len(d.Routed))
+	changed := make([]bool, len(d.Routed))
+	for i, re := range d.Routed {
+		pts := geom.SlicesToPath(re.Points)
+		if len(pts) >= 2 {
+			starts[i], ends[i] = pts[0], pts[len(pts)-1]
+		}
+	}
+	for _, uses := range groups {
+		if len(uses) < 2 {
+			continue
+		}
+		sort.SliceStable(uses, func(i, j int) bool {
+			ai, aj := counterpartOrder(uses[i]), counterpartOrder(uses[j])
+			if ai != aj {
+				return ai < aj
+			}
+			bi, bj := counterpartCrossOrder(uses[i]), counterpartCrossOrder(uses[j])
+			if bi != bj {
+				return bi < bj
+			}
+			return uses[i].key < uses[j].key
+		})
+		lo, hi := usableSideSpan(uses[0].node, uses[0].side)
+		for i, use := range uses {
+			along := lo + (hi-lo)*float64(i)/float64(len(uses)-1)
+			p, _ := geom.SlidingAnchor(use.node, use.side, along)
+			if use.target {
+				ends[use.route] = p
+			} else {
+				starts[use.route] = p
+			}
+			changed[use.route] = true
+		}
+	}
+
+	for i, re := range d.Routed {
+		if !changed[i] {
+			continue
+		}
+		a, b := byID[re.Edge.From], byID[re.Edge.To]
+		if a == nil || b == nil {
+			continue
+		}
+		obstacles := obstacleNodes(d.Nodes, re.Edge.From, re.Edge.To, pad)
+		pts := routeWithLane(starts[i], ends[i], obstacles, pad, 0, re.Edge.FromSide, re.Edge.ToSide)
+		pts = geom.SimplifyPath(pts)
+		if d.Style == model.StyleSketch && len(pts) >= 3 {
+			pts = geom.SmoothPath(pts, 8)
+			pts[0], pts[len(pts)-1] = starts[i], ends[i]
+		}
+		path := pointsToPath(pts)
+		d.Routed[i].Points = path
+		d.EdgePaths[re.Key] = path
+	}
+}
+
+func sideCenter(n model.Node, side model.Side) float64 {
+	if geom.IsHorizontalSide(side) {
+		return n.Rect.CY()
+	}
+	return n.Rect.CX()
+}
+
+func usableSideSpan(n model.Node, side model.Side) (float64, float64) {
+	if geom.IsHorizontalSide(side) {
+		return n.Rect.Y + geom.SlidingPortInset, n.Rect.Bottom() - geom.SlidingPortInset
+	}
+	return n.Rect.X + geom.SlidingPortInset, n.Rect.Right() - geom.SlidingPortInset
+}
+
+func counterpartOrder(use portUse) float64 {
+	if geom.IsHorizontalSide(use.side) {
+		return use.counterpart.Rect.CY()
+	}
+	return use.counterpart.Rect.CX()
+}
+
+func counterpartCrossOrder(use portUse) float64 {
+	if geom.IsHorizontalSide(use.side) {
+		return use.counterpart.Rect.CX()
+	}
+	return use.counterpart.Rect.CY()
 }
 
 type sidePair struct {
@@ -67,6 +189,8 @@ func chooseRoute(e model.Edge, a, b model.Node, obstacles []model.Node, pad floa
 				score += 20000
 			}
 		}
+		score += endpointSeparationPenalty(start, pair.from, a, existing, false)
+		score += endpointSeparationPenalty(end, pair.to, b, existing, true)
 		if betterPath(score, path, bestScore, bestPath) {
 			bestPair, bestPath, bestScore = pair, path, score
 		}
@@ -272,8 +396,14 @@ func corridorRoute(start, end geom.Point, pad float64, vertical bool) []geom.Poi
 
 func scorePath(pts []geom.Point, obstacles []model.Node, start, end geom.Point, pad float64, fromSide, toSide model.Side) float64 {
 	score := pathLength(pts)
-	if endpointReverses(pts) {
-		score += 100000
+	for i := 1; i < len(pts); i++ {
+		length := math.Hypot(pts[i].X-pts[i-1].X, pts[i].Y-pts[i-1].Y)
+		if i > 1 && i < len(pts)-1 && length < minInteriorSegment {
+			score += (minInteriorSegment - length) * 1200
+		}
+	}
+	if reversals := sameAxisReversals(pts); reversals > 0 {
+		score += float64(reversals) * 100000
 	}
 	dx := math.Abs(end.X - start.X)
 	dy := math.Abs(end.Y - start.Y)
@@ -290,8 +420,16 @@ func scorePath(pts []geom.Point, obstacles []model.Node, start, end geom.Point, 
 	}
 	for _, n := range obstacles {
 		for i := 1; i < len(pts); i++ {
-			if geom.SegmentHitsRect(pts[i-1], pts[i], n.Rect, pad) {
+			a, b := pts[i-1], pts[i]
+			if geom.SegmentHitsRect(a, b, n.Rect, 0) {
 				score += 50000
+				continue
+			}
+			if geom.SegmentHitsRect(a, b, n.Rect, pad) {
+				score += 2000
+			}
+			if clearance := segmentRectDistance(a, b, n.Rect); clearance < routeBorderClearance {
+				score += (routeBorderClearance - clearance) * 1500
 			}
 		}
 	}
@@ -310,15 +448,83 @@ func scorePath(pts []geom.Point, obstacles []model.Node, start, end geom.Point, 
 	return score
 }
 
-func endpointReverses(pts []geom.Point) bool {
-	if len(pts) < 3 {
-		return false
+func sameAxisReversals(pts []geom.Point) int {
+	reversals := 0
+	lastX, lastY := 0.0, 0.0
+	for i := 1; i < len(pts); i++ {
+		dx, dy := pts[i].X-pts[i-1].X, pts[i].Y-pts[i-1].Y
+		if math.Abs(dx) >= math.Abs(dy) && math.Abs(dx) >= .5 {
+			direction := math.Copysign(1, dx)
+			if lastX != 0 && direction != lastX {
+				reversals++
+			}
+			lastX = direction
+		} else if math.Abs(dy) >= .5 {
+			direction := math.Copysign(1, dy)
+			if lastY != 0 && direction != lastY {
+				reversals++
+			}
+			lastY = direction
+		}
 	}
-	dot := func(a, b, c geom.Point) float64 {
-		return (b.X-a.X)*(c.X-b.X) + (b.Y-a.Y)*(c.Y-b.Y)
+	return reversals
+}
+
+func segmentRectDistance(a, b geom.Point, r model.Rect) float64 {
+	if math.Abs(a.Y-b.Y) < .5 {
+		lo, hi := math.Min(a.X, b.X), math.Max(a.X, b.X)
+		dx := intervalGap(lo, hi, r.X, r.Right())
+		dy := intervalGap(a.Y, a.Y, r.Y, r.Bottom())
+		return math.Hypot(dx, dy)
 	}
-	return dot(pts[0], pts[1], pts[2]) < 0 ||
-		dot(pts[len(pts)-3], pts[len(pts)-2], pts[len(pts)-1]) < 0
+	if math.Abs(a.X-b.X) < .5 {
+		lo, hi := math.Min(a.Y, b.Y), math.Max(a.Y, b.Y)
+		dx := intervalGap(a.X, a.X, r.X, r.Right())
+		dy := intervalGap(lo, hi, r.Y, r.Bottom())
+		return math.Hypot(dx, dy)
+	}
+	return math.Min(math.Hypot(a.X-r.CX(), a.Y-r.CY()), math.Hypot(b.X-r.CX(), b.Y-r.CY()))
+}
+
+func intervalGap(aLo, aHi, bLo, bHi float64) float64 {
+	if aHi < bLo {
+		return bLo - aHi
+	}
+	if bHi < aLo {
+		return aLo - bHi
+	}
+	return 0
+}
+
+func endpointSeparationPenalty(point geom.Point, side model.Side, node model.Node, existing []model.RoutedEdge, target bool) float64 {
+	penalty := 0.0
+	multiplier := 8.0
+	if _, sliding := geom.SlidingAnchor(node, side, sideCenter(node, side)); !sliding {
+		// Curved/tapered sides only touch the bbox at their midpoint, so they
+		// cannot fan out safely. Make an adjacent side decisively cheaper than
+		// stacking another endpoint at the same painted point.
+		multiplier = 5000
+	}
+	for _, routed := range existing {
+		edgeNode, edgeSide := routed.Edge.From, routed.Edge.FromSide
+		index := 0
+		if target {
+			edgeNode, edgeSide = routed.Edge.To, routed.Edge.ToSide
+			index = len(routed.Points) - 1
+		}
+		if edgeNode != node.ID || edgeSide != side || len(routed.Points) == 0 || index < 0 {
+			continue
+		}
+		other := routed.Points[index]
+		if len(other) < 2 {
+			continue
+		}
+		distance := math.Hypot(point.X-other[0], point.Y-other[1])
+		if distance < 14 {
+			penalty += (14 - distance) * multiplier
+		}
+	}
+	return penalty
 }
 
 func pathLength(pts []geom.Point) float64 {
@@ -421,15 +627,4 @@ func resolveSides(e model.Edge, a, b *model.Node) (model.Side, model.Side) {
 		ts = autoT
 	}
 	return fs, ts
-}
-
-func shiftPathBus(r *model.RoutedEdge, offset float64) {
-	pts := pathToPoints(r.Points)
-	if len(pts) < 3 {
-		return
-	}
-	for i := 1; i < len(pts)-1; i++ {
-		pts[i].X += offset
-	}
-	r.Points = pointsToPath(pts)
 }
