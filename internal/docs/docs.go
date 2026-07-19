@@ -328,7 +328,7 @@ func writeValidationMarkdown(w io.Writer) error {
 	b.WriteString(g.StackModel + "\n\n")
 	b.WriteString("## Commands\n\n")
 	b.WriteString("- `sceno validate -i FILE --json` — blocking errors + warnings + recommendations\n")
-	b.WriteString("- Edge render checks (same math as export): `arrow_detached`, `edge_label_chrome_overlap`, `edge_label_off_axis`\n")
+	b.WriteString("- Edge render checks (same math as export): `arrow_detached`, `edge_label_chrome_overlap`, `edge_label_overlap`, `edge_label_off_axis`\n")
 	b.WriteString("- Icon rule (`icons`): catalog names only, label clearance, iconPos hints — `sceno docs icons --json`\n")
 	b.WriteString("- `sceno advise -i FILE --json` — visual score, stack planes, rule findings\n")
 	b.WriteString("- `sceno advise -i FILE --ai` — optional external AI CLI (`SCENO_AI_CMD`)\n\n")

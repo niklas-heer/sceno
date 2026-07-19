@@ -104,6 +104,11 @@ shape box b "B" at=0,1`,
 		Fix:     "Center labels on connectors between shapes; increase gap; shorten label text.",
 		Example: `edge write -> spec fromSide=right toSide=left label="write"`,
 	},
+	CodeEdgeLabelOverlap: {
+		Meaning: "Two edge labels occupy the same visible area.",
+		Fix:     "Route one edge on different fromSide/toSide anchors, increase gap, or shorten/remove one label.",
+		Example: `edge rejected -> input fromSide=bottom toSide=bottom label="retry"`,
+	},
 	CodeEdgeLabelOffAxis: {
 		Meaning: "Edge label is not centered on the connector line.",
 		Fix:     "Labels render on the connector with an opaque box — avoid placing them above the header.",

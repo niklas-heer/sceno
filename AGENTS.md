@@ -71,7 +71,7 @@ Collision and routing checks project onto reduced planes. Full details: `sceno d
 - `recommendations` — prioritized actionable hints
 - `ai_review` — when `--ai` and `SCENO_AI_CMD` are set
 
-`sceno validate --json` also warns on stack rules: `edge_hidden`, `arrow_detached`, `arrow_hidden`, `edge_label_chrome_overlap`, `occluded`, `misaligned`, `dense_layout`, `slide_crowded`, etc. **Arrow checks** (same math as render): path must end on target border, tip within 2px of anchor, stroke ≥18px before head. If validate passes, arrowheads should meet shapes in export.
+`sceno validate --json` also warns on stack rules: `edge_hidden`, `arrow_detached`, `arrow_hidden`, `edge_label_chrome_overlap`, `edge_label_overlap`, `occluded`, `misaligned`, `dense_layout`, `slide_crowded`, etc. **Arrow checks** (same math as render): path must end on target border, tip within 2px of anchor, stroke ≥18px before head. If validate passes, arrowheads should meet shapes in export.
 
 ## Rules
 

@@ -343,8 +343,65 @@ func ruleEdgeClarity(ctx ruleContext) []Finding {
 			})
 		}
 	}
+	labels := collectEdgeLabelBounds(ctx.d)
+	for i := 0; i < len(labels); i++ {
+		for j := i + 1; j < len(labels); j++ {
+			a, b := labels[i], labels[j]
+			overlap, ok := rectIntersection(a.bounds, b.bounds)
+			if !ok {
+				continue
+			}
+			out = append(out, Finding{
+				RuleID: "edge_clarity", Severity: "warning", Plane: PlaneLabel, Projected: true,
+				Code:    string(diag.CodeEdgeLabelOverlap),
+				Message: fmt.Sprintf("edge labels %q on %s and %q on %s overlap by %.0f×%.0fpx", a.label, a.key, b.label, b.key, overlap.W, overlap.H),
+				Fix:     "Route one edge with different fromSide/toSide anchors, increase gap, or shorten/remove one label, then re-run advise.",
+				Items:   []string{a.key, b.key},
+				Geometry: &diag.Geometry{
+					Bounds:  map[string]model.Rect{a.key + ":label": a.bounds, b.key + ":label": b.bounds},
+					Overlap: overlap,
+				},
+			})
+		}
+	}
 	out = append(out, edgeRenderFindings(ctx.d)...)
 	return out
+}
+
+type edgeLabelBound struct {
+	key    string
+	label  string
+	bounds model.Rect
+}
+
+func collectEdgeLabelBounds(d *model.Diagram) []edgeLabelBound {
+	var out []edgeLabelBound
+	for _, re := range d.Routed {
+		label := strings.TrimSpace(re.Edge.Label)
+		gpts := geom.SimplifyPath(geom.SlicesToPath(re.Points))
+		if label == "" || len(gpts) < 2 {
+			continue
+		}
+		layout := geom.LayoutEdgeLabel(gpts, label, edgeLabelContext(d, re.Edge))
+		if layout.BoxW <= 0 || layout.BoxH <= 0 {
+			continue
+		}
+		x, y, w, h := layout.LabelRect()
+		out = append(out, edgeLabelBound{
+			key: re.Edge.From + "→" + re.Edge.To, label: label,
+			bounds: model.Rect{X: x, Y: y, W: w, H: h},
+		})
+	}
+	return out
+}
+
+func rectIntersection(a, b model.Rect) (model.Rect, bool) {
+	x1, y1 := math.Max(a.X, b.X), math.Max(a.Y, b.Y)
+	x2, y2 := math.Min(a.Right(), b.Right()), math.Min(a.Bottom(), b.Bottom())
+	if x2 <= x1 || y2 <= y1 {
+		return model.Rect{}, false
+	}
+	return model.Rect{X: x1, Y: y1, W: x2 - x1, H: y2 - y1}, true
 }
 
 func edgeLabelHitsNode(d *model.Diagram, re model.RoutedEdge, label string) (bool, string) {

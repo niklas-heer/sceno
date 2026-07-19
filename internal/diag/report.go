@@ -36,6 +36,7 @@ const (
 	CodeArrowDetached     Code = "arrow_detached"
 	CodeArrowHidden       Code = "arrow_hidden"
 	CodeEdgeLabelChrome   Code = "edge_label_chrome_overlap"
+	CodeEdgeLabelOverlap  Code = "edge_label_overlap"
 	CodeEdgeLabelOffAxis  Code = "edge_label_off_axis"
 	CodeEdgeSideMismatch  Code = "edge_side_mismatch"
 )

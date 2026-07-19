@@ -14,7 +14,7 @@ diagram title="Ledger Platform" subtitle="Double-entry events · read models · 
 
   edge cmd -> validate label="TransferCmd"
   edge validate -> journal fromSide=right toSide=left label="LedgerEvent"
-  edge validate -> cmd label="reject" dashed=true color="#dc2626"
+  edge validate -> cmd fromSide=top toSide=top label="reject" dashed=true color="#dc2626"
   edge journal -> projector fromSide=right toSide=left
   edge projector -> balances label="apply"
   edge balances -> query fromSide=right toSide=left

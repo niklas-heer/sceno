@@ -94,6 +94,26 @@ func TestEdgeSideMismatchDetectsWrongArrivalDirection(t *testing.T) {
 	t.Fatalf("missing side mismatch finding: %+v", ev.Findings)
 }
 
+func TestEdgeLabelOverlapReportsExactGeometry(t *testing.T) {
+	d := &model.Diagram{Gap: 24, Nodes: []model.Node{
+		{ID: "a", Kind: model.ShapeBox, Rect: model.Rect{W: 80, H: 40}},
+		{ID: "b", Kind: model.ShapeBox, Rect: model.Rect{X: 200, W: 80, H: 40}},
+	}, Routed: []model.RoutedEdge{
+		{Key: "a-b-0", Edge: model.Edge{From: "a", To: "b", Label: "forward"}, Points: [][]float64{{80, 20}, {200, 20}}},
+		{Key: "b-a-1", Edge: model.Edge{From: "b", To: "a", Label: "retry"}, Points: [][]float64{{200, 20}, {80, 20}}},
+	}}
+	ev := Evaluate(d)
+	for _, f := range ev.Findings {
+		if f.Code == string(diag.CodeEdgeLabelOverlap) {
+			if f.Geometry == nil || f.Geometry.Overlap.W <= 0 || f.Geometry.Overlap.H <= 0 || len(f.Geometry.Bounds) != 2 {
+				t.Fatalf("missing exact label collision geometry: %+v", f.Geometry)
+			}
+			return
+		}
+	}
+	t.Fatalf("missing edge label overlap finding: %+v", ev.Findings)
+}
+
 func TestRunEngineHowItWorks(t *testing.T) {
 	d := &model.Diagram{
 		Title:    "How Sceno Works",
