@@ -177,7 +177,7 @@ Collision problems include exact `bounds`, the `overlap` rectangle, and candidat
 - `dx` / `dy` nudges one element after auto-layout while preserving its logical slot.
 - `layout=hybrid` mixes the auto-grid with independently placed `x` / `y` callouts, text, or decorative elements.
 - `layout=free` requires `x` and `y` on every shape for slide-like composition.
-- `overlap=allow` marks deliberate overlap; the semantic plane and source order remain explicit in `scene_stack`.
+- `overlap=allow` marks deliberate overlap; the semantic plane and source order remain explicit in `slides[n].engine.scene_stack`.
 
 Sceno intentionally keeps KDL declarative rather than embedding a scripting runtime. Deterministic constraints make the resulting scene explainable to agents and identical across exports.
 

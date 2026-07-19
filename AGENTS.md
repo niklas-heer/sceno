@@ -68,7 +68,7 @@ Collision and routing checks project onto reduced planes. Full details: `sceno d
 - `slides[n].scene` — 2D analysis (paint order, occlusion, edge visibility, `stack`)
 - `slides[n].engine` — stack engine findings, visual score, rules run
 - `slides[n].ascii_map` — coarse spatial grid
-- `slides[n].visual_problems` — overlaps, hidden edges, misalignment, exact geometry, repair candidates
+- `slides[n].visual_problems` — overlaps, hidden/detached arrows, arrow clusters, label/chrome collisions, text overflow, exact geometry, repair candidates
 - `slides[n].edges[].route` — step-by-step connector path
 
 `slides[n].engine.scene_stack.planes.*[]` contains exact outer `bounds`, visible `outline`, `internal_lines`, silhouette-safe `writable_bounds`, selected `effective_font_size`, and icon/title/subtitle `content` boxes; `order` is source order within a semantic plane. Text is fitted to that writable region with a 10px readability floor, and `text_overflow` exposes shape/writable/content geometry plus a size repair when it cannot fit.
@@ -81,7 +81,7 @@ Collision and routing checks project onto reduced planes. Full details: `sceno d
 - `recommendations` — prioritized actionable hints
 - `ai_review` — when `--ai` and `SCENO_AI_CMD` are set
 
-`sceno validate --json` also warns on stack rules: `edge_hidden`, `arrow_detached`, `arrow_hidden`, `edge_label_chrome_overlap`, `edge_label_overlap`, `occluded`, `misaligned`, `dense_layout`, `slide_crowded`, etc. **Arrow checks** use the same math as render: the path ends on the target border, the tip stays within 2px of its anchor, and the target approach reserves 27px (18px visible shaft + 9px head). If validate passes, arrowheads should meet shapes in export.
+`sceno validate --json` also warns on stack rules: `edge_hidden`, `arrow_detached`, `arrow_hidden`, `arrow_cluster`, `edge_label_chrome_overlap`, `edge_label_overlap`, `text_overflow`, `occluded`, `misaligned`, `dense_layout`, `slide_crowded`, etc. **Arrow checks** use the same math as render: the path ends on the target border, the tip stays within 2px of its anchor, and the target approach reserves a straight 27px run (18px visible shaft + 9px head). If validate passes, arrowheads should meet shapes in export without hooks or stacked tips.
 
 ## Rules
 

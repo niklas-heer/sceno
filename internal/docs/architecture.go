@@ -64,7 +64,7 @@ func buildArchitectureDoc() ArchitectureDoc {
 			"Arrow geometry: geom.ArrowGeometryForPath — render and validation share tip, stroke end, and a straight 27px target approach",
 			"Grid placement: at=col,row sets AtSet so layer 0 columns are not overridden by edge ranks",
 			"Hybrid layout: auto grid-snaps flow nodes; dx/dy nudges preserve slots; hybrid x/y shapes float independently",
-			"Intentional overlap: overlap=allow suppresses collision findings while semantic plane + source order remain visible in scene_stack",
+			"Intentional overlap: overlap=allow suppresses collision findings while semantic plane + source order remain visible in slides[n].engine.scene_stack",
 			"Backward compat: scene.RunEngine and scene.Analyze wrap scene.Evaluate",
 		},
 		AntiPatterns: []string{

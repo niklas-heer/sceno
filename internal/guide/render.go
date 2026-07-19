@@ -54,7 +54,7 @@ func RenderSpecMarkdown() string {
 	for _, k := range sortedKeys(d.EdgeProps) {
 		fmt.Fprintf(&b, "| `%s` | %s |\n", k, d.EdgeProps[k])
 	}
-	b.WriteString("\nEdge labels render above horizontal segments and to the right of vertical segments.\n\n")
+	b.WriteString("\nEdge labels render as compact pills centered on clear path segments; placement slides along the route to preserve at least 6px clearance from nodes, other labels, and container chrome.\n\n")
 
 	b.WriteString("## Layout\n\n")
 	b.WriteString("- `layout auto` — grid by `layer` / `row` / `at=col,row` (default)\n")
