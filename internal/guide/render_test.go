@@ -40,4 +40,7 @@ func TestBuildGoalsJSON(t *testing.T) {
 	if g.Mission == "" || len(g.ProductGoals) < 5 {
 		t.Fatalf("goals: %+v", g)
 	}
+	if !strings.Contains(g.Mission, "machine-readable") || len(g.AgentWorkflow) < 6 {
+		t.Fatalf("agent feedback loop missing from goals: %+v", g)
+	}
 }

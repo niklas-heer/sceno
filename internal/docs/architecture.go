@@ -12,18 +12,19 @@ import (
 
 // ArchitectureDoc documents the source-of-truth chain for agents.
 type ArchitectureDoc struct {
-	Tool         string            `json:"tool"`
-	Version      string            `json:"version"`
-	Summary      string            `json:"summary"`
-	Pipeline     []string          `json:"pipeline"`
-	GeometrySoT  string            `json:"geometry_source_of_truth"`
-	SemanticsSoT string            `json:"semantics_source_of_truth"`
-	EntryPoint   string            `json:"entry_point"`
-	Consumers    map[string]string `json:"consumers"`
-	PaintOrder   string            `json:"paint_order"`
-	StackModel   string            `json:"stack_model"`
-	Principles   []string          `json:"principles"`
-	AntiPatterns []string          `json:"anti_patterns"`
+	Tool           string            `json:"tool"`
+	Version        string            `json:"version"`
+	Summary        string            `json:"summary"`
+	Pipeline       []string          `json:"pipeline"`
+	GeometrySoT    string            `json:"geometry_source_of_truth"`
+	CompositionSoT string            `json:"composition_source_of_truth"`
+	SemanticsSoT   string            `json:"semantics_source_of_truth"`
+	EntryPoint     string            `json:"entry_point"`
+	Consumers      map[string]string `json:"consumers"`
+	PaintOrder     string            `json:"paint_order"`
+	StackModel     string            `json:"stack_model"`
+	Principles     []string          `json:"principles"`
+	AntiPatterns   []string          `json:"anti_patterns"`
 }
 
 func buildArchitectureDoc() ArchitectureDoc {
@@ -38,9 +39,10 @@ func buildArchitectureDoc() ArchitectureDoc {
 			"scene.Evaluate per slide — semantics: stack planes, visual rules, score, paint order",
 			"validate / advise / describe / render — consumers of pipeline.Result",
 		},
-		GeometrySoT:  "model.Diagram from pipeline.BuildDeck (positions, rects, Routed edges)",
-		SemanticsSoT: "scene.Evaluation from scene.Evaluate (stack, findings, visual_score, paint_order)",
-		EntryPoint:   "validate.LoadAndEvaluate(path, opt) → (pipeline.Result, diag.Report, error)",
+		GeometrySoT:    "model.Diagram from pipeline.BuildDeck (positions, rects, Routed edges)",
+		CompositionSoT: "composition.Bounds / composition.ChromeBounds (shared export viewport and title chrome used by render and scene analysis)",
+		SemanticsSoT:   "scene.Evaluation from scene.Evaluate (stack, findings, visual_score, paint_order)",
+		EntryPoint:     "validate.LoadAndEvaluate(path, opt) → (pipeline.Result, diag.Report, error)",
 		Consumers: map[string]string{
 			"sceno validate": "diag.Report from ApplyResult — blocking errors + stack warnings",
 			"sceno advise":   "pipeline.Result.MergedEval().EngineReport() — visual score + findings",
@@ -53,10 +55,12 @@ func buildArchitectureDoc() ArchitectureDoc {
 			"Build once per command — no double pipeline.BuildDeck in validate then render",
 			"Render projects geometry; it must not re-derive validation rules",
 			"Visual rules live in scene.engineRules — single catalog for validate, advise, docs",
+			"Canvas/title composition: composition.Bounds / composition.ChromeBounds — render and scene analysis share exact viewport geometry",
 			"Paint order and container backgrounds: scene.PaintsBeforeEdges / scene.BuildPaintOrder",
 			"Interior shape layout: measure.ApplyInteriors → model.Node.Interior (4px grid, icon+label bands)",
 			"Agent visibility: scene_stack items include outer bounds plus exact nested icon/title/subtitle content boxes",
 			"Edge anchors: geom.BestSides / geom.StackedVertically — top/bottom when stacked",
+			"Arrow geometry: geom.ArrowGeometryForPath — render and validation share tip, stroke end, and 27px target approach",
 			"Grid placement: at=col,row sets AtSet so layer 0 columns are not overridden by edge ranks",
 			"Hybrid layout: auto grid-snaps flow nodes; dx/dy nudges preserve slots; hybrid x/y shapes float independently",
 			"Intentional overlap: overlap=allow suppresses collision findings while semantic plane + source order remain visible in scene_stack",
@@ -66,6 +70,7 @@ func buildArchitectureDoc() ArchitectureDoc {
 			"Calling pipeline.BuildDeck separately after validate.Run in the same command",
 			"Duplicating overlap or edge-crossing checks outside scene.Evaluate",
 			"Inventing paint order in render that contradicts engine stack planes",
+			"Re-deriving viewport, chrome, or arrow geometry separately in an export backend",
 		},
 	}
 }
@@ -87,6 +92,7 @@ func writeArchitectureMarkdown(w io.Writer) error {
 	}
 	b.WriteString("\n## Source of truth\n\n")
 	fmt.Fprintf(&b, "- **Geometry:** %s\n", doc.GeometrySoT)
+	fmt.Fprintf(&b, "- **Composition:** %s\n", doc.CompositionSoT)
 	fmt.Fprintf(&b, "- **Semantics:** %s\n\n", doc.SemanticsSoT)
 	b.WriteString("## Entry point\n\n")
 	b.WriteString("`" + doc.EntryPoint + "`\n\n")

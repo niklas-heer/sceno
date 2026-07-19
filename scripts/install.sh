@@ -2,7 +2,7 @@
 # Install sceno from GitHub releases.
 # Usage:
 #   curl -fsSL https://raw.githubusercontent.com/niklas-heer/sceno/main/scripts/install.sh | bash
-#   curl -fsSL ... | bash -s -- --version v0.2.0   # optional pin
+#   curl -fsSL ... | bash -s -- --version v0.3.0   # optional pin
 #   curl -fsSL ... | bash -s -- --dir ~/.local/bin
 set -euo pipefail
 
@@ -30,7 +30,7 @@ Environment:
 Examples:
   curl -fsSL https://raw.githubusercontent.com/${REPO}/main/scripts/install.sh | bash
   curl -fsSL ... | bash -s -- --dir ~/.local/bin
-  curl -fsSL ... | bash -s -- --version v0.2.0
+  curl -fsSL ... | bash -s -- --version v0.3.0
 EOF
 }
 

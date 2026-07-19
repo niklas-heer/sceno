@@ -18,7 +18,7 @@ mask ci-smoke                        # build + integration smoke
 dagger functions                     # list pipeline functions
 dagger call test --source=.
 dagger call ci --source=. --commit=$(git rev-parse HEAD)
-dagger call release --source=. --tag=v0.1.0 export --path=dist
+dagger call release --source=. --tag=v0.3.0 export --path=dist
 ```
 
 ## Functions

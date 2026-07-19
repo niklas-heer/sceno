@@ -37,9 +37,10 @@ Browse all topics: `sceno docs --json` (guide, spec, goals, practices, visual, s
 ```bash
 sceno validate -i sceno.kdl --json
 sceno advise -i sceno.kdl --json   # visual score + stack rules (after ok)
+sceno describe -i sceno.kdl --json # exact scene, routes, bounds, and ASCII map
 ```
 
-The JSON report includes `ok`, `errors` (with `fix` + `example`), `warnings`, `recommendations`, and `agent.next_steps`. Only render when `ok` is true.
+The JSON report includes `ok`, `errors` (with `fix` + `example`), `warnings`, `recommendations`, and `agent.next_steps`. Only render when `ok` is true. For repository changes, `mask verify` additionally requires every shipped example to score at least 80 with no structural visual findings.
 
 See [AGENTS.md](AGENTS.md) for the full agent playbook.
 
@@ -73,7 +74,7 @@ curl -fsSL https://raw.githubusercontent.com/niklas-heer/sceno/main/scripts/inst
 Pin a specific version (optional):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/niklas-heer/sceno/main/scripts/install.sh | bash -s -- --version v0.2.0
+curl -fsSL https://raw.githubusercontent.com/niklas-heer/sceno/main/scripts/install.sh | bash -s -- --version v0.3.0
 ```
 
 Or from a [GitHub Release](https://github.com/niklas-heer/sceno/releases) tarball (includes `install.sh`; also installs latest unless you pass `--version`):
@@ -272,8 +273,12 @@ Highlights: `box`, `actor`, `cylinder`, `cloud`, `document`, `callout`, `lane`, 
 
 ## Goals
 
+Sceno's core goal is to bridge text and visual work: an agent authors one deterministic KDL source, receives an exact textual account of the computed canvas, applies actionable feedback, and exports the same scene in every format. Auto layout should prevent accidental collisions; hybrid/free placement and intentional overlap retain slide-like creative freedom without hiding geometry from the agent.
+
+The runtime goals document is the source of truth for product goals, non-goals, quality targets, and the agent loop:
+
 ```bash
-sceno docs goals
+sceno docs goals --json
 ```
 
 ## Development
@@ -282,7 +287,7 @@ Requires [mask](https://github.com/jacobdeichert/mask) for project tasks (`brew 
 
 ```bash
 mask test      # unit tests (local Go)
-mask verify    # quick local build + render smoke test
+mask verify    # all KDL examples: validate, advise, describe, and every export
 mask ci        # full CI via Dagger (same as GitHub Actions)
 mask build
 ```
@@ -302,6 +307,12 @@ dagger call ci --source=.
 
 GitHub Actions is a thin wrapper that calls `dagger call ci` — no duplicated shell in YAML.
 
+### Repository hygiene
+
+- Commit source, tests, KDL fixtures, runtime documentation, and `docs/how-it-works.png`. The PNG is a deliberate tracked README asset generated from `examples/how-it-works.kdl` with `mask docs-diagram`.
+- Ignore local build and review output: `/sceno`, `/dist/`, `/output/`, coverage/profiling files, `.env*`, `.DS_Store`, and Dagger-generated `ci/dagger.gen.go` / `ci/internal/` bindings.
+- Before committing, run `git status --short --ignored` to confirm every remaining file is intentionally tracked or ignored; do not commit generated release bundles or visual-audit output.
+
 ## Releasing
 
 One command — semver is inferred from [Conventional Commits](https://www.conventionalcommits.org/) since the last tag, then CI runs, VERSION and CHANGELOG update, and the tag is pushed:
@@ -318,7 +329,7 @@ mask release
 
 `mask release` will:
 
-1. Suggest the next version (e.g. **0.2.0**) and show which commits drove the bump
+1. Suggest the next version (e.g. **0.4.0**) and show which commits drove the bump
 2. Ask for confirmation (skip with `-y`)
 3. Run full CI via Dagger
 4. Bump `internal/version/VERSION` and prepend `CHANGELOG.md` — grouped by conventional commit type (`feat`, `fix`, `refactor`, …) with scopes and commit links
@@ -331,7 +342,7 @@ mask release --dry-run   # includes full release notes preview
 mask next-version    # print suggested version only
 ```
 
-Flags: `-y` confirm, `-n` dry-run, `--skip-ci`, `-V 0.2.1` override version, `-f` release off main.
+Flags: `-y` confirm, `-n` dry-run, `--skip-ci`, `-V 0.3.1` override version, `-f` release off main.
 
 Pushing `v*.*.*` triggers [`.github/workflows/release.yml`](.github/workflows/release.yml), which builds tarballs, `SHA256SUMS`, and `install.sh` for [GitHub Releases](https://github.com/niklas-heer/sceno/releases).
 

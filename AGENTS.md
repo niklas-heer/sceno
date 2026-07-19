@@ -2,6 +2,15 @@
 
 Use this tool to produce architecture diagrams from a single **KDL** (`.kdl`) file. Outputs: SVG, PNG, PDF, HTML, and slide decks.
 
+## Core objective
+
+Sceno bridges a text-only agent and a visual canvas. The same computed geometry must drive both exported pixels and machine-readable feedback, so an agent can understand what exists, where it is, what overlaps, and how to repair it without guessing from an image.
+
+- Auto layout should be collision-free by default; hybrid/free placement and `overlap=allow` provide deliberate breakout control.
+- `validate`, `advise`, and `describe` must expose exact bounds, routes, stack planes, findings, and actionable repairs.
+- SVG, PNG, PDF, HTML, and slides must preserve the same semantic shapes, icons, connectors, and paint order.
+- Repository examples are the visual regression corpus: every example must score at least 80 and have no structural visual findings.
+
 ## Start here
 
 ```bash
@@ -72,7 +81,7 @@ Collision and routing checks project onto reduced planes. Full details: `sceno d
 - `recommendations` — prioritized actionable hints
 - `ai_review` — when `--ai` and `SCENO_AI_CMD` are set
 
-`sceno validate --json` also warns on stack rules: `edge_hidden`, `arrow_detached`, `arrow_hidden`, `edge_label_chrome_overlap`, `edge_label_overlap`, `occluded`, `misaligned`, `dense_layout`, `slide_crowded`, etc. **Arrow checks** (same math as render): path must end on target border, tip within 2px of anchor, stroke ≥18px before head. If validate passes, arrowheads should meet shapes in export.
+`sceno validate --json` also warns on stack rules: `edge_hidden`, `arrow_detached`, `arrow_hidden`, `edge_label_chrome_overlap`, `edge_label_overlap`, `occluded`, `misaligned`, `dense_layout`, `slide_crowded`, etc. **Arrow checks** use the same math as render: the path ends on the target border, the tip stays within 2px of its anchor, and the target approach reserves 27px (18px visible shaft + 9px head). If validate passes, arrowheads should meet shapes in export.
 
 ## Rules
 
@@ -86,6 +95,7 @@ Collision and routing checks project onto reduced planes. Full details: `sceno d
 8. **Quote labels with spaces** — `title="My Platform"`.
 9. **Use `\n` in quoted strings** for line breaks inside labels.
 10. **Callouts** — `shape info`, `tip`, `warning`, `infobox`, `note` for annotations; `iconPos=top-left` for icons.
+11. **Repository changes** — run `mask verify`; the full KDL corpus must keep score ≥80 with no collision, detour, hidden/detached arrow, label overlap, side mismatch, occlusion, or text overflow.
 
 ## Commands
 

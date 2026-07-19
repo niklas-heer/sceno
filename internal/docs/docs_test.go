@@ -125,7 +125,7 @@ func TestRunArchitectureJSON(t *testing.T) {
 	if err := json.Unmarshal(buf.Bytes(), &doc); err != nil {
 		t.Fatal(err)
 	}
-	if doc.EntryPoint == "" || doc.GeometrySoT == "" || doc.SemanticsSoT == "" {
+	if doc.EntryPoint == "" || doc.GeometrySoT == "" || doc.CompositionSoT == "" || doc.SemanticsSoT == "" {
 		t.Fatalf("architecture doc incomplete: %+v", doc)
 	}
 	if len(doc.Pipeline) < 4 || len(doc.Consumers) < 4 {
