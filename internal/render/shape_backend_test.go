@@ -83,6 +83,14 @@ func TestCloudPDFUsesOneClosedBezierPath(t *testing.T) {
 	}
 }
 
+func TestActorWithIconUsesCardBackdropInSVG(t *testing.T) {
+	n := model.Node{Kind: model.ShapeActor, Icon: "user", Fill: "#ffffff", Stroke: "#111111", Rect: model.Rect{X: 10, Y: 20, W: 120, H: 80}}
+	got := shapeSVG(n, false)
+	if !strings.Contains(got, "<rect") || strings.Contains(got, "<circle") || strings.Contains(got, "<line") {
+		t.Fatalf("actor with icon must use card backdrop, got %s", got)
+	}
+}
+
 func pixelAtWorld(dc *gg.Context, vp Viewport, x, y, scale float64) color.RGBA {
 	px, py := vp.PX(x, y, scale)
 	r, g, b, a := dc.Image().At(int(px), int(py)).RGBA()

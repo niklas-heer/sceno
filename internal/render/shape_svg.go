@@ -24,6 +24,9 @@ func shapeSVG(n model.Node, dropShadow bool) string {
 
 	switch k {
 	case model.ShapeActor:
+		if n.Icon != "" {
+			return actorIconBackdropSVG(n, dropShadow)
+		}
 		return actorSVG(r, fill, stroke)
 	case model.ShapeEllipse, model.ShapeCircle:
 		return fmt.Sprintf(`<ellipse cx="%.1f" cy="%.1f" rx="%.1f" ry="%.1f" fill="%s" stroke="%s" stroke-width="1.5"/>`,

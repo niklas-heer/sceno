@@ -403,7 +403,11 @@ func drawPolishedNodePDF(pdf *gofpdf.Fpdf, n model.Node, minX, minY float64) {
 
 	switch model.NormalizeShape(n.Kind) {
 	case model.ShapeActor:
-		drawActorPDF(pdf, x, y, w, h, sr, sg, sb)
+		if n.Icon != "" {
+			pdf.RoundedRect(x, y, w, h, 7, "1234", "FD")
+		} else {
+			drawActorPDF(pdf, x, y, w, h, sr, sg, sb)
+		}
 	case model.ShapeEllipse, model.ShapeCircle:
 		pdf.Ellipse(x+w/2, y+h/2, w/2, h/2, 0, "FD")
 	case model.ShapeDiamond:
@@ -470,7 +474,15 @@ func drawPolishedNodePDF(pdf *gofpdf.Fpdf, n model.Node, minX, minY float64) {
 		pdf.RoundedRect(x, y, w, h, 6, "1234", "FD")
 	}
 
-	if n.Icon != "" && !model.IsContainer(n.Kind) {
+	if model.IsContainer(n.Kind) {
+		if n.Label != "" {
+			setPDFFont(pdf, "SB", theme.LaneLabelSize)
+			setPDFTextColor(pdf, paint.FgMuted)
+			pdf.Text(x+14, y+14, n.Label)
+		}
+		return
+	}
+	if n.Icon != "" {
 		ix, iy := IconRect(n, polishedIconSize)
 		data, err := icons.PNG(n.Icon, 64, paint.FgSecondary)
 		if err == nil {
@@ -481,11 +493,6 @@ func drawPolishedNodePDF(pdf *gofpdf.Fpdf, n model.Node, minX, minY float64) {
 		}
 	}
 	drawPolishedLabelPDF(pdf, n, x, y, w, h)
-	if model.IsContainer(n.Kind) && n.Label != "" {
-		setPDFFont(pdf, "SB", theme.LaneLabelSize)
-		setPDFTextColor(pdf, paint.FgMuted)
-		pdf.Text(x+14, y+14, n.Label)
-	}
 }
 
 func regularPolygonPDF(cx, cy, rx, ry float64, sides int, offset float64) []gofpdf.PointType {
