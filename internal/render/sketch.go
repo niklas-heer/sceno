@@ -128,18 +128,11 @@ func pathSketch(pts [][]float64, e model.Edge) string {
 		return ""
 	}
 	gpts := geom.SlicesToPath(pts)
-	flat := make([][2]float64, len(gpts))
-	for i, p := range gpts {
-		flat[i] = [2]float64{p.X, p.Y}
-	}
-	seed := gpts[0].X + gpts[0].Y
-	wo := wobblePolyline(flat, seed)
-	wobbled := wobbleToPoints(wo)
-	strokePath := geom.TrimArrowEnd(wobbled)
-	d := geom.PathDSmooth(strokePath)
-	if len(strokePath) == 2 {
-		d = pathData(pointsToWobble(strokePath))
-	}
+	strokePath := geom.TrimArrowEnd(gpts)
+	// Layout already supplies the sampled organic route. Drawing those exact
+	// points keeps the visible stroke, arrow direction, and describe geometry
+	// identical instead of smoothing and wobbling the connector a second time.
+	d := pathData(pointsToWobble(strokePath))
 	stroke := e.Color
 	if stroke == "" {
 		stroke = "#1e1e1e"
@@ -149,7 +142,7 @@ func pathSketch(pts [][]float64, e model.Edge) string {
 		dash = ` stroke-dasharray="8 6"`
 	}
 	e.Color = stroke
-	return fmt.Sprintf(`<path d="%s" fill="none" stroke="%s" stroke-width="2"%s/>%s`, d, stroke, dash, ArrowHeadSVG(geom.PathToSlices(wobbled), e))
+	return fmt.Sprintf(`<path d="%s" fill="none" stroke="%s" stroke-width="2"%s/>%s`, d, stroke, dash, ArrowHeadSVG(geom.PathToSlices(gpts), e))
 }
 
 // Rough.js-lite wobble via seeded sin noise.
@@ -162,27 +155,10 @@ func wobblePolygon(pts [][2]float64, seed float64) [][2]float64 {
 	return out
 }
 
-func wobblePolyline(pts [][2]float64, seed float64) [][2]float64 {
-	out := wobblePolygon(pts, seed)
-	if len(out) > 0 {
-		out[0] = pts[0]
-		out[len(out)-1] = pts[len(pts)-1]
-	}
-	return out
-}
-
 func pointsToWobble(pts []geom.Point) [][2]float64 {
 	out := make([][2]float64, len(pts))
 	for i, p := range pts {
 		out[i] = [2]float64{p.X, p.Y}
-	}
-	return out
-}
-
-func wobbleToPoints(pts [][2]float64) []geom.Point {
-	out := make([]geom.Point, len(pts))
-	for i, p := range pts {
-		out[i] = geom.Point{X: p[0], Y: p[1]}
 	}
 	return out
 }

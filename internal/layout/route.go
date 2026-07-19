@@ -39,7 +39,7 @@ func RouteEdges(d *model.Diagram) {
 		pts = geom.CollapseJogs(pts, jogTolerance)
 		if d.Style == model.StyleSketch && len(pts) >= 3 {
 			start, end := geom.EdgeAnchors(*a, *b, fs, ts)
-			pts = geom.SmoothPath(pts, 8)
+			pts = geom.SimplifyPath(geom.SmoothPath(pts, 8))
 			pts[0] = start
 			pts[len(pts)-1] = end
 		}
@@ -130,7 +130,7 @@ func fanOutSharedPorts(d *model.Diagram, byID map[string]*model.Node, pad float6
 		pts := routeWithLane(starts[i], ends[i], obstacles, pad, 0, re.Edge.FromSide, re.Edge.ToSide)
 		pts = geom.CollapseJogs(pts, jogTolerance)
 		if d.Style == model.StyleSketch && len(pts) >= 3 {
-			pts = geom.SmoothPath(pts, 8)
+			pts = geom.SimplifyPath(geom.SmoothPath(pts, 8))
 			pts[0], pts[len(pts)-1] = starts[i], ends[i]
 		}
 		path := pointsToPath(pts)

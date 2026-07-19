@@ -21,14 +21,19 @@ func SmoothPath(pts []Point, samplesPerSeg int) []Point {
 	}
 	var out []Point
 	for i := 0; i < len(pts)-1; i++ {
-		p0, p1, p2, p3 := pts[i], pts[i+1], pts[i+1], pts[i+1]
-		if i > 0 {
-			p0 = pts[i-1]
+		var seg []Point
+		if i == 0 || i == len(pts)-2 {
+			// Shape anchors are a promise: keep endpoint stubs straight so the
+			// arrowhead has a stable direction and a full visible shaft. Only
+			// the route between those stubs becomes organic.
+			seg = sampleLine(pts[i], pts[i+1], samplesPerSeg)
+		} else {
+			p0, p1, p2, p3 := pts[i-1], pts[i], pts[i+1], pts[i+1]
+			if i+2 < len(pts) {
+				p3 = pts[i+2]
+			}
+			seg = sampleSegment(p0, p1, p2, p3, samplesPerSeg)
 		}
-		if i+2 < len(pts) {
-			p3 = pts[i+2]
-		}
-		seg := sampleSegment(p0, p1, p2, p3, samplesPerSeg)
 		if len(out) > 0 {
 			seg = seg[1:]
 		}
@@ -37,6 +42,15 @@ func SmoothPath(pts []Point, samplesPerSeg int) []Point {
 	if len(out) > 0 {
 		out[0] = pts[0]
 		out[len(out)-1] = pts[len(pts)-1]
+	}
+	return out
+}
+
+func sampleLine(a, b Point, n int) []Point {
+	out := make([]Point, 0, n+1)
+	for i := 0; i <= n; i++ {
+		t := float64(i) / float64(n)
+		out = append(out, Point{X: a.X + (b.X-a.X)*t, Y: a.Y + (b.Y-a.Y)*t})
 	}
 	return out
 }
@@ -54,8 +68,8 @@ func catmullRom(p0, p1, p2, p3 Point, t float64) Point {
 	t2 := t * t
 	t3 := t2 * t
 	return Point{
-		X: 0.5 * ((2*p1.X) + (-p0.X+p2.X)*t + (2*p0.X-5*p1.X+4*p2.X-p3.X)*t2 + (-p0.X+3*p1.X-3*p2.X+p3.X)*t3),
-		Y: 0.5 * ((2*p1.Y) + (-p0.Y+p2.Y)*t + (2*p0.Y-5*p1.Y+4*p2.Y-p3.Y)*t2 + (-p0.Y+3*p1.Y-3*p2.Y+p3.Y)*t3),
+		X: 0.5 * ((2 * p1.X) + (-p0.X+p2.X)*t + (2*p0.X-5*p1.X+4*p2.X-p3.X)*t2 + (-p0.X+3*p1.X-3*p2.X+p3.X)*t3),
+		Y: 0.5 * ((2 * p1.Y) + (-p0.Y+p2.Y)*t + (2*p0.Y-5*p1.Y+4*p2.Y-p3.Y)*t2 + (-p0.Y+3*p1.Y-3*p2.Y+p3.Y)*t3),
 	}
 }
 

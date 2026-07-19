@@ -16,6 +16,16 @@ func TestSmoothPathPreservesEndpoints(t *testing.T) {
 	if out[0] != pts[0] || out[len(out)-1] != pts[len(pts)-1] {
 		t.Fatalf("endpoints changed: %v -> %v", pts[0], out[0])
 	}
+	for _, p := range out[:7] {
+		if math.Abs(p.Y) > 0.01 {
+			t.Fatalf("source approach bent at %+v", p)
+		}
+	}
+	for _, p := range out[len(out)-7:] {
+		if math.Abs(p.Y-80) > 0.01 {
+			t.Fatalf("target approach bent at %+v", p)
+		}
+	}
 }
 
 func TestPathVisibleFraction(t *testing.T) {

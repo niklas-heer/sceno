@@ -145,12 +145,28 @@ func checkEdgeArrow(d *model.Diagram, re model.RoutedEdge) []Finding {
 
 	strokeLen := ag.VisibleApproach
 	if strokeLen < minVisibleArrowStroke {
+		target := byID[re.Edge.To]
+		approach := model.Rect{
+			X: math.Min(ag.Prev.X, ag.Tip.X),
+			Y: math.Min(ag.Prev.Y, ag.Tip.Y),
+			W: math.Max(1, math.Abs(ag.Tip.X-ag.Prev.X)),
+			H: math.Max(1, math.Abs(ag.Tip.Y-ag.Prev.Y)),
+		}
+		repairSide := alternateTargetSide(byID[re.Edge.From], target, re.Edge.ToSide)
 		out = append(out, Finding{
 			RuleID: "edge_clarity", Severity: "warning", Plane: PlaneEdge,
 			Code:    string(diag.CodeArrowDetached),
-			Message: fmt.Sprintf("edge %s has only %.0fpx of stroke before arrowhead — head may look floating", key, strokeLen),
-			Fix:     "Increase gap between nodes or shorten edge labels.",
+			Message: fmt.Sprintf("edge %s has only %.0fpx of straight stroke before arrowhead — head may look hooked or floating", key, strokeLen),
+			Fix:     "Keep the final 27px approach straight, increase gap, or route into a different target side.",
 			Items:   []string{re.Edge.From, re.Edge.To},
+			Geometry: &diag.Geometry{Bounds: map[string]model.Rect{
+				"target": target.Rect, "arrow_approach": approach,
+			}},
+			Repairs: []diag.RepairOption{{
+				Action: "set_property", Target: re.Key,
+				Properties: map[string]string{"toSide": string(repairSide)},
+				Reason:     fmt.Sprintf("approach %q from its %s side to create a distinct straight shaft", re.Edge.To, repairSide),
+			}},
 		})
 	}
 
@@ -167,6 +183,19 @@ func checkEdgeArrow(d *model.Diagram, re model.RoutedEdge) []Finding {
 	}
 
 	return out
+}
+
+func alternateTargetSide(source, target model.Node, current model.Side) model.Side {
+	if geom.IsHorizontalSide(current) {
+		if source.Rect.CY() < target.Rect.CY() {
+			return model.SideTop
+		}
+		return model.SideBottom
+	}
+	if source.Rect.CX() < target.Rect.CX() {
+		return model.SideLeft
+	}
+	return model.SideRight
 }
 
 func exitsSide(a, b geom.Point, side model.Side) bool {

@@ -227,20 +227,16 @@ func edgeVisibility(d *model.Diagram) []EdgeVis {
 	if pad < 10 {
 		pad = 10
 	}
-	sketch := d.Style == model.StyleSketch
 	var out []EdgeVis
 	for _, re := range d.Routed {
 		pts := pathToGeom(re.Points)
-		if sketch && len(pts) >= 3 {
-			pts = geom.SmoothPath(pts, 6)
-		}
 		frac := geom.PathVisibleFraction(pts, re.Edge.From, re.Edge.To, d.Nodes, pad)
 		ev := EdgeVis{
 			Key:     re.Key,
 			From:    re.Edge.From,
 			To:      re.Edge.To,
 			Visible: math.Round(frac*100) / 100,
-			Organic: sketch || len(pts) > 4,
+			Organic: d.Style == model.StyleSketch || len(pts) > 4,
 		}
 		if frac < 1 {
 			ev.HiddenPx = pathLen(pts) * (1 - frac)

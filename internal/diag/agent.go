@@ -89,8 +89,8 @@ shape box b "B" at=0,1`,
 		Example: `edge a -> b fromSide=right toSide=left`,
 	},
 	CodeArrowDetached: {
-		Meaning: "Connector does not end on the target border, or arrow tip is more than ~2px from the anchor — head looks disconnected.",
-		Fix:     "Route must reach shape borders (fromSide/toSide). Arrow tip lands on target border; stroke stops ArrowHeadDepth before it.",
+		Meaning: "Connector misses the target border, or lacks the required straight approach — the head looks disconnected, floating, or hooked.",
+		Fix:     "Route must reach the target border with a straight 27px approach: 18px visible shaft plus the 9px arrowhead.",
 		Example: `diagram gap=48 layout=auto {
   edge a -> b fromSide=right toSide=left label="ok?"
 }`,

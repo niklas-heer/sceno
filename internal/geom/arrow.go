@@ -28,12 +28,10 @@ func ArrowGeometryForPath(pts []Point) (ArrowGeometry, bool) {
 	strokeEnd, _ := pointBeforePathEnd(gpts, ArrowHeadDepth)
 	prev, _ := pointBeforePathEnd(gpts, ArrowHeadDepth+EdgeLabelClearRun)
 	startApproach, _ := pointAfterPathStart(gpts, ArrowHeadDepth+EdgeLabelClearRun)
+	// SimplifyPath collapses collinear samples, so this is the genuinely
+	// straight final run rather than arbitrary distance along a bent curve.
 	lastSegment := math.Hypot(tip.X-gpts[len(gpts)-2].X, tip.Y-gpts[len(gpts)-2].Y)
 	visible := math.Max(0, lastSegment-ArrowHeadDepth)
-	if len(gpts) > 8 && lastSegment < ArrowHeadDepth {
-		// Smoothed paths contain dense samples; use path distance, not one sample.
-		visible = math.Min(EdgeLabelClearRun, math.Max(0, pathLength(gpts)-ArrowHeadDepth))
-	}
 	return ArrowGeometry{StrokeEnd: strokeEnd, Tip: tip, StartApproach: startApproach, Prev: prev, VisibleApproach: visible}, true
 }
 
@@ -69,14 +67,6 @@ func pointBeforePathEnd(pts []Point, distance float64) (Point, int) {
 		remaining -= segment
 	}
 	return pts[0], 1
-}
-
-func pathLength(pts []Point) float64 {
-	length := 0.0
-	for i := 1; i < len(pts); i++ {
-		length += math.Hypot(pts[i].X-pts[i-1].X, pts[i].Y-pts[i-1].Y)
-	}
-	return length
 }
 
 // TipGap returns how far the arrow tip sits from the intended target anchor.
