@@ -15,7 +15,7 @@ import (
 	"github.com/niklas-heer/sceno/internal/theme"
 
 	"github.com/fogleman/gg"
-	"github.com/jung-kurt/gofpdf"
+	gofpdf "github.com/go-pdf/fpdf"
 )
 
 const polishedIconSize = measure.IconSize

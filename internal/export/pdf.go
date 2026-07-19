@@ -6,7 +6,7 @@ import (
 	"github.com/niklas-heer/sceno/internal/model"
 	"github.com/niklas-heer/sceno/internal/render"
 
-	"github.com/jung-kurt/gofpdf"
+	gofpdf "github.com/go-pdf/fpdf"
 )
 
 // WritePDF renders a polished PDF with embedded Inter fonts.
