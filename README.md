@@ -57,6 +57,14 @@ Run `sceno docs goals` for the full product goals and ecosystem best practices.
 
 ## Install
 
+### Homebrew (macOS & Linux)
+
+```bash
+brew install niklas-heer/tap/sceno
+```
+
+The fully qualified formula name lets Homebrew trust only Sceno instead of the complete third-party tap. Upgrade later with `brew upgrade niklas-heer/tap/sceno`.
+
 ### One-line install (macOS & Linux)
 
 Installs the **latest published release** — downloads the binary for your OS/arch, verifies SHA256, and installs to `/usr/local/bin`:
@@ -336,6 +344,8 @@ mask release
 3. Run full CI via Dagger
 4. Bump `internal/version/VERSION` and prepend `CHANGELOG.md` — grouped by conventional commit type (`feat`, `fix`, `refactor`, …) with scopes and commit links
 5. Commit, tag `vX.Y.Z`, and push — GitHub Actions publishes binaries and uses the CHANGELOG section as the GitHub Release body
+
+After GitHub publishes the release archives, update `Formula/sceno.rb` in [`niklas-heer/homebrew-tap`](https://github.com/niklas-heer/homebrew-tap) with the new version and the four hashes from `SHA256SUMS`. Verify with `brew audit --strict --online niklas-heer/tap/sceno`, `brew install niklas-heer/tap/sceno`, and `brew test niklas-heer/tap/sceno`.
 
 Preview without changing anything:
 
