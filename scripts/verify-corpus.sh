@@ -3,6 +3,8 @@ set -euo pipefail
 
 binary="${SCENO_BIN:-./sceno}"
 output="${SCENO_VERIFY_OUT:-$(mktemp -d)}"
+minimum_visual_score=80
+blocked_visual_codes='collision|edge_collision|edge_detour|edge_hidden|arrow_detached|arrow_hidden|edge_label_overlap|edge_label_chrome_overlap|edge_label_off_axis|edge_side_mismatch|occluded|text_overflow'
 
 if [[ ! -x "$binary" ]]; then
   echo "verify-corpus: binary not executable: $binary" >&2
@@ -25,8 +27,13 @@ while IFS= read -r file; do
 	"$binary" advise -i "$file" --json >"$case_dir/advise.json"
 	grep -q '"scene_stack"' "$case_dir/advise.json"
 	visual_score=$(sed -n 's/^[[:space:]]*"visual_score": \([0-9][0-9]*\),*$/\1/p' "$case_dir/advise.json" | head -n 1)
-	if [[ -z "$visual_score" ]] || (( visual_score < 60 )); then
-		echo "verify-corpus: visual score for $file is ${visual_score:-missing}, expected at least 60" >&2
+	if [[ -z "$visual_score" ]] || (( visual_score < minimum_visual_score )); then
+		echo "verify-corpus: visual score for $file is ${visual_score:-missing}, expected at least $minimum_visual_score" >&2
+		exit 1
+	fi
+	if grep -Eq '"code": "('"$blocked_visual_codes"')"' "$case_dir/advise.json"; then
+		codes=$(sed -nE 's/^[[:space:]]*"code": "('"$blocked_visual_codes"')",?$/\1/p' "$case_dir/advise.json" | sort -u | tr '\n' ' ')
+		echo "verify-corpus: structural visual finding for $file: $codes" >&2
 		exit 1
 	fi
 
