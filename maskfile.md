@@ -85,16 +85,14 @@ echo "updated docs/how-it-works.png"
 
 ## verify
 
-> Quick local smoke test (build, validate, render)
+> Build and verify every shipped KDL file through analysis and all exports
 
 ```sh
 source scripts/lib.sh
 sceno_env
 go build -ldflags="$LDFLAGS" -o "$BINARY" "$CMD"
 ./"$BINARY" version
-./"$BINARY" validate -i examples/self-service.kdl --json | grep -q '"ok": true'
-./"$BINARY" render -i examples/self-service.kdl -o dist/smoke --all
-for f in dist/smoke.*; do test -s "$f" || (echo "missing $f" && exit 1); done
+SCENO_BIN="./$BINARY" ./scripts/verify-corpus.sh
 echo "verify ok ($VERSION)"
 ```
 

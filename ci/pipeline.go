@@ -99,21 +99,8 @@ set -euo pipefail
 ./sceno docs guide --json | grep -q '"tool": "sceno"'
 ./sceno docs errors --json | grep -q 'missing_node'
 ./sceno goals | head -n 5 >/dev/null
-for f in examples/*.kdl; do
-  ./sceno validate -i "$f" --json | grep -q '"ok": true' || { echo "validate failed: $f"; exit 1; }
-done
-./sceno render -i examples/self-service.kdl -o /tmp/sceno-smoke --all
-test -s /tmp/sceno-smoke.svg
-test -s /tmp/sceno-smoke.png
-test -s /tmp/sceno-smoke.pdf
-test -s /tmp/sceno-smoke.html
-test -s /tmp/sceno-smoke.slides.html
 ./sceno docs goals --json | grep -q '"mission"'
-./sceno render -i examples/slides-demo.kdl -o /tmp/sceno-deck --all
-test -s /tmp/sceno-deck-1.svg
-test -s /tmp/sceno-deck-1.png
-test -s /tmp/sceno-deck-2.svg
-test -s /tmp/sceno-deck.slides.html
+SCENO_BIN=./sceno SCENO_VERIFY_OUT=/tmp/sceno-corpus ./scripts/verify-corpus.sh
 echo "smoke ok"
 `
 }
@@ -125,5 +112,6 @@ func lintScripts(source *dagger.Directory) *dagger.Container {
 		WithDirectory("/src", repoSource(source)).
 		WithWorkdir("/src").
 		WithExec([]string{"bash", "-n", "scripts/install.sh"}).
-		WithExec([]string{"bash", "-n", "scripts/bump-version.sh"})
+		WithExec([]string{"bash", "-n", "scripts/bump-version.sh"}).
+		WithExec([]string{"bash", "-n", "scripts/verify-corpus.sh"})
 }
