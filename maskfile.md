@@ -147,7 +147,7 @@ GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 go build -ldflags="$LDFLAGS" -o dist/scen
 GOOS=darwin GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="$LDFLAGS" -o dist/sceno-darwin-amd64 "$CMD"
 GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="$LDFLAGS" -o dist/sceno-linux-amd64 "$CMD"
 GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -ldflags="$LDFLAGS" -o dist/sceno-linux-arm64 "$CMD"
-echo "dist ok ($(VERSION))"
+echo "dist ok ($VERSION)"
 ls -la dist/sceno-*
 ```
 
