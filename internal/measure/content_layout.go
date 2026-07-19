@@ -134,6 +134,7 @@ func BuildContentLayout(n model.Node) ContentLayout {
 		contentW += IconSize + InlineIconGap
 	}
 	cl.MinW = Snap(math.Max(contentW+padX*2, shapeMinW(k)))
+	cl.MinW, cl.MinH = expandForSilhouette(k, cl.MinW, cl.MinH)
 	if hasIcon {
 		cl.MinW = math.Max(cl.MinW, Snap(IconSize+IconPad*2))
 	}
@@ -168,6 +169,25 @@ func BuildContentLayout(n model.Node) ContentLayout {
 	}
 
 	return cl
+}
+
+func expandForSilhouette(k model.ShapeKind, w, h float64) (float64, float64) {
+	switch model.NormalizeShape(k) {
+	case model.ShapeCloud:
+		w /= .80
+		h /= .64
+	case model.ShapeCylinder, model.ShapeDatabase:
+		w += 16
+		rim := math.Min(math.Min(w*.10, h*.15), 12)
+		h += 2 * (rim + 4)
+	case model.ShapeHexagon, model.ShapeOctagon:
+		w /= .72
+		h /= .84
+	case model.ShapeDiamond, model.ShapeDecision:
+		w /= .48
+		h /= .56
+	}
+	return Snap(w), Snap(h)
 }
 
 func iconOffset(pos model.IconPosition, w, h float64) (x, y float64) {

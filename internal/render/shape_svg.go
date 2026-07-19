@@ -3,6 +3,7 @@ package render
 import (
 	"fmt"
 	"math"
+	"strings"
 
 	"github.com/niklas-heer/sceno/internal/model"
 	"github.com/niklas-heer/sceno/internal/theme"
@@ -138,14 +139,41 @@ func cylinderSVG(r model.Rect, fill, stroke string) string {
 }
 
 func cloudSVG(r model.Rect, fill, stroke string) string {
-	cx, cy := r.CX(), r.CY()
-	rx, ry := r.W/2*0.95, r.H/2*0.85
-	return fmt.Sprintf(`<ellipse cx="%.1f" cy="%.1f" rx="%.1f" ry="%.1f" fill="%s" stroke="%s" stroke-width="1.5"/>`+
-		`<ellipse cx="%.1f" cy="%.1f" rx="%.1f" ry="%.1f" fill="%s" stroke="%s" stroke-width="1.5"/>`+
-		`<ellipse cx="%.1f" cy="%.1f" rx="%.1f" ry="%.1f" fill="%s" stroke="%s" stroke-width="1.5"/>`,
-		cx-rx*0.35, cy, rx*0.55, ry, fill, stroke,
-		cx+rx*0.3, cy-ry*0.1, rx*0.5, ry*0.9, fill, stroke,
-		cx+rx*0.1, cy+ry*0.15, rx*0.65, ry*0.85, fill, stroke)
+	start, curves := cloudPath(r)
+	var d strings.Builder
+	fmt.Fprintf(&d, "M %.1f %.1f", start[0], start[1])
+	for _, c := range curves {
+		fmt.Fprintf(&d, " C %.1f %.1f %.1f %.1f %.1f %.1f", c[0], c[1], c[2], c[3], c[4], c[5])
+	}
+	return fmt.Sprintf(`<path d="%s Z" fill="%s" stroke="%s" stroke-width="1.5"/>`, d.String(), fill, stroke)
+}
+
+// cloudPath is the shared cloud silhouette for SVG, raster, and PDF. The
+// closed sequence passes through every bbox side midpoint, so border anchors
+// land on visible paint, while the alternating lobes keep a cloud silhouette
+// without overlapping interior strokes.
+func cloudPath(r model.Rect) ([2]float64, [][6]float64) {
+	point := func(x, y float64) [2]float64 {
+		return [2]float64{r.X + x*r.W, r.Y + y*r.H}
+	}
+	curve := func(c1x, c1y, c2x, c2y, x, y float64) [6]float64 {
+		c1, c2, end := point(c1x, c1y), point(c2x, c2y), point(x, y)
+		return [6]float64{c1[0], c1[1], c2[0], c2[1], end[0], end[1]}
+	}
+	return point(0, .5), [][6]float64{
+		curve(0, .38, .04, .30, .14, .28),
+		curve(.14, .14, .26, .08, .38, .15),
+		curve(.40, .06, .44, 0, .50, 0),
+		curve(.57, 0, .62, .06, .64, .14),
+		curve(.77, .07, .91, .17, .90, .32),
+		curve(.97, .35, 1, .42, 1, .50),
+		curve(1, .62, .92, .72, .80, .72),
+		curve(.76, .86, .64, .88, .56, .82),
+		curve(.55, .92, .53, 1, .50, 1),
+		curve(.45, 1, .41, .91, .38, .84),
+		curve(.25, .90, .10, .82, .12, .68),
+		curve(.05, .64, 0, .58, 0, .50),
+	}
 }
 
 func documentSVG(r model.Rect, fill, stroke string) string {

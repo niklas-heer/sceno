@@ -56,3 +56,26 @@ func TestEnsureNodeFits(t *testing.T) {
 		t.Fatalf("still overflow %.0f %.0f", ow, oh)
 	}
 }
+
+func TestSilhouetteShapesReserveMoreContentRoom(t *testing.T) {
+	baseW, baseH := FitSize(model.NodeSpec{Kind: model.ShapeBox, Label: "Partner APIs", Icon: "cloud"})
+	for _, kind := range []model.ShapeKind{model.ShapeCloud, model.ShapeCylinder, model.ShapeHexagon, model.ShapeDiamond} {
+		t.Run(string(kind), func(t *testing.T) {
+			w, h := FitSize(model.NodeSpec{Kind: kind, Label: "Partner APIs", Icon: "cloud"})
+			if w <= baseW || h <= baseH {
+				t.Fatalf("%s fit %.0fx%.0f must exceed box %.0fx%.0f", kind, w, h, baseW, baseH)
+			}
+		})
+	}
+}
+
+func TestOverflowUsesCloudSilhouetteInset(t *testing.T) {
+	boxW, boxH := FitSize(model.NodeSpec{Kind: model.ShapeBox, Label: "Partner APIs", Icon: "cloud"})
+	n := model.Node{
+		ID: "partner", Kind: model.ShapeCloud, Label: "Partner APIs", Icon: "cloud",
+		Rect: model.Rect{W: boxW, H: boxH},
+	}
+	if ow, oh := Overflow(n); ow < 1 && oh < 1 {
+		t.Fatalf("bbox-sized cloud content should overflow its safe silhouette inset, got %.0fx%.0f", ow, oh)
+	}
+}

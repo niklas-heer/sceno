@@ -172,18 +172,16 @@ func drawPolishedNodeGG(dc *gg.Context, n model.Node, vp Viewport, ox, oy, scale
 		dc.SetRGB(sr, sg, sb)
 		dc.Stroke()
 	case model.ShapeCloud:
-		rx, ry := w*0.475, h*0.425
-		for _, cloud := range [][4]float64{
-			{x + w/2 - rx*0.35, y + h/2, rx * 0.55, ry},
-			{x + w/2 + rx*0.3, y + h/2 - ry*0.1, rx * 0.5, ry * 0.9},
-			{x + w/2 + rx*0.1, y + h/2 + ry*0.15, rx * 0.65, ry * 0.85},
-		} {
-			dc.SetRGB(fr, fg, fb)
-			dc.DrawEllipse(cloud[0], cloud[1], cloud[2], cloud[3])
-			dc.FillPreserve()
-			dc.SetRGB(sr, sg, sb)
-			dc.Stroke()
+		start, curves := cloudPath(model.Rect{X: x, Y: y, W: w, H: h})
+		dc.MoveTo(start[0], start[1])
+		for _, c := range curves {
+			dc.CubicTo(c[0], c[1], c[2], c[3], c[4], c[5])
 		}
+		dc.ClosePath()
+		dc.SetRGB(fr, fg, fb)
+		dc.FillPreserve()
+		dc.SetRGB(sr, sg, sb)
+		dc.Stroke()
 	case model.ShapeDocument:
 		fold := math.Min(w*0.22, 22*scale)
 		drawPolygonGG(dc, [][2]float64{{x, y}, {x + w - fold, y}, {x + w, y + fold}, {x + w, y + h}, {x, y + h}}, sr, sg, sb)
@@ -432,10 +430,13 @@ func drawPolishedNodePDF(pdf *gofpdf.Fpdf, n model.Node, minX, minY float64) {
 		pdf.Ellipse(x+w/2, y+ry, w/2, ry, 0, "FD")
 		pdf.Ellipse(x+w/2, y+h-ry, w/2, ry, 0, "FD")
 	case model.ShapeCloud:
-		rx, ry := w*0.475, h*0.425
-		pdf.Ellipse(x+w/2-rx*0.35, y+h/2, rx*0.55, ry, 0, "FD")
-		pdf.Ellipse(x+w/2+rx*0.3, y+h/2-ry*0.1, rx*0.5, ry*0.9, 0, "FD")
-		pdf.Ellipse(x+w/2+rx*0.1, y+h/2+ry*0.15, rx*0.65, ry*0.85, 0, "FD")
+		start, curves := cloudPath(model.Rect{X: x, Y: y, W: w, H: h})
+		pdf.MoveTo(start[0], start[1])
+		for _, c := range curves {
+			pdf.CurveBezierCubicTo(c[0], c[1], c[2], c[3], c[4], c[5])
+		}
+		pdf.ClosePath()
+		pdf.DrawPath("FD")
 	case model.ShapeDocument:
 		fold := math.Min(w*0.22, 22)
 		pdf.Polygon([]gofpdf.PointType{{X: x, Y: y}, {X: x + w - fold, Y: y}, {X: x + w, Y: y + fold}, {X: x + w, Y: y + h}, {X: x, Y: y + h}}, "FD")

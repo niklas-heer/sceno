@@ -1,6 +1,7 @@
 package measure
 
 import (
+	"math"
 	"strings"
 
 	"github.com/niklas-heer/sceno/internal/fonts"
@@ -194,7 +195,56 @@ func Overflow(n model.Node) (overW, overH float64) {
 	if n.Rect.H < cl.MinH {
 		overH = cl.MinH - n.Rect.H
 	}
+	content := textBounds(n, cl)
+	safe := ShapeContentRect(n)
+	if content.W > 0 {
+		overW = math.Max(overW, math.Max(safe.X-content.X, content.Right()-safe.Right()))
+		overH = math.Max(overH, math.Max(safe.Y-content.Y, content.Bottom()-safe.Bottom()))
+	}
 	return overW, overH
+}
+
+func textBounds(n model.Node, cl ContentLayout) model.Rect {
+	fs := n.FontSize
+	if fs <= 0 {
+		fs = 14
+	}
+	var bounds model.Rect
+	add := func(r model.Rect) {
+		if r.W <= 0 || r.H <= 0 {
+			return
+		}
+		if bounds.W == 0 || bounds.H == 0 {
+			bounds = r
+			return
+		}
+		left, top := math.Min(bounds.X, r.X), math.Min(bounds.Y, r.Y)
+		right, bottom := math.Max(bounds.Right(), r.Right()), math.Max(bounds.Bottom(), r.Bottom())
+		bounds = model.Rect{X: left, Y: top, W: right - left, H: bottom - top}
+	}
+	for i, line := range strings.Split(n.Label, "\n") {
+		if line == "" {
+			continue
+		}
+		w := TextWidth(line, fs, fonts.WeightMedium)
+		x := n.Rect.X + (n.Rect.W-w)/2
+		if cl.InlineIcon {
+			x = n.Rect.X + cl.TitleX
+		}
+		baseline := n.Rect.Y + cl.TitleStartY + float64(i)*cl.TitleLineH
+		add(model.Rect{X: x, Y: baseline - fs, W: w, H: cl.TitleLineH})
+	}
+	if cl.HasSubtitle && n.Subtitle != "" {
+		subSize := fs * .85
+		w := TextWidth(n.Subtitle, subSize, fonts.WeightRegular)
+		x := n.Rect.X + (n.Rect.W-w)/2
+		if cl.InlineIcon {
+			x = n.Rect.X + cl.TitleX
+		}
+		baseline := n.Rect.Y + cl.SubtitleY
+		add(model.Rect{X: x, Y: baseline - subSize, W: w, H: subtitleH})
+	}
+	return bounds
 }
 
 // EnsureNodeFits expands node rect to fit measured content.
