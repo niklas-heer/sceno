@@ -8,8 +8,8 @@ import (
 )
 
 const (
-	goImage   = "golang:1.25-bookworm"
-	goVersion = "1.25"
+	goImage   = "golang:1.27.1-bookworm"
+	goVersion = "1.27.1"
 )
 
 var buildPlatforms = []struct {

@@ -1,6 +1,6 @@
 module github.com/niklas-heer/sceno
 
-go 1.25.0
+go 1.27.1
 
 require (
 	github.com/fogleman/gg v1.3.0
