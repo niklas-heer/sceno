@@ -52,6 +52,10 @@ sceno describe -i your.kdl --json  # positions, ascii map, scene, engine
 sceno render -i your.kdl -o output/sceno
 ```
 
+For interactive work, run `sceno init --list [--json]` to choose a validated starter, then `sceno preview file.kdl`. The local preview supports source editing, measured geometry inspection, and **Review a repair → Apply repair → Undo change**. Repairs must match current engine suggestions and resolve the targeted issue without structural regressions; they never silently change labels, remove shapes, or allow overlap. Other findings can remain after a successful repair. External edits invalidate pending repairs and session Undo history; browser drafts are preserved for conflict resolution.
+
+The preview always uses polished rendering. Invalid source retains a visibly stale last-valid view with geometry inspection disabled, and export waits until structural findings are resolved. Preview SVG/PNG downloads use the selected slide; PDF/slides include the complete deck.
+
 ## Stack validation model
 
 Diagrams are validated as **stacked 2D planes** (back → front):
@@ -73,6 +77,8 @@ Collision and routing checks project onto reduced planes. Full details: `sceno d
 
 `slides[n].engine.scene_stack.planes.*[]` contains exact outer `bounds`, visible `outline`, `internal_lines`, silhouette-safe `writable_bounds`, selected `effective_font_size`, and icon/title/subtitle `content` boxes; `order` is source order within a semantic plane. Text is fitted to that writable region with a 10px readability floor, and `text_overflow` exposes shape/writable/content geometry plus a size repair when it cannot fit.
 
+`slides[n].engine.spacing` reports measured node gaps, content padding, parent insets, and canvas margins in pixels. Clearance uses axis-aligned bounds; negative padding means overflow. Intentional overlap is measured and marked exempt. Check `truncated` before treating the bounded pair list as complete.
+
 `sceno advise --json` returns:
 
 - `visual_score` — 0–100 quality score
@@ -80,6 +86,8 @@ Collision and routing checks project onto reduced planes. Full details: `sceno d
 - `engine.findings` — visual design rule outcomes with `fix`, geometry, and repair candidates
 - `recommendations` — prioritized actionable hints
 - `ai_review` — when `--ai` and `SCENO_AI_CMD` are set
+
+Advise also retains every slide's full engine in `slides[]`. Indices are 1-based; merged findings carry `slide_index`, and `engine_slide_index` identifies the lowest-score slide supplying top-level geometry. Scope repair targets to their slide because IDs may repeat across slides.
 
 `sceno validate --json` also warns on stack rules: `edge_hidden`, `arrow_detached`, `arrow_hidden`, `arrow_cluster`, `edge_label_chrome_overlap`, `edge_label_overlap`, `text_overflow`, `occluded`, `misaligned`, `dense_layout`, `slide_crowded`, etc. **Arrow checks** use the same math as render: the path ends on the target border, the tip stays within 2px of its anchor, and the target approach reserves a straight 27px run (18px visible shaft + 9px head). If validate passes, arrowheads should meet shapes in export without hooks or stacked tips.
 
@@ -96,12 +104,14 @@ Collision and routing checks project onto reduced planes. Full details: `sceno d
 9. **Use `\n` in quoted strings** for line breaks inside labels.
 10. **Callouts** — `shape info`, `tip`, `warning`, `infobox`, `note` for annotations; `iconPos=top-left` for icons.
 11. **Repository changes** — run `mask verify`; the full KDL corpus must keep score ≥80 with no collision, detour, hidden/detached arrow, label overlap, side mismatch, occlusion, or text overflow.
+12. **Bound numeric input** — grid indices are integers from 0 through 10,000; geometry must be finite with absolute magnitude ≤1,000,000. Polished PNG export is capped at 32 million pixels and 32,768 pixels per side; use SVG/PDF or smaller slides when necessary.
 
 ## Commands
 
 | Command | Purpose |
 |---------|---------|
-| `sceno init -o sceno.kdl` | Starter file |
+| `sceno init -o sceno.kdl` | Starter file; `--list` lists templates and `--template NAME` selects one |
+| `sceno preview -i f.kdl` | Local live preview, source editing, geometry inspection, verified repairs, Undo, and export |
 | `sceno validate -i f --json` | Validate + repair hints + stack warnings |
 | `sceno advise -i f --json` | Stack engine + visual score + recommendations |
 | `sceno advise -i f --ai` | Optional external AI CLI review (`SCENO_AI_CMD`) |

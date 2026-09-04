@@ -12,6 +12,7 @@ import (
 	"github.com/niklas-heer/sceno/internal/icons"
 	"github.com/niklas-heer/sceno/internal/model"
 	"github.com/niklas-heer/sceno/internal/scene"
+	"github.com/niklas-heer/sceno/internal/starter"
 	"github.com/niklas-heer/sceno/internal/version"
 )
 
@@ -41,6 +42,8 @@ type Document struct {
 	VisualRules    []scene.VisualRule      `json:"visual_rules"`
 	StackModel     string                  `json:"stack_model"`
 	DescribeOutput map[string]string       `json:"describe_output"`
+	Templates      []starter.Template      `json:"templates"`
+	Preview        map[string]string       `json:"preview"`
 }
 
 // JSON writes the agent guide.
@@ -67,6 +70,14 @@ func Markdown(w io.Writer) error {
 	b.WriteString("\n## Commands\n\n")
 	for k, v := range d.Commands {
 		b.WriteString("- `" + k + "` — " + v + "\n")
+	}
+	b.WriteString("\n## Starter templates\n\nRun `sceno init --list --json` for metadata, or `sceno init --template NAME -o file.kdl` to create a file. Existing files require explicit `--force`.\n\n")
+	for _, template := range d.Templates {
+		fmt.Fprintf(&b, "- `%s` — %s\n", template.Name, template.Description)
+	}
+	b.WriteString("\n## Local preview\n\n")
+	for _, key := range sortedKeys(d.Preview) {
+		fmt.Fprintf(&b, "- **%s:** %s\n", key, d.Preview[key])
 	}
 	b.WriteString("\n## Describe geometry\n\n")
 	for _, key := range sortedKeys(d.DescribeOutput) {
@@ -156,8 +167,10 @@ func Build() Document {
 		IterateLoop: []string{
 			"Always run validate --json after editing the KDL file",
 			"Read agent.next_steps and agent.summary in the JSON response",
+			"For interactive work, sceno preview -i file.kdl watches saved changes; select findings to inspect source and preview supported repairs before Apply",
 			"Run advise --json for visual design rules (whitespace, hierarchy, slide focus)",
 			"Never invent shape kinds or icon names — use lists in this guide",
+			"Grid coordinates must be 0–10000; numeric geometry must be finite with absolute magnitude at most 1000000",
 			"Use layout=auto with layer/row/at and dx/dy nudges; use layout=hybrid for grid flow plus fixed x/y callouts",
 			"For collisions, inspect geometry.bounds/overlap and try one repairs[] property edit before validating again",
 			"Quote labels with spaces: title=\"My Platform\" not title=My Platform",
@@ -165,14 +178,16 @@ func Build() Document {
 			"Use info/tip/warning/infobox for callouts; iconPos=top-left for icons",
 			"Edges only connect node ids defined in the same diagram or slide { } block",
 			"Use sceno describe --json and inspect slides[n].engine.scene_stack for exact shape and content geometry; sceno docs stack explains the plane model",
+			"Read slides[n].engine.spacing for measured clearance and padding; negative insets indicate overflow, and bounds-based gaps are not silhouette distances",
 		},
 		Commands: map[string]string{
-			"sceno init [-o file.kdl]":     "Create a starter spec",
+			"sceno init [-o file.kdl]":     "Create a validated starter; --template selects a pattern, --list lists templates, --force replaces an existing file",
+			"sceno preview -i file.kdl":    "Local live preview, source editing, geometry inspection, verified repair preview/apply/undo, and exports (--no-open, --port)",
 			"sceno validate -i f --json":   "Check spec + layout; returns ok, errors, next_steps",
 			"sceno advise -i f --json":     "Stack engine + visual design rules + recommendations (--ai for external CLI)",
 			"sceno describe -i f --json":   "2D scene, exact silhouette/content geometry, routed edges, engine findings, and ascii_map",
 			"sceno render -i f -o out":     "Export PNG by default; -format svg,pdf for more; --all for every format",
-			"sceno render -format slides":  "HTML presentation (16:9)",
+			"sceno render -format slides":  "HTML presentation (16:9 by default; slide=4x3 supported)",
 			"sceno docs [--json]":          "Self-doc hub — guide, spec, goals, shapes, icons, errors, …",
 			"sceno docs guide --json":      "Agent handbook — start here",
 			"sceno docs spec":              "Full KDL specification",
@@ -184,7 +199,22 @@ func Build() Document {
 			"sceno docs errors --json":     "Error code repair catalog",
 			"sceno version [--json]":       "Tool version and build metadata",
 		},
+		Templates: starter.List(),
+		Preview: map[string]string{
+			"start":             "sceno preview file.kdl opens an authenticated loopback browser session; --no-open prints its URL and --port chooses a port; Ctrl-C stops the session",
+			"inspection":        "Select a node or finding for exact bounds, dimensions, measured spacing, and source lines; keyboard users can Tab to shapes and press Enter or Space; zoom buttons and 0 fit the canvas",
+			"source":            "Save in the source panel or an external editor; browser drafts survive external changes with conflict feedback; Ctrl/Cmd+Enter saves and Escape leaves the code editor",
+			"repairs":           "Review a repair shows exact before/after source, measured node movement, and re-evaluation before explicit Apply repair; only current engine-offered position, grid, nudge, or size edits qualify; the targeted issue must disappear without structural regressions, but unrelated findings may remain",
+			"intentional_edits": "Labels, deletions, styling, and overlap=allow are edited explicitly in source rather than applied as automatic repairs",
+			"undo":              "Undo change restores session source saves or repairs; external file changes invalidate pending repair proposals and Undo history",
+			"invalid_source":    "Invalid source is saved for repair but never newly rendered; the last valid view is marked stale and geometry overlays are disabled",
+			"exports":           "Export requires no structural findings and checks the visible revision; SVG/PNG download the selected slide, PDF/slides the entire deck; polished PNG is capped at 32000000 pixels and 32768 pixels per side, so use SVG/PDF or smaller slides when necessary",
+			"style":             "Preview is polished, including sources with sketch routing. CLI --style sketch uses a separate unframed SVG/PNG renderer with limited shape/icon/text parity; PDF, HTML, and framed slides remain polished",
+		},
 		DescribeOutput: map[string]string{
+			"slides[n].engine.spacing":                                    "pixel measurements from computed geometry: bounds-based peer clearance, content padding, parent insets, canvas margins; also available per slide in advise",
+			"slides[n].engine.spacing.pairs":                              "nearest-neighbor and below-clearance node pairs with signed gap_x/gap_y, rectangle distance (zero for overlap), and intentional-overlap status; shared spacing.required_clearance is half the diagram gap and applies on either axis; Euclidean distance is descriptive; inspect truncated before assuming completeness",
+			"slides[n].engine.spacing.nodes":                              "signed top/right/bottom/left insets of content in writable and outer bounds, plus child bounds in their parent; negative means overflow",
 			"slides[n].engine.scene_stack.planes.*[]":                     "semantic paint-plane items with exact computed geometry",
 			"slides[n].engine.scene_stack.planes.*[].outline":             "sampled visible silhouette used by shape-aware measurement",
 			"slides[n].engine.scene_stack.planes.*[].internal_lines":      "visible seams, folds, rims, or disjoint figure strokes",
@@ -267,10 +297,11 @@ func Build() Document {
 			"Spec is source of truth — never hand-tweak exports; change KDL and re-render",
 			"Validate → describe → render (agents: use --json on validate and describe)",
 			"For shape text, trust writable_bounds and effective_font_size rather than the outer bbox; text_overflow reports exact shape/content geometry",
+			"For decks, advise slides[] retains each slide's full engine; engine_slide_index identifies the lowest-score slide behind top-level geometry, and merged findings carry slide_index",
 			"Set fromSide/toSide when edges cross nodes; increase gap for dense diagrams",
 			"Use theme=dark for slide decks; background=transparent for embed overlays",
 			"Group related nodes in columns (layer/at); avoid single-node orphan columns when possible",
-			"Polished style for architecture; sketch style for whiteboard/Excalidraw-like organic edges",
+			"Use polished output for cross-format architecture fidelity; sketch routing is available, but CLI --style sketch has a separate unframed SVG/PNG renderer with limited shape/icon/text parity",
 			"Slides: one slide block per screen; mix sceno shapes and code blocks as needed",
 			"Use infobox, info, tip, warning, or note for callouts — accent stripe + subtitle",
 			"Pair icons with shape kind: database→cylinder, cloud→cloud; sceno docs icons for pairings",

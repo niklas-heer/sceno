@@ -57,6 +57,7 @@ func RenderSpecMarkdown() string {
 	b.WriteString("\nEdge labels render as compact pills centered on clear path segments; placement slides along the route to preserve at least 6px clearance from nodes, other labels, and container chrome.\n\n")
 
 	b.WriteString("## Layout\n\n")
+	b.WriteString("Grid row/layer/at coordinates must be 0–10000. Geometry values must be finite and at most 1000000 in absolute magnitude.\n\n")
 	b.WriteString("- `layout auto` — grid by `layer` / `row` / `at=col,row` (default)\n")
 	b.WriteString("- `layout hybrid` — auto-grid flow nodes while selected shapes use exact `x` and `y`\n")
 	b.WriteString("- `layout free` — every shape needs `x` and `y`\n")

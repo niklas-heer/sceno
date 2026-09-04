@@ -2,6 +2,8 @@
 
 Date: 2026-07-19
 
+Status update (2026-09-05): this remains a historical migration proposal, not the current implementation plan. Sceno now rasterizes the canonical SVG for polished PNG, outlines embedded Inter text before rasterization, and keeps code and connectors inside the same SVG scene for HTML slides. The separate PNG icon overlay and silent fallback to a second polished drawing path have been removed. PDF still has its own backend. These changes reduce the original parity gap without adopting `tdewolff/canvas`; any future migration must be assessed against the updated corpus and current runtime architecture documentation (`sceno docs architecture --json`).
+
 ## Recommendation
 
 Prototype `tdewolff/canvas` behind an internal draw-list adapter, but do not replace the three production backends yet. It is a strong architectural fit: one canvas can emit SVG, PDF, and raster formats, and its renderer contract accepts the same paths, text, images, and transforms across targets. That directly addresses Sceno's backend-parity burden. The project also supports cubic/arc paths, font embedding and subsetting, and in-memory font loading. Sources: [project README](https://github.com/tdewolff/canvas), [renderer API](https://pkg.go.dev/github.com/tdewolff/canvas/renderers), [font API](https://pkg.go.dev/github.com/tdewolff/canvas).

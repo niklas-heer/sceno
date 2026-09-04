@@ -66,6 +66,8 @@ func TopicDescriptions() map[string]string {
 // DocsCatalogCommands returns CLI commands shown in sceno docs --json.
 func DocsCatalogCommands() map[string]string {
 	return map[string]string{
+		"sceno init --list --json":       "List validated starter templates",
+		"sceno preview file.kdl":         "Local live editing, measured geometry, verified repairs, and export",
 		"sceno docs":                     "List topics (add --json for catalog)",
 		"sceno docs guide --json":        "Full agent handbook",
 		"sceno docs architecture --json": "Geometry + semantics SoT, pipeline entry point",

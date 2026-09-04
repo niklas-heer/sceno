@@ -7,12 +7,14 @@ Pipeline-as-code for Sceno. Same commands run locally and in GitHub Actions.
 - [Docker](https://docs.docker.com/get-docker/) (or Colima)
 - [Dagger CLI](https://docs.dagger.io/install) v0.20.8+
 
+The pipeline uses Go **1.27.1**. Its test container installs Node.js for the dependency-free preview state tests; the distributed Sceno binary embeds all browser assets and does not require Node.js. macOS binaries require macOS 13 or later.
+
 ## Commands
 
 ```bash
 # From repo root
 mask ci                              # full CI
-mask ci-test                         # go test -race
+mask ci-test                         # preview UI state tests + go test -race
 mask ci-smoke                        # build + integration smoke
 
 dagger functions                     # list pipeline functions
@@ -25,8 +27,8 @@ dagger call release --source=. --tag=v0.3.0 export --path=dist
 
 | Function | Description |
 |----------|-------------|
-| `test` | `go mod verify` + `go test -race` |
-| `smoke` | Build CLI + validate examples + render smoke exports |
+| `test` | Preview UI state tests + `go mod verify` + `go test -race` |
+| `smoke` | Build CLI + validate, advise, describe, and export all examples and starter templates |
 | `lint-scripts` | `bash -n` on install scripts |
 | `build` | Cross-compile one platform |
 | `build-all` | All four platform binaries |
