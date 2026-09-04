@@ -1,0 +1,21 @@
+// Rename the title and labels to match your service. Keep IDs stable for edges.
+// at=column,row controls the grid; increase gap when adding more components.
+diagram title="Service architecture" subtitle="Synchronous requests · durable data · background work" layout=auto style=polished gap=48 padding=32 {
+  // The request path reads from left to right.
+  shape actor client "Client" subtitle="Web or mobile" icon=user fill="#f1f5f9" at=0,0
+  shape box gateway "API gateway" subtitle="Routing and rate limits" icon=api fill="#dbeafe" at=1,0
+  shape box service "Application" subtitle="Business logic" icon=server fill="#ede9fe" at=2,0
+  shape cylinder database "Database" subtitle="Source of truth" icon=database fill="#d1fae5" at=3,0
+
+  // Background work stays on its own row.
+  shape tip ownership "Clear ownership" subtitle="One team owns each service" icon=info accent="#7c3aed" at=1,1
+  shape box queue "Job queue" subtitle="Durable events" icon=queue fill="#fef3c7" at=2,1
+  shape box worker "Worker" subtitle="Retry-safe jobs" icon=workflow fill="#ffedd5" at=3,1
+
+  // Define all shapes before edges. Edit labels without changing endpoint IDs.
+  edge client -> gateway fromSide=right toSide=left label="HTTPS"
+  edge gateway -> service fromSide=right toSide=left
+  edge service -> database fromSide=right toSide=left label="SQL"
+  edge service -> queue fromSide=bottom toSide=top label="enqueue"
+  edge queue -> worker fromSide=right toSide=left label="consume"
+}

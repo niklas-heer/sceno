@@ -1,0 +1,30 @@
+// A three-slide story: who needs this, how it works, and how it ships.
+// Keep one idea per slide. IDs and edges are local to their slide block.
+diagram title="Platform design" slide=16x9 layout=auto style=polished gap=48 padding=32 {
+  slide "01 · A simpler path for developers" {
+    shape actor developers "Developers" subtitle="Ship customer value" icon=users fill="#f1f5f9" at=0,0
+    shape box portal "Self-service portal" subtitle="A clear starting point" icon=api fill="#dbeafe" at=1,0
+    shape box platform "Platform capabilities" subtitle="Safe, supported defaults" icon=layers fill="#ede9fe" at=2,0
+    edge developers -> portal fromSide=right toSide=left label="request"
+    edge portal -> platform fromSide=right toSide=left label="provision"
+  }
+
+  slide "02 · Separate requests from background work" {
+    shape box application "Application" subtitle="Respond quickly" icon=server fill="#dbeafe" at=0,0
+    shape box queue "Job queue" subtitle="Buffer the workload" icon=queue fill="#fef3c7" at=1,0
+    shape box worker "Worker" subtitle="Process reliably" icon=workflow fill="#ede9fe" at=2,0
+    shape cylinder database "Database" subtitle="Persist the result" icon=database fill="#d1fae5" at=3,0
+    edge application -> queue fromSide=right toSide=left label="enqueue"
+    edge queue -> worker fromSide=right toSide=left
+    edge worker -> database fromSide=right toSide=left label="write"
+  }
+
+  slide "03 · Deliver in measured steps" {
+    // Replace these milestones with your plan and success criteria.
+    shape box pilot "Pilot" subtitle="One team, one use case" icon=user fill="#dbeafe" at=0,0
+    shape box measure "Measure" subtitle="Lead time and reliability" icon=check fill="#ede9fe" at=1,0
+    shape box expand "Expand" subtitle="Share the proven path" icon=users fill="#d1fae5" at=2,0
+    edge pilot -> measure fromSide=right toSide=left label="learn"
+    edge measure -> expand fromSide=right toSide=left label="improve"
+  }
+}

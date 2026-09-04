@@ -47,7 +47,7 @@ while IFS= read -r file; do
     echo "verify-corpus: expected at least 5 render artifacts for $file, got $artifact_count" >&2
     exit 1
   fi
-done < <(find examples -type f -name '*.kdl' | sort)
+done < <(find examples internal/starter/templates -type f -name '*.kdl' | sort)
 
 if (( count == 0 )); then
 	echo "verify-corpus: no KDL examples found" >&2

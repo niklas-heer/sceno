@@ -41,7 +41,7 @@ func goTest(source *dagger.Directory) *dagger.Container {
 	return dag.Container().
 		From(goImage).
 		WithExec([]string{"apt-get", "update"}).
-		WithExec([]string{"apt-get", "install", "-y", "--no-install-recommends", "gcc", "libc6-dev"}).
+		WithExec([]string{"apt-get", "install", "-y", "--no-install-recommends", "gcc", "libc6-dev", "nodejs"}).
 		WithMountedCache("/go/pkg/mod", dag.CacheVolume("sceno-go-mod")).
 		WithMountedCache("/go/cache", dag.CacheVolume("sceno-go-build")).
 		WithEnvVariable("GOMODCACHE", "/go/pkg/mod").
@@ -49,6 +49,7 @@ func goTest(source *dagger.Directory) *dagger.Container {
 		WithEnvVariable("CGO_ENABLED", "1").
 		WithDirectory("/src", repoSource(source)).
 		WithWorkdir("/src").
+		WithExec([]string{"node", "--test", "internal/preview/web/state.test.cjs"}).
 		WithExec([]string{"go", "mod", "download"})
 }
 

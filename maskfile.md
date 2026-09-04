@@ -36,6 +36,14 @@ echo "built ./$BINARY ($VERSION)"
 go test -race -count=1 ./...
 ```
 
+## test-ui
+
+> Test preview draft preservation and request ordering (requires Node.js)
+
+```sh
+node --test internal/preview/web/state.test.cjs
+```
+
 ## install
 
 > Install sceno to GOPATH/bin

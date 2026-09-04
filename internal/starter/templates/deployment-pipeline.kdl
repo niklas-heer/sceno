@@ -1,0 +1,14 @@
+// Replace tool names in subtitles with your own delivery stack.
+// Each stage has a stable ID so you can insert stages without rewriting labels.
+diagram title="From commit to production" subtitle="Build once · verify every change · release with confidence" layout=auto style=polished gap=52 padding=32 {
+  shape document source "Source" subtitle="Reviewed change" icon=folder fill="#f1f5f9" at=0,0
+  shape box build "Build" subtitle="Versioned artifact" icon=workflow fill="#dbeafe" at=1,0
+  shape box verify "Verify" subtitle="Tests and policy checks" icon=shield fill="#ede9fe" at=2,0
+  shape box release "Release" subtitle="Promote the same artifact" icon=check fill="#fef3c7" at=3,0
+  shape cloud production "Production" subtitle="Observe and recover" icon=cloud fill="#d1fae5" at=4,0
+
+  edge source -> build fromSide=right toSide=left label="commit"
+  edge build -> verify fromSide=right toSide=left
+  edge verify -> release fromSide=right toSide=left label="pass"
+  edge release -> production fromSide=right toSide=left label="deploy"
+}

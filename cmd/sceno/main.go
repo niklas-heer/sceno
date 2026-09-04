@@ -1,17 +1,26 @@
 package main
 
 import (
+	"context"
+	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
+	"os/signal"
+	"path/filepath"
 	"strings"
+	"syscall"
 
 	"github.com/niklas-heer/sceno/internal/advise"
 	"github.com/niklas-heer/sceno/internal/docs"
 	"github.com/niklas-heer/sceno/internal/export"
 	"github.com/niklas-heer/sceno/internal/guide"
 	"github.com/niklas-heer/sceno/internal/inspect"
+	"github.com/niklas-heer/sceno/internal/preview"
 	"github.com/niklas-heer/sceno/internal/spec"
+	"github.com/niklas-heer/sceno/internal/starter"
 	"github.com/niklas-heer/sceno/internal/validate"
 	"github.com/niklas-heer/sceno/internal/version"
 )
@@ -29,6 +38,8 @@ func main() {
 		cmdVersion(args)
 	case "init":
 		cmdInit(args)
+	case "preview":
+		cmdPreview(args)
 	case "validate":
 		cmdValidate(args)
 	case "advise":
@@ -329,34 +340,165 @@ func cmdVersion(args []string) {
 }
 
 func cmdInit(args []string) {
-	fs := flag.NewFlagSet("init", flag.ExitOnError)
-	out := fs.String("o", "sceno.kdl", "output spec path")
-	_ = fs.Parse(args)
-	if !strings.HasSuffix(strings.ToLower(*out), ".kdl") {
-		*out += ".kdl"
-	}
-	tpl := `// Edit this file, then: sceno validate -i sceno.kdl --json
-diagram title="My Diagram" subtitle="Optional subtitle" layout=auto style=polished gap=32 padding=24 {
-
-  shape box start "Start" icon=server at=0,0
-  shape box end "End" icon=server at=1,0
-
-  edge start -> end fromSide=right toSide=left label="flow"
-}
-`
-	if err := os.WriteFile(*out, []byte(tpl), 0o644); err != nil {
+	if err := runInit(args, os.Stdout); err != nil && !errors.Is(err, flag.ErrHelp) {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)
 	}
-	fmt.Println("wrote", *out)
-	fmt.Println("next: sceno validate -i", *out, "--json")
+}
+
+func runInit(args []string, output io.Writer) error {
+	fs := flag.NewFlagSet("init", flag.ContinueOnError)
+	fs.SetOutput(output)
+	path := fs.String("o", "sceno.kdl", "output spec path")
+	name := fs.String("template", "service-architecture", "starter template name (use --list to browse)")
+	list := fs.Bool("list", false, "list available starter templates")
+	jsonOut := fs.Bool("json", false, "JSON template metadata or creation result")
+	force := fs.Bool("force", false, "overwrite an existing output file")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if fs.NArg() != 0 {
+		return fmt.Errorf("init: unexpected argument %q; use -o for the output path", fs.Arg(0))
+	}
+	if *list {
+		if *jsonOut {
+			enc := json.NewEncoder(output)
+			enc.SetIndent("", "  ")
+			return enc.Encode(starter.List())
+		}
+		for _, template := range starter.List() {
+			if _, err := fmt.Fprintf(output, "%s — %s\n  %s\n", template.Name, template.Title, template.Description); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	source, err := starter.Source(*name)
+	if err != nil {
+		return err
+	}
+	if strings.TrimSpace(*path) == "" {
+		return fmt.Errorf("init: output path must not be empty")
+	}
+	if !strings.HasSuffix(strings.ToLower(*path), ".kdl") {
+		*path += ".kdl"
+	}
+	if err := os.MkdirAll(filepath.Dir(*path), 0o755); err != nil {
+		return err
+	}
+	mode := os.O_WRONLY | os.O_CREATE | os.O_EXCL
+	if *force {
+		mode = os.O_WRONLY | os.O_CREATE | os.O_TRUNC
+	}
+	f, err := os.OpenFile(*path, mode, 0o644)
+	if err != nil {
+		if errors.Is(err, os.ErrExist) {
+			return fmt.Errorf("init: %s already exists; use --force to overwrite it", *path)
+		}
+		return err
+	}
+	_, writeErr := io.WriteString(f, source)
+	closeErr := f.Close()
+	if writeErr != nil {
+		return writeErr
+	}
+	if closeErr != nil {
+		return closeErr
+	}
+	quotedPath := "'" + strings.ReplaceAll(*path, "'", "'\"'\"'") + "'"
+	next := []string{"sceno preview " + quotedPath, "sceno validate -i " + quotedPath + " --json"}
+	if *jsonOut {
+		canonical := strings.TrimSpace(*name)
+		if canonical == "" || canonical == "default" {
+			canonical = "service-architecture"
+		}
+		var selected starter.Template
+		for _, template := range starter.List() {
+			if template.Name == canonical {
+				selected = template
+				break
+			}
+		}
+		enc := json.NewEncoder(output)
+		enc.SetIndent("", "  ")
+		return enc.Encode(struct {
+			Path      string           `json:"path"`
+			Template  starter.Template `json:"template"`
+			NextSteps []string         `json:"next_steps"`
+		}{*path, selected, next})
+	}
+	_, err = fmt.Fprintf(output, "wrote %s\nnext: %s\nthen: %s\n", *path, next[0], next[1])
+	return err
+}
+
+func cmdPreview(args []string) {
+	input, port, openBrowser, err := parsePreviewArgs(args, os.Stdout)
+	if errors.Is(err, flag.ErrHelp) {
+		return
+	}
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(2)
+	}
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	if err := preview.Serve(ctx, input, port, openBrowser); err != nil && !errors.Is(err, context.Canceled) {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(2)
+	}
+}
+
+func parsePreviewArgs(args []string, output io.Writer) (string, int, bool, error) {
+	fs := flag.NewFlagSet("preview", flag.ContinueOnError)
+	fs.SetOutput(output)
+	input := fs.String("i", "", "input .kdl file (or pass its path as a positional argument)")
+	port := fs.Int("port", 0, "local server port (0 chooses an available port)")
+	noOpen := fs.Bool("no-open", false, "print the preview URL without opening a browser")
+	// Accept `preview diagram.kdl --no-open` as well as flags before the path.
+	var flags, positional []string
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		if arg == "--" {
+			positional = append(positional, args[i+1:]...)
+			break
+		}
+		if !strings.HasPrefix(arg, "-") || arg == "-" {
+			positional = append(positional, arg)
+			continue
+		}
+		flags = append(flags, arg)
+		if arg == "-i" || arg == "--i" || arg == "-port" || arg == "--port" {
+			if i+1 < len(args) {
+				i++
+				flags = append(flags, args[i])
+			}
+		}
+	}
+	if err := fs.Parse(flags); err != nil {
+		return "", 0, false, err
+	}
+	if len(positional) > 1 || len(positional) == 1 && *input != "" {
+		return "", 0, false, fmt.Errorf("preview: specify one input file, using -i or a positional path")
+	}
+	if len(positional) == 1 {
+		*input = positional[0]
+	}
+	if strings.TrimSpace(*input) == "" {
+		return "", 0, false, fmt.Errorf("preview: input .kdl file required; use sceno preview diagram.kdl")
+	}
+	if *port < 0 || *port > 65535 {
+		return "", 0, false, fmt.Errorf("preview: port must be between 0 and 65535")
+	}
+	return *input, *port, !*noOpen, nil
 }
 
 func usage() {
 	fmt.Fprintf(os.Stderr, "sceno %s — declarative diagrams in KDL (https://kdl.dev)\n\n", version.Version)
 	fmt.Fprintf(os.Stderr, `Workflow:  init → validate → advise → describe → render
 
-  sceno init [-o sceno.kdl]        create a starter spec
+  sceno init [-o sceno.kdl] [--template NAME]   create a starter (use --force to replace)
+  sceno init --list [--json]       browse starter templates
+  sceno preview file.kdl [--port N] [--no-open]   edit and preview locally
   sceno validate -i f --json       check spec + layout (run after every edit)
   sceno advise -i f --json         visual rules, score, recommendations
   sceno describe -i f --json       layout feedback without viewing images

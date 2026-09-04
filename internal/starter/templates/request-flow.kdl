@@ -1,0 +1,16 @@
+// Follow the successful request across the top row; rejected requests exit below.
+// Change the decision and response labels to describe your own access policy.
+diagram title="Authenticated request flow" subtitle="An explicit decision point keeps the success and rejection paths clear" layout=auto style=polished gap=52 padding=32 {
+  shape actor client "Client" subtitle="Sends a request" icon=user fill="#f1f5f9" at=0,0
+  shape box gateway "Gateway" subtitle="Validate the token" icon=api fill="#dbeafe" at=1,0
+  shape diamond authorized "Authorized?" fill="#ede9fe" w=200 h=140 at=2,0
+  shape box handler "Handler" subtitle="Apply business rules" icon=server fill="#dbeafe" at=3,0
+  shape cylinder data "Data store" subtitle="Read or update records" icon=database fill="#d1fae5" at=4,0
+  shape box rejected "403 response" subtitle="Explain access denied" icon=lock fill="#ffe4e6" at=2,1
+
+  edge client -> gateway fromSide=right toSide=left label="HTTPS"
+  edge gateway -> authorized fromSide=right toSide=left
+  edge authorized -> handler fromSide=right toSide=left label="yes"
+  edge handler -> data fromSide=right toSide=left
+  edge authorized -> rejected fromSide=bottom toSide=top label="no"
+}
