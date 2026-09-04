@@ -7,7 +7,7 @@ Pipeline-as-code for Sceno. Same commands run locally and in GitHub Actions.
 - [Docker](https://docs.docker.com/get-docker/) (or Colima)
 - [Dagger CLI](https://docs.dagger.io/install) v0.20.8+
 
-The pipeline uses Go **1.27.1**. Its test container installs Node.js for the dependency-free preview state tests; the distributed Sceno binary embeds all browser assets and does not require Node.js. macOS binaries require macOS 13 or later.
+Application tests and release builds use Go **1.27.1**. The separate CI orchestration module keeps a Go 1.26.2 minimum because Dagger v0.20.8 bootstraps it with an embedded Go 1.26.2 compiler; this does not change the application toolchain. Its test container installs Node.js for the dependency-free preview state tests; the distributed Sceno binary embeds all browser assets and does not require Node.js. macOS binaries require macOS 13 or later.
 
 ## Commands
 

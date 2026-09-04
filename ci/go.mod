@@ -1,6 +1,6 @@
 module dagger/sceno
 
-go 1.27.1
+go 1.26.2
 
 require (
 	github.com/Khan/genqlient v0.8.1
