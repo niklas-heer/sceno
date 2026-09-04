@@ -24,12 +24,7 @@ func RenderPNG(d model.Diagram, style RenderStyle, scale float64) ([]byte, error
 	}
 	if style == StylePolished {
 		svg := render.PolishedSVGWithOptions(d, render.SVGOptions{DropShadow: false})
-		if pngData, err := RasterizeSVG(svg, scale); err == nil && len(pngData) > 500 {
-			if withIcons, err := overlayIcons(pngData, d, scale); err == nil {
-				return withIcons, nil
-			}
-			return pngData, nil
-		}
+		return RasterizeSVG(svg, scale)
 	}
 	return renderPNGVector(d, style, scale)
 }

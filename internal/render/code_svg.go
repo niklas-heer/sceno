@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/niklas-heer/sceno/internal/fonts"
 	"github.com/niklas-heer/sceno/internal/highlight"
 	"github.com/niklas-heer/sceno/internal/model"
+	"golang.org/x/image/font"
 )
 
 const codeFontSize = 11.0
@@ -33,6 +35,7 @@ func codeBlockSVG(n model.Node) string {
 	r := n.Rect
 	var b strings.Builder
 	b.WriteString(fmt.Sprintf(`<rect x="%.1f" y="%.1f" width="%.1f" height="%.1f" fill="%s" stroke="%s" stroke-width="1" rx="8"/>`, r.X, r.Y, r.W, r.H, fill, stroke))
+	b.WriteString(`<g xml:space="preserve">`)
 	if n.Label != "" && n.Label != body {
 		b.WriteString(textEl(n.Label, r.X+codePadX, r.Y+14, 11, paint.FgMuted, "600"))
 	}
@@ -43,6 +46,7 @@ func codeBlockSVG(n model.Node) string {
 	}
 	lineY := y
 	for _, line := range strings.Split(body, "\n") {
+		line = expandCodeTabs(line)
 		if line == "" {
 			lineY += codeLineH
 			continue
@@ -52,11 +56,41 @@ func codeBlockSVG(n model.Node) string {
 		for _, sp := range lineSpans {
 			col := codeColor(sp.Kind)
 			b.WriteString(textEl(sp.Text, lx, lineY, codeFontSize, col, ""))
-			lx += float64(len(sp.Text)) * codeFontSize * 0.58
+			lx += codeSpanWidth(sp.Text)
 		}
 		lineY += codeLineH
 	}
+	b.WriteString(`</g>`)
 	return b.String()
+}
+
+// Expand tabs before highlighting so each token retains the code line's
+// column position, including Unicode text before an interior tab.
+func expandCodeTabs(line string) string {
+	var out strings.Builder
+	column := 0
+	for _, r := range line {
+		if r == '\t' {
+			n := 4 - column%4
+			out.WriteString(strings.Repeat(" ", n))
+			column += n
+		} else {
+			out.WriteRune(r)
+			column++
+		}
+	}
+	return out.String()
+}
+
+// Use fractional font advances; rounding each highlighted span compounds
+// spacing errors across a line, and byte counts mismeasure Unicode entirely.
+func codeSpanWidth(text string) float64 {
+	face, err := fonts.Face(fonts.WeightRegular, codeFontSize)
+	if err != nil {
+		return fonts.TextWidth(text, codeFontSize, fonts.WeightRegular)
+	}
+	defer face.Close()
+	return float64(font.MeasureString(face, text)) / 64
 }
 
 func codeColor(k highlight.Kind) string {
@@ -106,14 +140,4 @@ func CodeBlockHTML(n model.Node) string {
 	}
 	b.WriteString(`</code></pre>`)
 	return b.String()
-}
-
-func codeNodesForHTML(d model.Diagram) []model.Node {
-	var out []model.Node
-	for _, n := range d.Nodes {
-		if model.NormalizeShape(n.Kind) == model.ShapeCode {
-			out = append(out, n)
-		}
-	}
-	return out
 }

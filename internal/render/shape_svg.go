@@ -143,12 +143,19 @@ func cylinderSVG(r model.Rect, fill, stroke string) string {
 	top := r.Y + ry
 	bot := r.Bottom() - ry
 	rx := r.W / 2
+	// Split the lower half-ellipse into cubic segments. An endpoint arc with
+	// exactly opposite endpoints is numerically unstable in SVG rasterizers
+	// for fractional rim radii (it can produce controls at the canvas origin).
+	const kappa = 0.5522847498307936
+	bottom := fmt.Sprintf("C %.3f %.3f %.3f %.3f %.3f %.3f C %.3f %.3f %.3f %.3f %.3f %.3f",
+		r.X, bot+kappa*ry, r.CX()-kappa*rx, r.Bottom(), r.CX(), r.Bottom(),
+		r.CX()+kappa*rx, r.Bottom(), r.Right(), bot+kappa*ry, r.Right(), bot)
 	// Body: sides + bottom bulge; the top seam stays unstroked so no line
 	// crosses the interior — the rim ellipse closes the outline.
-	body := fmt.Sprintf(`<path d="M %.1f %.1f L %.1f %.1f A %.1f %.1f 0 0 0 %.1f %.1f L %.1f %.1f Z" fill="%s" stroke="none"/>`,
-		r.X, top, r.X, bot, rx, ry, r.Right(), bot, r.Right(), top, fill)
-	outline := fmt.Sprintf(`<path d="M %.1f %.1f L %.1f %.1f A %.1f %.1f 0 0 0 %.1f %.1f L %.1f %.1f" fill="none" stroke="%s" stroke-width="1.5"/>`,
-		r.X, top, r.X, bot, rx, ry, r.Right(), bot, r.Right(), top, stroke)
+	body := fmt.Sprintf(`<path d="M %.1f %.1f L %.1f %.1f %s L %.1f %.1f Z" fill="%s" stroke="none"/>`,
+		r.X, top, r.X, bot, bottom, r.Right(), top, fill)
+	outline := fmt.Sprintf(`<path d="M %.1f %.1f L %.1f %.1f %s L %.1f %.1f" fill="none" stroke="%s" stroke-width="1.5"/>`,
+		r.X, top, r.X, bot, bottom, r.Right(), top, stroke)
 	rim := fmt.Sprintf(`<ellipse cx="%.1f" cy="%.1f" rx="%.1f" ry="%.1f" fill="%s" stroke="%s" stroke-width="1.5"/>`,
 		r.CX(), top, rx, ry, fill, stroke)
 	return body + outline + rim

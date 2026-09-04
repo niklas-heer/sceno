@@ -36,9 +36,6 @@ func SlidesHTML(deck model.Deck) string {
 .deck{height:100vh;overflow-y:auto;scroll-snap-type:y mandatory;scroll-behavior:smooth}
 .slide{scroll-snap-align:start;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px 48px;gap:20px}
 .slide-inner svg{display:block;width:100%;height:100%}
-.slide-hdr{text-align:center;max-width:720px}
-.slide-hdr h2{margin:0;font-size:1.35rem;font-weight:600;letter-spacing:-0.02em}
-.slide-hdr p{margin:6px 0 0;font-size:0.875rem;color:var(--muted-foreground)}
 .deck-hdr{position:fixed;top:16px;left:24px;z-index:10;font-size:0.75rem;color:var(--muted-foreground);background:var(--card);border:1px solid var(--border);padding:6px 12px;border-radius:9999px;box-shadow:0 1px 2px var(--ring)}
 .deck-hdr kbd{font-family:inherit;background:var(--muted);padding:2px 6px;border-radius:4px;margin:0 2px}
 .nav{position:fixed;bottom:24px;right:24px;z-index:10;display:flex;gap:8px}
@@ -51,39 +48,16 @@ func SlidesHTML(deck model.Deck) string {
 	b.WriteString(`<div class="nav"><button type="button" id="prev">Prev</button><button type="button" id="next">Next</button></div>`)
 	b.WriteString(`<div class="deck" id="deck">`)
 	for i, d := range deck.Slides {
+		if d.SlideAspect == "" {
+			d.SlideAspect = aspect
+		}
 		useDiagramPalette(d)
 		b.WriteString(`<section class="slide" data-index="` + fmt.Sprint(i) + `">`)
-		if d.Title != "" || d.Subtitle != "" {
-			b.WriteString(`<div class="slide-hdr">`)
-			if d.Title != "" {
-				b.WriteString(`<h2>` + xmlEsc(d.Title) + `</h2>`)
-			}
-			if d.Subtitle != "" {
-				b.WriteString(`<p>` + xmlEsc(d.Subtitle) + `</p>`)
-			}
-			b.WriteString(`</div>`)
-		}
-		codes := codeNodesForHTML(d)
-		nonCode := diagramWithoutCodeNodes(d)
-		if len(codes) > 0 && len(nonCode.Nodes) > 0 {
-			b.WriteString(`<div class="slide-layout">`)
-		}
-		if len(nonCode.Nodes) > 0 || len(nonCode.Edges) > 0 {
-			b.WriteString(`<div class="slide-inner">`)
-			b.WriteString(PolishedSVGSlide(nonCode))
-			b.WriteString(`</div>`)
-		}
-		for _, cn := range codes {
-			b.WriteString(`<div class="slide-code">`)
-			if cn.Label != "" && cn.Label != cn.Code {
-				b.WriteString(`<p style="margin:0 0 8px;font-size:0.8rem;color:var(--muted-foreground)">` + xmlEsc(cn.Label) + `</p>`)
-			}
-			b.WriteString(CodeBlockHTML(cn))
-			b.WriteString(`</div>`)
-		}
-		if len(codes) > 0 && len(nonCode.Nodes) > 0 {
-			b.WriteString(`</div>`)
-		}
+		// Keep code, routes, and chrome in the same computed scene as every
+		// other export; separate HTML flow would invalidate describe geometry.
+		b.WriteString(`<div class="slide-inner">`)
+		b.WriteString(PolishedSVGSlide(d))
+		b.WriteString(`</div>`)
 		b.WriteString(`</section>`)
 	}
 	b.WriteString(`</div><script>
@@ -107,17 +81,6 @@ func SlidesHTML(deck model.Deck) string {
 })();
 </script></body></html>`)
 	return b.String()
-}
-
-func diagramWithoutCodeNodes(d model.Diagram) model.Diagram {
-	out := d
-	out.Nodes = nil
-	for _, n := range d.Nodes {
-		if model.NormalizeShape(n.Kind) != model.ShapeCode {
-			out.Nodes = append(out.Nodes, n)
-		}
-	}
-	return out
 }
 
 func aspectRatioCSS(aspect string) string {

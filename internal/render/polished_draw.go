@@ -590,12 +590,12 @@ func drawCodeBlockPDF(pdf *gofpdf.Fpdf, n model.Node, x, y, w, h float64) {
 	}
 	setPDFFont(pdf, "", codeFontSize)
 	for _, line := range strings.Split(body, "\n") {
-		line = strings.ReplaceAll(line, "\t", "    ")
+		line = expandCodeTabs(line)
 		lineX := x + codePadX
 		for _, span := range highlight.Tokenize(lang, line) {
 			setPDFTextColor(pdf, codeColor(span.Kind))
 			pdf.Text(lineX, lineY, span.Text)
-			lineX += pdf.GetStringWidth(span.Text)
+			lineX += codeSpanWidth(span.Text)
 		}
 		lineY += codeLineH
 		if lineY > y+h-codePadY {

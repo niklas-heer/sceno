@@ -110,10 +110,16 @@ func Write(d model.Diagram, path string, format Format, opt Options) error {
 	}
 	switch format {
 	case FormatSVG:
+		if d.SlideAspect != "" {
+			return os.WriteFile(path, []byte(render.PolishedSVGSlide(d)), 0o644)
+		}
 		return os.WriteFile(path, []byte(svgContent(d, opt.Style)), 0o644)
 	case FormatHTML:
 		return os.WriteFile(path, []byte(render.HTML(d)), 0o644)
 	case FormatPNG:
+		if d.SlideAspect != "" {
+			return WriteSlidePNG(d, path, opt)
+		}
 		pngData, err := RenderPNG(d, opt.Style, opt.Scale)
 		if err != nil {
 			return err
@@ -128,6 +134,15 @@ func Write(d model.Diagram, path string, format Format, opt Options) error {
 
 // WriteDeck emits slide-oriented output (HTML deck or per-slide PNG base-1, base-2, …).
 func WriteDeck(deck model.Deck, path string, format Format, opt Options) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	if opt.Scale <= 0 {
+		opt.Scale = 2
+	}
+	// Normalize each slide's aspect once so --all and explicit format exports
+	// use the same framing, including decks constructed directly by callers.
+	deck = withExportAspects(deck)
 	switch format {
 	case FormatSlides:
 		ext := filepath.Ext(path)
@@ -149,8 +164,7 @@ func WriteDeck(deck model.Deck, path string, format Format, opt Options) error {
 		return nil
 	case FormatSVG:
 		if len(deck.Slides) == 1 {
-			svg := render.PolishedSVGSlide(deck.Slides[0])
-			return os.WriteFile(path, []byte(svg), 0o644)
+			return Write(deck.Slides[0], path, FormatSVG, opt)
 		}
 		base := strings.TrimSuffix(path, filepath.Ext(path))
 		for i, d := range deck.Slides {
@@ -188,6 +202,7 @@ func WriteAllDeck(deck model.Deck, basePath string, opt Options) ([]string, erro
 	if len(deck.Slides) == 0 {
 		return nil, fmt.Errorf("empty deck")
 	}
+	deck = withExportAspects(deck)
 	base := strings.TrimSuffix(basePath, filepath.Ext(basePath))
 	var written []string
 
@@ -294,6 +309,7 @@ func resolveOutputPath(path string, format Format, multi bool) string {
 }
 
 func writeOneDeck(deck model.Deck, path string, format Format, opt Options) error {
+	deck = withExportAspects(deck)
 	if format == FormatSlides {
 		return WriteDeck(deck, path, format, opt)
 	}
@@ -301,4 +317,17 @@ func writeOneDeck(deck model.Deck, path string, format Format, opt Options) erro
 		return Write(deck.Slides[0], path, format, opt)
 	}
 	return WriteDeck(deck, path, format, opt)
+}
+
+func withExportAspects(deck model.Deck) model.Deck {
+	deck.Slides = append([]model.Diagram(nil), deck.Slides...)
+	for i := range deck.Slides {
+		if deck.Slides[i].SlideAspect == "" {
+			deck.Slides[i].SlideAspect = deck.SlideAspect
+			if deck.Slides[i].SlideAspect == "" && len(deck.Slides) > 1 {
+				deck.Slides[i].SlideAspect = render.Aspect16x9
+			}
+		}
+	}
+	return deck
 }

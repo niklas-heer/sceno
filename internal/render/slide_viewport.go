@@ -54,8 +54,8 @@ func SlideFrameFrom(d model.Diagram, aspect string) SlideFrame {
 	return SlideFrame{
 		Width:   sw,
 		Height:  sh,
-		OffsetX: (sw - dw) / 2,
-		OffsetY: (sh - dh) / 2,
+		OffsetX: (sw-dw)/2 - content.MinX*scale,
+		OffsetY: (sh-dh)/2 - content.MinY*scale,
 		Scale:   scale,
 		Content: content,
 	}
