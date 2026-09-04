@@ -45,16 +45,17 @@ const (
 
 // Issue is one actionable problem.
 type Issue struct {
-	Code     Code           `json:"code"`
-	Message  string         `json:"message"`
-	Fix      string         `json:"fix,omitempty"`
-	Example  string         `json:"example,omitempty"`
-	Path     string         `json:"path,omitempty"`
-	Nodes    []string       `json:"nodes,omitempty"`
-	Edge     []string       `json:"edge,omitempty"`
-	Line     int            `json:"line,omitempty"`
-	Geometry *Geometry      `json:"geometry,omitempty"`
-	Repairs  []RepairOption `json:"repairs,omitempty"`
+	SlideIndex int            `json:"slide_index,omitempty"` // 1-based slide containing this issue
+	Code       Code           `json:"code"`
+	Message    string         `json:"message"`
+	Fix        string         `json:"fix,omitempty"`
+	Example    string         `json:"example,omitempty"`
+	Path       string         `json:"path,omitempty"`
+	Nodes      []string       `json:"nodes,omitempty"`
+	Edge       []string       `json:"edge,omitempty"`
+	Line       int            `json:"line,omitempty"`
+	Geometry   *Geometry      `json:"geometry,omitempty"`
+	Repairs    []RepairOption `json:"repairs,omitempty"`
 }
 
 // Geometry makes a visual problem inspectable without opening an image.
@@ -86,17 +87,19 @@ func CollisionRepairs(c model.Collision, b model.Node) []RepairOption {
 		propertyX, propertyY = "x", "y"
 		valueX, valueY = b.Rect.X-b.DX+c.MoveBX, b.Rect.Y-b.DY+c.MoveBY
 	}
-	format := func(v float64) string { return strconv.FormatFloat(v, 'f', 0, 64) }
+	// KDL accepts fractional coordinates. Rounding to whole pixels can reduce
+	// the suggested escape distance and leave the reported collision in place.
+	format := func(v float64) string { return strconv.FormatFloat(v, 'f', -1, 64) }
 	return []RepairOption{
 		{
 			Action: "set_property", Target: c.B,
 			Properties: map[string]string{propertyX: format(valueX)},
-			Reason:     fmt.Sprintf("move %q horizontally by %.0fpx, the minimum clearance on that axis", c.B, c.MoveBX),
+			Reason:     fmt.Sprintf("move %q horizontally by %spx, the minimum clearance on that axis", c.B, format(c.MoveBX)),
 		},
 		{
 			Action: "set_property", Target: c.B,
 			Properties: map[string]string{propertyY: format(valueY)},
-			Reason:     fmt.Sprintf("move %q vertically by %.0fpx, the minimum clearance on that axis", c.B, c.MoveBY),
+			Reason:     fmt.Sprintf("move %q vertically by %spx, the minimum clearance on that axis", c.B, format(c.MoveBY)),
 		},
 		{
 			Action: "set_property", Target: c.B,

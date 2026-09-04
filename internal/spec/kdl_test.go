@@ -170,3 +170,48 @@ func TestLoadKDLFixture(t *testing.T) {
 		t.Fatalf("subtitle: %q", s.Subtitle)
 	}
 }
+
+func TestLoadSlidesDarkPreservesCompleteCode(t *testing.T) {
+	s, err := LoadFile(filepath.Join("..", "..", "examples", "slides-dark.kdl"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "package main\n\nimport \"github.com/pulumi/pulumi/sdk/v3/go/pulumi\"\n\nfunc main() {\n\tpulumi.Run(func(ctx *pulumi.Context) error {\n\t\treturn nil\n\t})\n}"
+	if len(s.Slides) != 2 || len(s.Slides[1].Nodes) != 2 {
+		t.Fatalf("unexpected slides: %+v", s.Slides)
+	}
+	n := s.Slides[1].Nodes[0]
+	if n.Code != want {
+		t.Fatalf("code source changed during parsing:\ngot:  %q\nwant: %q", n.Code, want)
+	}
+	if n.W != 520 || n.H != 200 || !n.AtSet {
+		t.Fatalf("properties after code source were lost: %+v", n)
+	}
+}
+
+func TestKDLQuotedValuesDecodeExactlyOnce(t *testing.T) {
+	s, err := LoadKDL([]byte(`diagram title="Quoted \"title\"  with spaces" {
+  shape box a "Literal \\n and \"quotes\"" subtitle="https://example.com/a?x=1 // text" at=0,0 // real comment
+  code sample source="fmt.Println(\"literal \\n\")\n// code comment\n\treturn nil" at=1,0
+}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s.Title != "Quoted \"title\"  with spaces" || len(s.Nodes) != 2 {
+		t.Fatalf("quoted header or nodes corrupted: %+v", s)
+	}
+	if s.Nodes[0].Label != `Literal \n and "quotes"` || s.Nodes[0].Subtitle != "https://example.com/a?x=1 // text" {
+		t.Fatalf("quoted label/property corrupted: %+v", s.Nodes[0])
+	}
+	if want := "fmt.Println(\"literal \\n\")\n// code comment\n\treturn nil"; s.Nodes[1].Code != want {
+		t.Fatalf("code escaped twice or truncated: got %q, want %q", s.Nodes[1].Code, want)
+	}
+}
+
+func TestKDLRejectsUnterminatedQuotedValues(t *testing.T) {
+	for _, line := range []string{`shape box a "unterminated`, `shape box a "A" subtitle="unterminated`, `code sample source="trailing escape\`} {
+		if _, err := LoadKDL([]byte("diagram {\n" + line + "\n}")); err == nil {
+			t.Fatalf("unterminated string silently accepted: %s", line)
+		}
+	}
+}

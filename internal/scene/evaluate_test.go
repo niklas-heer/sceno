@@ -52,3 +52,24 @@ func TestEvaluateNilDiagram(t *testing.T) {
 		t.Fatalf("nil diagram: %+v", ev)
 	}
 }
+
+func TestMergeEvaluationsKeepsPerfectSceneAndSlideScopedFindings(t *testing.T) {
+	first := Evaluate(&model.Diagram{Nodes: []model.Node{{ID: "a", Kind: model.ShapeBox, Rect: model.Rect{W: 80, H: 40}}}})
+	first.Score = 100
+	first.Findings = []Finding{{Severity: "warning", Code: "text_overflow", Message: "node a overflows", Items: []string{"a"}}}
+	second := first
+	merged := MergeEvaluations([]Evaluation{first, second})
+	if len(merged.SceneStack.Planes) == 0 || len(merged.PaintOrder) == 0 {
+		t.Fatal("perfect scores must retain representative scene geometry")
+	}
+	if len(merged.Findings) != 2 || merged.Findings[0].SlideIndex != 1 || merged.Findings[1].SlideIndex != 2 {
+		t.Fatalf("lost slide-scoped findings: %+v", merged.Findings)
+	}
+	if first.Findings[0].SlideIndex != 0 || first.Findings[0].Message != "node a overflows" {
+		t.Fatal("merging mutated the original per-slide findings")
+	}
+	issues := merged.EngineReport().Issues
+	if len(issues) != 2 || issues[0].SlideIndex != 1 || issues[1].SlideIndex != 2 {
+		t.Fatalf("issue conversion lost slide provenance: %+v", issues)
+	}
+}

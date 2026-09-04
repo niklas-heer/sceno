@@ -81,3 +81,40 @@ func TestFindSkipsIntentionalOverlap(t *testing.T) {
 		t.Fatalf("intentional overlap reported: %+v", got)
 	}
 }
+
+func TestResolveSameColumnUsesVerticalSeparation(t *testing.T) {
+	nodes := []model.Node{
+		{ID: "a", Column: 0, Rect: model.Rect{W: 100, H: 100}},
+		{ID: "b", Column: 0, Rect: model.Rect{X: 90, Y: 10, W: 100, H: 100}},
+	}
+	if moves := Resolve(nodes, 8, 1); moves != 1 {
+		t.Fatalf("moves = %d, want one effective move", moves)
+	}
+	if got := Find(nodes, 8); len(got) != 0 {
+		t.Fatalf("same-column collision was not resolved: %+v", got)
+	}
+	if nodes[0].Rect.X != 0 || nodes[1].Rect.X != 90 {
+		t.Fatalf("column X positions changed: %+v", nodes)
+	}
+}
+
+func TestResolveContainedNodeInOneStep(t *testing.T) {
+	for _, fixed := range []int{-1, 0, 1} {
+		nodes := []model.Node{
+			{ID: "outer", Column: -1, Rect: model.Rect{W: 400, H: 400}},
+			{ID: "inner", Column: -1, Rect: model.Rect{X: 170, Y: 160, W: 20, H: 20}},
+		}
+		var fixedBounds model.Rect
+		if fixed >= 0 {
+			nodes[fixed].Fixed = true
+			fixedBounds = nodes[fixed].Rect
+		}
+		Resolve(nodes, 8, 1)
+		if got := Find(nodes, 8); len(got) != 0 {
+			t.Fatalf("fixed=%d: containment not resolved in one step: %+v", fixed, got)
+		}
+		if fixed >= 0 && nodes[fixed].Rect != fixedBounds {
+			t.Fatalf("fixed=%d: fixed node moved", fixed)
+		}
+	}
+}

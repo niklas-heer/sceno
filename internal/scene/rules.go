@@ -39,28 +39,30 @@ var VisualRulesCatalog = []VisualRule{
 
 // Finding is one rule outcome from the stack engine.
 type Finding struct {
-	RuleID    string              `json:"rule_id"`
-	Severity  string              `json:"severity"` // error, warning, hint
-	Plane     PlaneKind           `json:"plane,omitempty"`
-	Projected bool                `json:"projected_2d,omitempty"`
-	Code      string              `json:"code"`
-	Message   string              `json:"message"`
-	Fix       string              `json:"fix,omitempty"`
-	Example   string              `json:"example,omitempty"`
-	Items     []string            `json:"items,omitempty"`
-	Geometry  *diag.Geometry      `json:"geometry,omitempty"`
-	Repairs   []diag.RepairOption `json:"repairs,omitempty"`
+	SlideIndex int                 `json:"slide_index,omitempty"` // 1-based in merged deck reports
+	RuleID     string              `json:"rule_id"`
+	Severity   string              `json:"severity"` // error, warning, hint
+	Plane      PlaneKind           `json:"plane,omitempty"`
+	Projected  bool                `json:"projected_2d,omitempty"`
+	Code       string              `json:"code"`
+	Message    string              `json:"message"`
+	Fix        string              `json:"fix,omitempty"`
+	Example    string              `json:"example,omitempty"`
+	Items      []string            `json:"items,omitempty"`
+	Geometry   *diag.Geometry      `json:"geometry,omitempty"`
+	Repairs    []diag.RepairOption `json:"repairs,omitempty"`
 }
 
 func (f Finding) ToIssue() diag.Issue {
 	return diag.Issue{
-		Code:     diag.Code(f.Code),
-		Message:  f.Message,
-		Fix:      f.Fix,
-		Example:  f.Example,
-		Nodes:    f.Items,
-		Geometry: f.Geometry,
-		Repairs:  f.Repairs,
+		SlideIndex: f.SlideIndex,
+		Code:       diag.Code(f.Code),
+		Message:    f.Message,
+		Fix:        f.Fix,
+		Example:    f.Example,
+		Nodes:      f.Items,
+		Geometry:   f.Geometry,
+		Repairs:    f.Repairs,
 	}
 }
 

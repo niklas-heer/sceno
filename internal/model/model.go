@@ -205,13 +205,14 @@ type EdgeSpec struct {
 
 // Collision between nodes.
 type Collision struct {
-	A       string  `json:"a"`
-	B       string  `json:"b"`
-	ABounds Rect    `json:"a_bounds"`
-	BBounds Rect    `json:"b_bounds"`
-	Overlap Rect    `json:"overlap"`
-	MoveBX  float64 `json:"move_b_x"`
-	MoveBY  float64 `json:"move_b_y"`
+	SlideIndex int     `json:"slide_index,omitempty"` // 1-based deck slide; 0 for standalone geometry
+	A          string  `json:"a"`
+	B          string  `json:"b"`
+	ABounds    Rect    `json:"a_bounds"`
+	BBounds    Rect    `json:"b_bounds"`
+	Overlap    Rect    `json:"overlap"`
+	MoveBX     float64 `json:"move_b_x"`
+	MoveBY     float64 `json:"move_b_y"`
 }
 
 // EdgeCollision describes a routing problem.

@@ -71,10 +71,6 @@ func ResolveWithOptions(nodes []model.Node, margin float64, maxIter int, opt Res
 				if sx == 0 && sy == 0 {
 					continue
 				}
-				// Same column: only vertical separation to preserve DAG columns.
-				if !a.Fixed && !b.Fixed && a.Column >= 0 && a.Column == b.Column {
-					sx = 0
-				}
 				applyMove(a, b, sx, sy)
 				moved = true
 				moves++
@@ -135,46 +131,24 @@ func separation(a, b *model.Node, gap float64, preserveSingleRow bool) (dx, dy f
 	if !overlaps(a.Rect, b.Rect, gap) {
 		return 0, 0
 	}
-	overlapX := math.Min(a.Rect.Right(), b.Rect.Right()) - math.Max(a.Rect.X, b.Rect.X) + gap
-	overlapY := math.Min(a.Rect.Bottom(), b.Rect.Bottom()) - math.Max(a.Rect.Y, b.Rect.Y) + gap
-	if overlapX <= 0 && overlapY <= 0 {
-		return 0, 0
-	}
-	var sx, sy float64
-	if overlapX > 0 {
-		pushX := overlapX
-		if a.Rect.CX() < b.Rect.CX() {
-			sx = -pushX
-		} else {
-			sx = pushX
-		}
-	}
-	if overlapY > 0 {
-		pushY := overlapY
-		if a.Rect.CY() < b.Rect.CY() {
-			sy = -pushY
-		} else {
-			sy = pushY
-		}
-	}
-	if overlapX > 0 && overlapY > 0 {
-		// Preserve the grid axis: rows separate vertically, single-row columns horizontally.
-		if a.Row != b.Row {
-			return 0, sy
-		}
-		if preserveSingleRow && a.Column != b.Column {
-			return sx, 0
-		}
-		if overlapX < overlapY {
-			return sx, 0
-		}
+	// Use the same minimum escape distance as machine-readable repairs.
+	// Intersection width/height underestimates this distance when one node
+	// contains the other, leaving collisions unresolved after a move.
+	c := Describe(*a, *b, gap)
+	sx, sy := -c.MoveBX, -c.MoveBY
+	// Choose the permitted axis before choosing the smaller displacement;
+	// zeroing an already-chosen horizontal move can leave a pair unmoved.
+	if !a.Fixed && !b.Fixed && a.Column >= 0 && a.Column == b.Column {
 		return 0, sy
 	}
-	if overlapX > 0 {
+	if a.Row != b.Row {
+		return 0, sy
+	}
+	if preserveSingleRow && a.Column != b.Column {
 		return sx, 0
 	}
-	if preserveSingleRow && a.Row == b.Row && a.Column != b.Column {
-		return 0, 0
+	if math.Abs(sx) < math.Abs(sy) {
+		return sx, 0
 	}
 	return 0, sy
 }

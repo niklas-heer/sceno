@@ -2,6 +2,7 @@ package spec
 
 import (
 	"fmt"
+	"math"
 	"strings"
 
 	"github.com/niklas-heer/sceno/internal/diag"
@@ -9,8 +10,27 @@ import (
 	"github.com/niklas-heer/sceno/internal/model"
 )
 
+// MaxGridCoordinate bounds indexed grid allocation for editable source. It
+// still permits far more rows/columns than a readable diagram needs.
+const MaxGridCoordinate = 10000
+
+// MaxGeometryMagnitude bounds source coordinates, dimensions, spacing, nudges,
+// and font sizes in pixels. Keeping intermediate geometry within this generous
+// range prevents finite source values from overflowing layout computations.
+const MaxGeometryMagnitude = 1_000_000
+
+type geometryProperty struct {
+	name   string
+	number float64
+}
+
 // Validate checks referential integrity and layout constraints before build.
 func Validate(s model.Spec) []diag.Issue {
+	for _, value := range []geometryProperty{{"gap", s.Gap}, {"padding", s.Padding}} {
+		if !boundedGeometry(value.number) {
+			return []diag.Issue{{Code: diag.CodeParse, Message: fmt.Sprintf("diagram %s must be a finite number between -%d and %d", value.name, MaxGeometryMagnitude, MaxGeometryMagnitude), Fix: "Use bounded numeric gap and padding values, such as gap=32 padding=24."}}
+		}
+	}
 	if s.Layout != "" && s.Layout != model.LayoutAuto && s.Layout != model.LayoutHybrid && s.Layout != model.LayoutFree {
 		return []diag.Issue{{
 			Code:    diag.CodeParse,
@@ -80,6 +100,28 @@ func validateBody(nodes []model.NodeSpec, edges []model.EdgeSpec, pathPrefix str
 		}
 		ids[n.ID] = i
 		byID[n.ID] = n
+		if n.Row < 0 || n.Row > MaxGridCoordinate || n.Layer < 0 || n.Layer > MaxGridCoordinate {
+			issues = append(issues, diag.Issue{
+				Code:    diag.CodeParse,
+				Message: fmt.Sprintf("node %q grid coordinates must be between 0 and %d", n.ID, MaxGridCoordinate),
+				Nodes:   []string{n.ID},
+				Fix:     "Use bounded nonnegative row/layer or at coordinates; start with at=0,0.",
+			})
+		}
+		values := []geometryProperty{
+			{"w", n.W}, {"h", n.H}, {"fontSize", n.FontSize}, {"dx", n.DX}, {"dy", n.DY},
+		}
+		if n.X != nil {
+			values = append(values, geometryProperty{"x", *n.X})
+		}
+		if n.Y != nil {
+			values = append(values, geometryProperty{"y", *n.Y})
+		}
+		for _, value := range values {
+			if !boundedGeometry(value.number) {
+				issues = append(issues, diag.Issue{Code: diag.CodeParse, Message: fmt.Sprintf("node %q %s must be a finite number between -%d and %d", n.ID, value.name, MaxGeometryMagnitude, MaxGeometryMagnitude), Nodes: []string{n.ID}, Fix: "Replace nonfinite or excessively large values with bounded numeric geometry."})
+			}
+		}
 		if !isKnownShape(n.Kind) {
 			issues = append(issues, diag.Issue{
 				Code:    diag.CodeParse,
@@ -218,6 +260,12 @@ func validateBody(nodes []model.NodeSpec, edges []model.EdgeSpec, pathPrefix str
 	}
 
 	return issues
+}
+
+func finiteGeometry(value float64) bool { return !math.IsNaN(value) && !math.IsInf(value, 0) }
+
+func boundedGeometry(value float64) bool {
+	return finiteGeometry(value) && math.Abs(value) <= MaxGeometryMagnitude
 }
 
 func iconNames() []string {

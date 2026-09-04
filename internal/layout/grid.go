@@ -101,7 +101,10 @@ func contentAwareGaps(d *model.Diagram, maxCol, rowCount int, gap float64) ([]fl
 			continue
 		}
 		a, b := byID[edge.From], byID[edge.To]
-		if a == nil || b == nil || a.Fixed || b.Fixed {
+		// Fitted containers have no grid slot (Column == -1), just like
+		// fixed nodes. Their bounds are derived after grid placement, so
+		// their edge labels cannot reserve a particular grid gutter here.
+		if a == nil || b == nil || a.Fixed || b.Fixed || a.Column < 0 || b.Column < 0 {
 			continue
 		}
 		connectorRoom := (geom.EdgeLabelClearRun + geom.ArrowHeadDepth) * 2

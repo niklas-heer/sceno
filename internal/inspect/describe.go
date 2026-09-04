@@ -158,6 +158,7 @@ func Run(path string, opt Options) (Report, error) {
 				"narrative — plain-language overview",
 				"scene — 2D paint order, groups, occlusion, edge visibility",
 				"engine — stack planes, visual rules, findings (same source as validate/advise)",
+				"engine.spacing — measured node clearance, content padding, parent insets, and canvas margins in pixels",
 				"ascii_map — coarse spatial map (* = node, lines = edges)",
 				"visual_problems — what looks wrong and where",
 				"nodes / edges — exact positions and routes",
@@ -175,7 +176,7 @@ func Run(path string, opt Options) (Report, error) {
 	}
 
 	for i, slide := range result.Slides {
-		slideColls := filterCollisions(result.Collisions, &slide.Diagram)
+		slideColls := filterCollisions(result.Collisions, i+1)
 		sv := describeSlide(slide, i, issuesBySlide[i], slideColls, margin, opt.ASCIIWidth)
 		report.Slides = append(report.Slides, sv)
 	}
@@ -820,7 +821,9 @@ func groupIssues(v diag.Report, slideCount int) [][]diag.Issue {
 	out := make([][]diag.Issue, slideCount)
 	for _, iss := range append(v.Errors, v.Warnings...) {
 		idx := 0
-		if strings.HasPrefix(iss.Message, "slide ") {
+		if iss.SlideIndex >= 1 && iss.SlideIndex <= slideCount {
+			idx = iss.SlideIndex - 1
+		} else if strings.HasPrefix(iss.Message, "slide ") {
 			var n int
 			if _, err := fmt.Sscanf(iss.Message, "slide %d:", &n); err == nil && n >= 1 && n <= slideCount {
 				idx = n - 1
@@ -831,17 +834,13 @@ func groupIssues(v diag.Report, slideCount int) [][]diag.Issue {
 	return out
 }
 
-func filterCollisions(colls []model.Collision, d *model.Diagram) []model.Collision {
+func filterCollisions(colls []model.Collision, slideIndex int) []model.Collision {
 	if len(colls) == 0 {
 		return nil
 	}
-	ids := map[string]bool{}
-	for _, n := range d.Nodes {
-		ids[n.ID] = true
-	}
 	var out []model.Collision
 	for _, c := range colls {
-		if ids[c.A] && ids[c.B] {
+		if c.SlideIndex == slideIndex {
 			out = append(out, c)
 		}
 	}

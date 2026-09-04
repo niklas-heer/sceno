@@ -12,9 +12,19 @@ import (
 
 // LoadAndEvaluate is the single entry point: parse → spec check → build → scene evaluate.
 func LoadAndEvaluate(path string, opt Options) (pipeline.Result, diag.Report, error) {
-	report := diag.Report{Input: path, OK: true}
-
 	s, err := spec.LoadFile(path)
+	return evaluateLoaded(s, err, path, opt)
+}
+
+// EvaluateSource evaluates an in-memory KDL document through the same pipeline
+// as LoadAndEvaluate. Input is a display name; this function never reads it.
+func EvaluateSource(data []byte, input string, opt Options) (pipeline.Result, diag.Report, error) {
+	s, err := spec.LoadKDL(data)
+	return evaluateLoaded(s, err, input, opt)
+}
+
+func evaluateLoaded(s model.Spec, err error, input string, opt Options) (pipeline.Result, diag.Report, error) {
+	report := diag.Report{Input: input, OK: true}
 	if err != nil {
 		report.OK = false
 		report.Errors = append(report.Errors, diag.Issue{
@@ -64,14 +74,19 @@ func ApplyResult(report *diag.Report, result pipeline.Result) {
 
 	for _, c := range result.Collisions {
 		node := findResultNode(result, c)
+		message := fmt.Sprintf("nodes %q and %q overlap or violate minimum clearance", c.A, c.B)
+		if len(result.Slides) > 1 && c.SlideIndex > 0 {
+			message = fmt.Sprintf("slide %d: %s", c.SlideIndex, message)
+		}
 		report.OK = false
 		report.Errors = append(report.Errors, diag.Issue{
-			Code:     diag.CodeCollision,
-			Message:  fmt.Sprintf("nodes %q and %q overlap or violate minimum clearance", c.A, c.B),
-			Fix:      "Apply one candidate repair below, then re-run validate. Use overlap=allow only when the overlap is intentional.",
-			Nodes:    []string{c.A, c.B},
-			Geometry: diag.CollisionGeometry(c),
-			Repairs:  diag.CollisionRepairs(c, node),
+			SlideIndex: c.SlideIndex,
+			Code:       diag.CodeCollision,
+			Message:    message,
+			Fix:        "Apply one candidate repair below, then re-run validate. Use overlap=allow only when the overlap is intentional.",
+			Nodes:      []string{c.A, c.B},
+			Geometry:   diag.CollisionGeometry(c),
+			Repairs:    diag.CollisionRepairs(c, node),
 			Example: fmt.Sprintf(`diagram gap=40 layout=auto {
   shape box %s "%s" at=0,0
   shape box %s "%s" at=0,1
@@ -88,6 +103,7 @@ func ApplyResult(report *diag.Report, result pipeline.Result) {
 		}
 		for _, f := range slide.Eval.Findings {
 			iss := f.ToIssue()
+			iss.SlideIndex = si + 1
 			if prefix != "" {
 				iss.Message = prefix + iss.Message
 			}
@@ -103,11 +119,16 @@ func ApplyResult(report *diag.Report, result pipeline.Result) {
 }
 
 func findResultNode(result pipeline.Result, collision model.Collision) model.Node {
-	for _, slide := range result.Slides {
-		for _, n := range slide.Diagram.Nodes {
-			if n.ID == collision.B && n.Rect == collision.BBounds {
-				return n
-			}
+	idx := collision.SlideIndex - 1
+	if collision.SlideIndex == 0 && len(result.Slides) == 1 {
+		idx = 0
+	}
+	if idx < 0 || idx >= len(result.Slides) {
+		return model.Node{ID: collision.B}
+	}
+	for _, n := range result.Slides[idx].Diagram.Nodes {
+		if n.ID == collision.B {
+			return n
 		}
 	}
 	return model.Node{ID: collision.B}

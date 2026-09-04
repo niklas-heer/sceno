@@ -10,14 +10,15 @@ import (
 
 // EngineReport is the output of the multi-plane validation engine.
 type EngineReport struct {
-	Stack       StackSummary `json:"stack"`
-	SceneStack  Stack        `json:"scene_stack"`
-	RulesRun    []string     `json:"rules_run"`
-	Findings    []Finding    `json:"findings"`
-	Issues      []diag.Issue `json:"issues,omitempty"`
-	Summary     string       `json:"summary"`
-	Score       int          `json:"score"` // 0–100 visual quality
-	VisualRules []VisualRule `json:"visual_rules,omitempty"`
+	Stack       StackSummary  `json:"stack"`
+	SceneStack  Stack         `json:"scene_stack"`
+	Spacing     SpacingReport `json:"spacing"`
+	RulesRun    []string      `json:"rules_run"`
+	Findings    []Finding     `json:"findings"`
+	Issues      []diag.Issue  `json:"issues,omitempty"`
+	Summary     string        `json:"summary"`
+	Score       int           `json:"score"` // 0–100 visual quality
+	VisualRules []VisualRule  `json:"visual_rules,omitempty"`
 }
 
 // RunEngine analyzes a laid-out diagram using the stacked-plane model and visual rules.

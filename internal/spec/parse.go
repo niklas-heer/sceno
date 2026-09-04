@@ -33,10 +33,10 @@ func defaults(s *model.Spec) {
 	if s.Style == "" {
 		s.Style = model.StylePolished
 	}
-	if s.Gap <= 0 {
+	if boundedGeometry(s.Gap) && s.Gap <= 0 {
 		s.Gap = 28
 	}
-	if s.Padding <= 0 {
+	if boundedGeometry(s.Padding) && s.Padding <= 0 {
 		s.Padding = 20
 	}
 	normalizeNode := func(n *model.NodeSpec) {
@@ -47,7 +47,7 @@ func defaults(s *model.Spec) {
 		if n.Stroke == "" {
 			n.Stroke = "#e2e8f0"
 		}
-		if n.FontSize <= 0 {
+		if boundedGeometry(n.FontSize) && n.FontSize <= 0 {
 			n.FontSize = 14
 		}
 		switch n.Kind {

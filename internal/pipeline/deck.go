@@ -10,6 +10,9 @@ func BuildDeck(s model.Spec, opt Options) (model.Deck, []model.Collision, error)
 			return model.Deck{}, colls, err
 		}
 		d.SlideAspect = s.SlideAspect
+		for i := range colls {
+			colls[i].SlideIndex = 1
+		}
 		return model.Deck{
 			Title:       s.Title,
 			Subtitle:    s.Subtitle,
@@ -26,7 +29,7 @@ func BuildDeck(s model.Spec, opt Options) (model.Deck, []model.Collision, error)
 		Theme:       s.Theme,
 	}
 	var allColls []model.Collision
-	for _, sl := range s.Slides {
+	for si, sl := range s.Slides {
 		sub := model.Spec{
 			Title:       pickTitle(sl.Title, s.Title),
 			Subtitle:    s.Subtitle,
@@ -46,6 +49,9 @@ func BuildDeck(s model.Spec, opt Options) (model.Deck, []model.Collision, error)
 		d.Title = pickTitle(sl.Title, d.Title)
 		d.SlideAspect = s.SlideAspect
 		deck.Slides = append(deck.Slides, d)
+		for i := range colls {
+			colls[i].SlideIndex = si + 1
+		}
 		allColls = append(allColls, colls...)
 	}
 	return deck, allColls, nil

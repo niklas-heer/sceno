@@ -23,17 +23,26 @@ type Options struct {
 
 // Report combines validation, stack engine, scene analysis, and recommendations.
 type Report struct {
-	Input           string                `json:"input"`
-	Tool            string                `json:"tool"`
-	Version         string                `json:"version"`
-	ValidationOK    bool                  `json:"validation_ok"`
-	VisualScore     int                   `json:"visual_score"`
-	Stack           scene.StackSummary    `json:"stack"`
-	Engine          scene.EngineReport    `json:"engine"`
-	VisualRules     []scene.VisualRule    `json:"visual_rules"`
-	Recommendations []diag.Recommendation `json:"recommendations"`
-	Agent           AdviseMeta            `json:"agent"`
-	AIReview        string                `json:"ai_review,omitempty"`
+	Input            string                `json:"input"`
+	Tool             string                `json:"tool"`
+	Version          string                `json:"version"`
+	ValidationOK     bool                  `json:"validation_ok"`
+	VisualScore      int                   `json:"visual_score"`
+	Stack            scene.StackSummary    `json:"stack"`
+	Engine           scene.EngineReport    `json:"engine"`
+	EngineSlideIndex int                   `json:"engine_slide_index,omitempty"`
+	Slides           []SlideReport         `json:"slides"`
+	VisualRules      []scene.VisualRule    `json:"visual_rules"`
+	Recommendations  []diag.Recommendation `json:"recommendations"`
+	Agent            AdviseMeta            `json:"agent"`
+	AIReview         string                `json:"ai_review,omitempty"`
+}
+
+// SlideReport retains geometry and repair targets in their original slide scope.
+type SlideReport struct {
+	Index  int                `json:"index"` // 1-based, matching describe
+	Title  string             `json:"title,omitempty"`
+	Engine scene.EngineReport `json:"engine"`
 }
 
 type AdviseMeta struct {
@@ -50,20 +59,30 @@ func Run(path string, opt Options) (Report, error) {
 	}
 
 	engine := validate.DeckMergedEngine(result)
+	var slides []SlideReport
+	representative := 0
+	for i, slide := range result.Slides {
+		slides = append(slides, SlideReport{Index: i + 1, Title: slide.Diagram.Title, Engine: slide.Eval.EngineReport()})
+		if representative == 0 || slide.Eval.Score < result.Slides[representative-1].Eval.Score {
+			representative = i + 1
+		}
+	}
 	recs := diag.BuildRecommendations(vreport)
 	recs = append(recs, scene.FindingsToRecommendations(engine.Findings)...)
 	recs = dedupeRecs(recs)
 
 	out := Report{
-		Input:           path,
-		Tool:            "sceno",
-		Version:         version.Version,
-		ValidationOK:    vreport.OK,
-		VisualScore:     engine.Score,
-		Stack:           engine.Stack,
-		Engine:          engine,
-		VisualRules:     scene.VisualRulesCatalog,
-		Recommendations: recs,
+		Input:            path,
+		Tool:             "sceno",
+		Version:          version.Version,
+		ValidationOK:     vreport.OK,
+		VisualScore:      engine.Score,
+		Stack:            engine.Stack,
+		Engine:           engine,
+		EngineSlideIndex: representative,
+		Slides:           slides,
+		VisualRules:      scene.VisualRulesCatalog,
+		Recommendations:  recs,
 		Agent: AdviseMeta{
 			Summary:   buildSummary(vreport, engine),
 			Hint:      "Stack validation uses layered 2D planes (lanes→structure→edges→annotations→nodes→labels). Run sceno docs guide --json for shape catalog.",
@@ -163,6 +182,7 @@ func buildAIPrompt(report Report) (string, error) {
 		"recommendations": report.Recommendations,
 		"visual_rules":    report.VisualRules,
 		"stack":           report.Stack,
+		"slides":          report.Slides,
 	}
 	b, err := json.MarshalIndent(payload, "", "  ")
 	if err != nil {
@@ -171,6 +191,7 @@ func buildAIPrompt(report Report) (string, error) {
 	var sb strings.Builder
 	sb.WriteString("You are a diagram and slide design expert. Given the JSON analysis below, suggest concrete KDL edits.\n")
 	sb.WriteString("Focus on: hierarchy, whitespace, alignment, edge clarity, slide focus, infobox placement.\n")
+	sb.WriteString("Use each slide's engine.scene_stack and engine.spacing for measured bounds, clearance, and padding. Node IDs and repair targets are scoped to that slide; identify its 1-based index in every suggested edit.\n")
 	sb.WriteString("Respond with bullet points and short KDL examples.\n\n")
 	sb.Write(b)
 	return sb.String(), nil

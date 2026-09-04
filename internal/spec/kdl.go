@@ -125,8 +125,20 @@ func applyKDLBlockSlide(sl *model.SlideSpec, lines []string) error {
 func splitKDLLines(src string) []string {
 	var lines []string
 	for _, raw := range strings.Split(src, "\n") {
-		if i := strings.Index(raw, "//"); i >= 0 {
-			raw = raw[:i]
+		// Comment markers inside strings belong to their value (URLs and
+		// source code commonly contain //). Escaped quotes do not end it.
+		quoted := false
+		for i := 0; i < len(raw); i++ {
+			if quoted && raw[i] == '\\' {
+				i++
+				continue
+			}
+			if raw[i] == '"' {
+				quoted = !quoted
+			} else if !quoted && raw[i] == '/' && i+1 < len(raw) && raw[i+1] == '/' {
+				raw = raw[:i]
+				break
+			}
 		}
 		lines = append(lines, strings.TrimSpace(raw))
 	}
@@ -144,7 +156,10 @@ func applyKDLBlock(s *model.Spec, lines []string) error {
 
 func applyKDLLine(s *model.Spec, line string) error {
 	toks, err := tokenizeKDLine(line)
-	if err != nil || len(toks) == 0 {
+	if err != nil {
+		return err
+	}
+	if len(toks) == 0 {
 		return nil
 	}
 	// diagram title="..." layout=auto { ... }  — header line on open block
@@ -277,9 +292,9 @@ func applyNodeProps(ns *model.NodeSpec, props map[string]kdlTok) {
 		case "id":
 			ns.ID = v.str
 		case "label":
-			ns.Label = unescapeLabel(v.str)
+			ns.Label = v.str
 		case "subtitle":
-			ns.Subtitle = unescapeLabel(v.str)
+			ns.Subtitle = v.str
 		case "kind", "shape":
 			ns.Kind = model.NormalizeShape(model.ShapeKind(v.str))
 		case "icon":
@@ -333,7 +348,7 @@ func applyNodeProps(ns *model.NodeSpec, props map[string]kdlTok) {
 		case "lang", "language":
 			ns.CodeLang = v.str
 		case "source", "body":
-			ns.Code = unescapeLabel(v.str)
+			ns.Code = v.str
 		}
 	}
 }
@@ -350,10 +365,6 @@ func applyShapeVariantDefaults(ns *model.NodeSpec, rawKind string) {
 	case "tip", "hint":
 		ns.Accent = "#10b981"
 	}
-}
-
-func unescapeLabel(s string) string {
-	return strings.ReplaceAll(s, `\n`, "\n")
 }
 
 func isShapeName(s string) bool {
@@ -380,7 +391,7 @@ func parseKDLEdgeAt(toks []kdlTok, start int) (model.EdgeSpec, int, error) {
 			props[toks[i].key] = toks[i]
 		case kdString:
 			if es.Label == "" {
-				es.Label = unescapeLabel(toks[i].str)
+				es.Label = toks[i].str
 			}
 		case kdArrow:
 			// from -> to already captured
@@ -404,7 +415,7 @@ done:
 		es.To = v.str
 	}
 	if v, ok := props["label"]; ok {
-		es.Label = unescapeLabel(v.str)
+		es.Label = v.str
 	}
 	if v, ok := props["fromSide"]; ok {
 		es.FromSide = model.Side(v.str)
@@ -435,9 +446,9 @@ func isKDLStmt(w string) bool {
 func applyKDLProp(s *model.Spec, p kdlTok) {
 	switch p.key {
 	case "title":
-		s.Title = unescapeLabel(p.str)
+		s.Title = p.str
 	case "subtitle":
-		s.Subtitle = unescapeLabel(p.str)
+		s.Subtitle = p.str
 	case "layout":
 		s.Layout = model.LayoutMode(p.str)
 	case "style":
@@ -490,7 +501,7 @@ func setThemeVar(s *model.Spec, key, val string) {
 
 func kdlTokStr(t kdlTok) string {
 	if t.typ == kdString || t.typ == kdWord {
-		return unescapeLabel(t.str)
+		return t.str
 	}
 	return ""
 }
@@ -521,93 +532,92 @@ type kdlTok struct {
 	key  string
 }
 
-func tokenizeKDLine(line string) ([]kdlTok, error) {
-	var out []kdlTok
-	i := 0
-	runes := []rune(line)
-	skip := func() {
-		for i < len(runes) && unicode.IsSpace(runes[i]) {
+// readKDLQuoted decodes a string once, for both positional and property values.
+// Keeping one scanner prevents escaped quotes from truncating code properties.
+func readKDLQuoted(runes []rune, start int) (string, int, error) {
+	var b strings.Builder
+	for i := start + 1; i < len(runes); i++ {
+		switch runes[i] {
+		case '"':
+			return b.String(), i + 1, nil
+		case '\\':
 			i++
+			if i >= len(runes) {
+				return "", i, fmt.Errorf("unterminated escape in quoted string")
+			}
+			switch runes[i] {
+			case 'n':
+				b.WriteByte('\n')
+			case 't':
+				b.WriteByte('\t')
+			case 'r':
+				b.WriteByte('\r')
+			case 'b':
+				b.WriteByte('\b')
+			case 'f':
+				b.WriteByte('\f')
+			case '"', '\\', '/':
+				b.WriteRune(runes[i])
+			default:
+				return "", i, fmt.Errorf("invalid escape \\%c in quoted string", runes[i])
+			}
+		default:
+			b.WriteRune(runes[i])
 		}
 	}
-	for {
-		skip()
-		if i >= len(runes) {
-			break
+	return "", len(runes), fmt.Errorf("unterminated quoted string")
+}
+
+func tokenizeKDLine(line string) ([]kdlTok, error) {
+	var out []kdlTok
+	runes := []rune(line)
+	isArrow := func(i int) bool {
+		return i+1 < len(runes) && runes[i] == '-' && runes[i+1] == '>'
+	}
+	for i := 0; i < len(runes); {
+		if unicode.IsSpace(runes[i]) {
+			i++
+			continue
 		}
-		if i+1 < len(runes) && runes[i] == '-' && runes[i+1] == '>' {
+		if isArrow(i) {
 			out = append(out, kdlTok{typ: kdArrow, str: "->"})
 			i += 2
 			continue
 		}
 		if runes[i] == '"' {
-			i++
-			var b strings.Builder
-			for i < len(runes) && runes[i] != '"' {
-				if runes[i] == '\\' && i+1 < len(runes) {
-					i++
-					switch runes[i] {
-					case 'n':
-						b.WriteByte('\n')
-					case 't':
-						b.WriteByte('\t')
-					case '"':
-						b.WriteByte('"')
-					case '\\':
-						b.WriteByte('\\')
-					default:
-						b.WriteRune(runes[i])
-					}
-					i++
-					continue
-				}
-				b.WriteRune(runes[i])
-				i++
-			}
-			if i < len(runes) {
-				i++
-			}
-			out = append(out, kdlTok{typ: kdString, str: b.String()})
-			continue
-		}
-		j := i
-		for j < len(runes) && !unicode.IsSpace(runes[j]) && !(runes[j] == '-' && j+1 < len(runes) && runes[j+1] == '>') {
-			j++
-		}
-		word := string(runes[i:j])
-		i = j
-		if strings.Contains(word, "=") {
-			parts := strings.SplitN(word, "=", 2)
-			key := parts[0]
-			valPart := parts[1]
-			if strings.HasPrefix(valPart, `"`) {
-				if strings.HasSuffix(valPart, `"`) && len(valPart) >= 2 {
-					out = append(out, kdlTok{typ: kdProp, key: key, str: strings.Trim(valPart, `"`)})
-					continue
-				}
-				var b strings.Builder
-				b.WriteString(strings.TrimPrefix(valPart, `"`))
-				skip()
-				if b.Len() > 0 {
-					b.WriteByte(' ')
-				}
-				for i < len(runes) {
-					if runes[i] == '"' {
-						i++
-						break
-					}
-					b.WriteRune(runes[i])
-					i++
-				}
-				out = append(out, kdlTok{typ: kdProp, key: key, str: b.String()})
-				continue
-			}
-			tok, err := parseKDLValue(valPart)
+			value, next, err := readKDLQuoted(runes, i)
 			if err != nil {
 				return nil, err
 			}
-			tok.key = key
-			tok.typ = kdProp
+			out = append(out, kdlTok{typ: kdString, str: value})
+			i = next
+			continue
+		}
+		start := i
+		for i < len(runes) && !unicode.IsSpace(runes[i]) && runes[i] != '=' && runes[i] != '"' && !isArrow(i) {
+			i++
+		}
+		word := string(runes[start:i])
+		if i < len(runes) && runes[i] == '=' {
+			i++
+			if i < len(runes) && runes[i] == '"' {
+				value, next, err := readKDLQuoted(runes, i)
+				if err != nil {
+					return nil, err
+				}
+				out = append(out, kdlTok{typ: kdProp, key: word, str: value})
+				i = next
+				continue
+			}
+			start = i
+			for i < len(runes) && !unicode.IsSpace(runes[i]) && !isArrow(i) {
+				i++
+			}
+			tok, err := parseKDLValue(string(runes[start:i]))
+			if err != nil {
+				return nil, err
+			}
+			tok.key, tok.typ = word, kdProp
 			out = append(out, tok)
 			continue
 		}

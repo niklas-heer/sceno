@@ -11,15 +11,16 @@ import (
 // Evaluation is the single source of truth for scene semantics after layout.
 // All validation, advise, describe, and render paint-order contracts derive from this.
 type Evaluation struct {
-	Scene       Report       `json:"scene"`
-	Stack       StackSummary `json:"stack"`
-	SceneStack  Stack        `json:"scene_stack"`
-	PaintOrder  []PaintItem  `json:"paint_order"`
-	Findings    []Finding    `json:"findings"`
-	Score       int          `json:"visual_score"`
-	RulesRun    []string     `json:"rules_run"`
-	Summary     string       `json:"summary"`
-	VisualRules []VisualRule `json:"visual_rules"`
+	Scene       Report        `json:"scene"`
+	Stack       StackSummary  `json:"stack"`
+	SceneStack  Stack         `json:"scene_stack"`
+	Spacing     SpacingReport `json:"spacing"`
+	PaintOrder  []PaintItem   `json:"paint_order"`
+	Findings    []Finding     `json:"findings"`
+	Score       int           `json:"visual_score"`
+	RulesRun    []string      `json:"rules_run"`
+	Summary     string        `json:"summary"`
+	VisualRules []VisualRule  `json:"visual_rules"`
 }
 
 // Evaluate runs the full stack engine on a laid-out diagram.
@@ -73,6 +74,7 @@ func Evaluate(d *model.Diagram) Evaluation {
 		Scene:       sceneReport,
 		Stack:       stack.Summary(),
 		SceneStack:  stack,
+		Spacing:     AnalyzeSpacing(d, stack),
 		PaintOrder:  sceneReport.PaintOrder,
 		Findings:    findings,
 		Score:       score,
@@ -94,6 +96,7 @@ func (ev Evaluation) EngineReport() EngineReport {
 	return EngineReport{
 		Stack:       ev.Stack,
 		SceneStack:  ev.SceneStack,
+		Spacing:     ev.Spacing,
 		RulesRun:    ev.RulesRun,
 		Findings:    ev.Findings,
 		Issues:      issues,
@@ -116,14 +119,23 @@ func MergeEvaluations(evals []Evaluation) Evaluation {
 		VisualRules: VisualRulesCatalog,
 	}
 	seenRules := map[string]struct{}{}
-	for _, ev := range evals {
-		if ev.Score < merged.Score {
+	for i, ev := range evals {
+		if i == 0 || ev.Score < merged.Score {
 			merged.Score = ev.Score
 			merged.Stack = ev.Stack
 			merged.SceneStack = ev.SceneStack
+			merged.Spacing = ev.Spacing
+			merged.Scene = ev.Scene
+			merged.PaintOrder = ev.PaintOrder
 			merged.Summary = ev.Summary
 		}
-		merged.Findings = append(merged.Findings, ev.Findings...)
+		for _, finding := range ev.Findings {
+			// IDs are scoped to a slide: identical findings on two slides
+			// require two repairs and must never be deduplicated together.
+			finding.SlideIndex = i + 1
+			finding.Message = fmt.Sprintf("slide %d: %s", i+1, finding.Message)
+			merged.Findings = append(merged.Findings, finding)
+		}
 		for _, r := range ev.RulesRun {
 			if _, ok := seenRules[r]; !ok {
 				seenRules[r] = struct{}{}

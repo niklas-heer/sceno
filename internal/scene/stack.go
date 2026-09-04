@@ -245,11 +245,11 @@ func (s Stack) Project(planes ...PlaneKind) []StackItem {
 	for _, p := range planes {
 		want[p] = true
 	}
-	for _, items := range s.Planes {
-		for _, it := range items {
-			if want[it.Plane] {
-				out = append(out, it)
-			}
+	// Map iteration must not change collision pair order or repair targets.
+	// Project in semantic paint order, retaining source order within planes.
+	for plane := PlaneBackground; plane <= PlaneChrome; plane++ {
+		if want[plane] {
+			out = append(out, s.Planes[plane.String()]...)
 		}
 	}
 	return out

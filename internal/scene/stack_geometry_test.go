@@ -1,11 +1,29 @@
 package scene
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/niklas-heer/sceno/internal/measure"
 	"github.com/niklas-heer/sceno/internal/model"
 )
+
+func TestProjectUsesPaintThenSourceOrder(t *testing.T) {
+	stack := BuildStack(&model.Diagram{Nodes: []model.Node{
+		{ID: "node2", Kind: model.ShapeBox},
+		{ID: "note", Kind: model.ShapeNote},
+		{ID: "node1", Kind: model.ShapeBox},
+	}})
+	for i := 0; i < 50; i++ {
+		var ids []string
+		for _, item := range stack.Project(PlaneNode, PlaneAnnotation, PlaneNode) {
+			ids = append(ids, item.ID)
+		}
+		if !reflect.DeepEqual(ids, []string{"note", "node2", "node1"}) {
+			t.Fatalf("unstable projection or source order: %v", ids)
+		}
+	}
+}
 
 func TestStackExposesSilhouetteWritableBoundsAndEffectiveFont(t *testing.T) {
 	d := &model.Diagram{Nodes: []model.Node{{

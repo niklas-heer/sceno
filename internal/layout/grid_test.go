@@ -45,3 +45,39 @@ func TestGridReservesBreathingRoomAroundEdgeLabels(t *testing.T) {
 		t.Fatalf("vertical labeled gap = %.0f, want at least 65", vertical)
 	}
 }
+
+func TestGridLabeledEdgesIgnoreFittedContainers(t *testing.T) {
+	for _, reverse := range []bool{false, true} {
+		for _, row := range []int{0, 7} {
+			d := model.Diagram{Nodes: []model.Node{
+				{ID: "group", Kind: model.ShapeFrame, Row: row, Rect: model.Rect{W: 180, H: 120}},
+				{ID: "child", Parent: "group", AtSet: true, Rect: model.Rect{W: 80, H: 40}},
+			}}
+			from, to := "group", "child"
+			if reverse {
+				from, to = to, from
+			}
+			d.Edges = []model.Edge{{From: from, To: to, Label: "a labeled container relationship"}}
+			Grid(&d, 24)
+			if d.Nodes[0].Column != -1 || d.Nodes[1].Column != 0 {
+				t.Fatalf("fitted container must stay outside the grid: %+v", d.Nodes)
+			}
+			if got := d.Nodes[1].Rect; got.X != 24 || got.Y != 24 {
+				t.Fatalf("container label must not change child grid spacing: %+v", got)
+			}
+		}
+	}
+}
+
+func TestGridLabeledEdgeBetweenFittedContainers(t *testing.T) {
+	d := model.Diagram{Nodes: []model.Node{
+		{ID: "group1", Kind: model.ShapeFrame, Row: 7},
+		{ID: "group2", Kind: model.ShapeFrame, Row: 8},
+		{ID: "child1", Parent: "group1", AtSet: true, Rect: model.Rect{W: 80, H: 40}},
+		{ID: "child2", Parent: "group2", AtSet: true, Layer: 1, Rect: model.Rect{W: 80, H: 40}},
+	}, Edges: []model.Edge{{From: "group1", To: "group2", Label: "group flow"}}}
+	Grid(&d, 24)
+	if gap := d.Nodes[3].Rect.X - d.Nodes[2].Rect.Right(); gap != 48 {
+		t.Fatalf("fitted-container relationship changed grid gap: %v", gap)
+	}
+}
