@@ -137,7 +137,7 @@ confirm() {
 main() {
   preflight
 
-  local current next tag base reason
+  local current next tag base reason=""
   current="$(current_version)"
   tag="$(latest_tag "$current")"
   base="${tag:-}"
