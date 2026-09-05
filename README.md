@@ -24,7 +24,7 @@ sceno render -i examples/how-it-works.kdl -o docs/how-it-works
 
 ## Start with a live preview
 
-The live preview, named templates, and verified repairs are available on `main`. [Build from source](#build-from-source) to use them before the next release; published packages may not include them yet.
+The live preview, named templates, and verified repairs are available in **v0.5.0 and later**. Install the latest release using the instructions below.
 
 ```bash
 sceno init --list

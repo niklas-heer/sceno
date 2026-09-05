@@ -5,6 +5,39 @@ All notable changes to this project are documented in this file.
 Release notes are generated from conventional commits by `mask release` and published to GitHub Releases from `CHANGELOG.md`.
 
 
+## [0.5.0](https://github.com/niklas-heer/sceno/releases/tag/v0.5.0) (2026-09-05)
+
+Sceno now includes a local browser preview for editing KDL, inspecting exact bounds and spacing, and reviewing verified repairs before applying them. Four starter templates help you get to a useful diagram quickly.
+
+### Upgrade notes
+
+- Building Sceno requires **Go 1.27.1 or later**; macOS binaries require **macOS 13 or later**.
+- `sceno init` protects existing files. Pass `--force` to overwrite one deliberately.
+- The live preview uses polished rendering. Repairs preserve source formatting, reject stale or structurally unsafe edits, and offer session Undo.
+- Grid indices must be between 0 and 10,000. Numeric geometry must be finite with absolute magnitude at most 1,000,000.
+- Polished PNG exports are limited to 32 million pixels and 32,768 pixels per side; use SVG/PDF or smaller slides for larger canvases.
+
+### Try the new workflow
+
+```bash
+sceno init --template service-architecture -o architecture.kdl
+sceno preview architecture.kdl
+```
+
+### Features
+* **preview**: add live editing with verified repairs and starter templates ([80bdd14](https://github.com/niklas-heer/sceno/commit/80bdd146c6f64e27b0e92dc871767ea4a360b1c5))
+* **engine**: expose deterministic spacing and slide-scoped repairs ([807af38](https://github.com/niklas-heer/sceno/commit/807af383ef7578dd12e7331aa9e3582738646cc9))
+
+### Bug Fixes
+* **release**: support explicit versions with strict shell checks ([7b5e47e](https://github.com/niklas-heer/sceno/commit/7b5e47e97c129cea76c03df5fd9c942683ad9587))
+* **ci**: match orchestration module to Dagger bootstrap compiler ([8afcfd0](https://github.com/niklas-heer/sceno/commit/8afcfd05d46d6a6c40fc4e9d50fa9a7cdd74c136))
+* **render**: preserve canonical geometry across polished exports ([69e21c0](https://github.com/niklas-heer/sceno/commit/69e21c007ab06cd4a5196d11d25ba23def111dd5))
+
+### Documentation
+* publish preview workflows and geometry feedback reference ([091972e](https://github.com/niklas-heer/sceno/commit/091972e01d18fb59f783d07105801999cbeeb276))
+* **install**: add Homebrew tap instructions ([1c25a0b](https://github.com/niklas-heer/sceno/commit/1c25a0bd03f4addebd02c137f22ba67a81c2df5e))
+
+
 ## [0.4.0](https://github.com/niklas-heer/sceno/releases/tag/v0.4.0) (2026-07-19)
 
 ### Features
