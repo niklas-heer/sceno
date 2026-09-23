@@ -87,6 +87,14 @@ brew install niklas-heer/tap/sceno
 
 The fully qualified formula name lets Homebrew trust only Sceno instead of the complete third-party tap. Upgrade later with `brew upgrade niklas-heer/tap/sceno`.
 
+### Nix flake (Linux & Apple Silicon macOS)
+
+```bash
+nix profile add github:niklas-heer/sceno
+```
+
+This builds the latest `main` from source. Try it without installing via `nix run github:niklas-heer/sceno -- --version`.
+
 ### One-line install (macOS & Linux)
 
 Installs the **latest published release** — downloads the binary for your OS/arch, verifies SHA256, and installs to `/usr/local/bin`:

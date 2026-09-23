@@ -12,3 +12,6 @@ coverage.out
 # Force-track (macOS global gitignore may match Icon? on paths containing "icons")
 !internal/icons/
 !internal/icons/**
+
+# Nix build output
+/result
