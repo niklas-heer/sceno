@@ -10,7 +10,7 @@ buildGo127Module {
 
   src = lib.cleanSource ../.;
 
-  vendorHash = "sha256-o2v5I35gGZqIxrZoVoNspKNlatrkJpn/lL4yx7Co2w0=";
+  vendorHash = "sha256-859s3WkYq7QIDJfF4qjl3RI1C27ECjSdRJYUdiKQrTs=";
 
   subPackages = [ "cmd/sceno" ];
   env.CGO_ENABLED = 0;

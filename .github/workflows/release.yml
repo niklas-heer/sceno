@@ -18,7 +18,7 @@ jobs:
       - name: Build and export release artifacts
         uses: dagger/dagger-for-github@v8.4.1
         with:
-          version: "0.20.8"
+          version: "0.21.11"
           module: .
           dagger-flags: "--progress plain"
           call: >-
